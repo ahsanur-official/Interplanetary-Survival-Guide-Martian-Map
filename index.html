@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MARSWAY — Real-Time NASA Mars Map & Mission GIS</title>
+    <meta name="description" content="Real-time interactive planetary GIS map of Mars using live NASA Viking Color mosaics, MGS MOLA elevation, and OpenPlanetary basemaps with mission site exploration and traverse planning." />
+    <meta property="og:title" content="MARSWAY — Real-Time NASA Mars Map & Mission GIS" />
+    <meta property="og:description" content="Real-time interactive planetary GIS map of Mars using live NASA Viking Color mosaics, MGS MOLA elevation, and OpenPlanetary basemaps with mission site exploration and traverse planning." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Polyfill/safety shim: Ensure window.fetch has a setter so scripts assigning to fetch do not throw
+      (function() {
+        try {
+          var _origFetch = window.fetch;
+          var _currentFetch = _origFetch;
+          try {
+            Object.defineProperty(window, 'fetch', {
+              get: function() { return _currentFetch; },
+              set: function(val) { _currentFetch = val; },
+              configurable: true,
+              enumerable: true
+            });
+          } catch (e1) {
+            if (typeof Window !== 'undefined' && Window.prototype) {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                get: function() { return _currentFetch; },
+                set: function(val) { _currentFetch = val; },
+                configurable: true,
+                enumerable: true
+              });
+            }
+          }
+        } catch (err) {
+          // Non-blocking fallback
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
