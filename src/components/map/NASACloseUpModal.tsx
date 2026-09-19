@@ -77,11 +77,19 @@ export const NASACloseUpModal: React.FC<NASACloseUpModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
         className={`relative w-full bg-[#0c101a] border border-neutral-700/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-neutral-200 transition-all ${
           isFullscreen ? 'fixed inset-2 z-50 h-[calc(100vh-1rem)]' : 'max-w-6xl h-[92vh] max-h-[900px]'
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header Bar */}
         <div className="px-4 py-3 bg-[#0f1422] border-b border-neutral-800 flex items-center justify-between shrink-0">
@@ -107,6 +115,7 @@ export const NASACloseUpModal: React.FC<NASACloseUpModalProps> = ({
 
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer hidden sm:block"
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
@@ -114,8 +123,19 @@ export const NASACloseUpModal: React.FC<NASACloseUpModalProps> = ({
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+              type="button"
+              aria-label="Close NASA Close-Up Modal"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClose();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClose();
+              }}
+              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 transition-all cursor-pointer shrink-0 ml-1.5 shadow-md"
               title="Close"
             >
               <X className="w-5 h-5" />

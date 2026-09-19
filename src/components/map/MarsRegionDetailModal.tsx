@@ -34,11 +34,14 @@ export function MarsRegionDetailModal({
   if (!region) return null;
 
   return (
-    <div className="fixed inset-0 z-45 flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-auto animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm pointer-events-auto transition-opacity"
-        onClick={onClose}
+        className="fixed inset-0 bg-black/75 backdrop-blur-md pointer-events-auto transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       />
 
       {/* Main Drawer / Modal */}
@@ -46,6 +49,7 @@ export function MarsRegionDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="region-modal-title"
+        onClick={(e) => e.stopPropagation()}
         className="relative w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[82vh] bg-[#0c101a] border border-neutral-700/80 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-black/90 pointer-events-auto flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
       >
         {/* Top Accent Strip with region border color */}
@@ -90,6 +94,7 @@ export function MarsRegionDetailModal({
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
+              type="button"
               onClick={() => onFitRegionBounds(region)}
               className="p-1.5 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors cursor-pointer border border-neutral-700/60"
               title="Fit map to region boundary"
@@ -97,8 +102,19 @@ export function MarsRegionDetailModal({
               <Maximize2 className="w-4 h-4" />
             </button>
             <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors cursor-pointer border border-neutral-700/60"
+              type="button"
+              aria-label="Close region dossier"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClose();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClose();
+              }}
+              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-all cursor-pointer border border-neutral-700 shadow-md"
               title="Close"
             >
               <X className="w-4 h-4" />

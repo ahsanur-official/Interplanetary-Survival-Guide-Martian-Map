@@ -53,6 +53,43 @@
   border: none !important;
 }
 
+/* Upright Counter-Rotating Map Text, Markers, & Tooltips */
+/* When the map container rotates by -bearing, these counter-rotate by +bearing so all labels and text stay perfectly horizontal and face the user */
+.mars-google-label-inner {
+  transform: translate(-50%, -50%) rotate(var(--map-bearing, 0deg)) !important;
+  transform-origin: center center;
+  transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
+.mars-site-pin {
+  transform: rotate(var(--map-bearing, 0deg)) !important;
+  transform-origin: 10px 10px;
+  transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
+.mars-waypoint-badge {
+  transform: rotate(var(--map-bearing, 0deg)) !important;
+  transform-origin: center center;
+  transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
+.rover-wp {
+  transform: rotate(var(--map-bearing, 0deg)) !important;
+  transform-origin: 5px 5px;
+  transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+
+.leaflet-tooltip {
+  rotate: var(--map-bearing, 0deg);
+  transform-origin: center center;
+  transition: rotate 0.45s cubic-bezier(0.2, 0, 0, 1);
+  will-change: rotate;
+}
+
 /* Custom scrollbar for clean UI */
 ::-webkit-scrollbar {
   width: 6px;

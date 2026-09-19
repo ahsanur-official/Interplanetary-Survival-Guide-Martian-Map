@@ -24,6 +24,7 @@ import {
   Eye,
   Sliders,
   ChevronDown,
+  ChevronRight,
   RotateCcw,
   Globe,
   Plus,
@@ -36,7 +37,13 @@ import {
   AlertCircle,
   Mountain,
   Milestone,
+  Droplets,
+  Menu,
+  ShieldAlert,
+  Bot,
+  CloudRain,
 } from 'lucide-react';
+import { analyzeMarsLocationScience } from '../../engine/marsEnvironmentalAnalysis';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
   MARS_REGIONS,
@@ -57,6 +64,8 @@ import { MarsCompassWidget } from './MarsCompassWidget';
 import { MarsScaleBar } from './MarsScaleBar';
 import { NASACloseUpModal } from './NASACloseUpModal';
 import { MarsRegionDetailModal } from './MarsRegionDetailModal';
+import { Mars3DGlobe } from './Mars3DGlobe';
+import { MarsScienceDossierModal } from './MarsScienceDossierModal';
 
 export interface MarsSite extends MarsFeature {
   mission?: string;
@@ -86,6 +95,9 @@ export const PERSEVERANCE_TRAVERSE_TRACK = [
 ];
 
 export function RealMarsMap() {
+  // Primary View Mode: '3d' (Full 3D Mars Planet in Space with Stars) or '2d' (Flat Mercator Map)
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
@@ -101,6 +113,9 @@ export function RealMarsMap() {
   const bearingRef = useRef<number>(0);
   useEffect(() => {
     bearingRef.current = bearing;
+    if (mapContainerRef.current) {
+      mapContainerRef.current.style.setProperty('--map-bearing', `${bearing}deg`);
+    }
   }, [bearing]);
 
   // Stage measurement for full diagonal coverage without black edges when rotated
@@ -156,8 +171,21 @@ export function RealMarsMap() {
   const [isCloseUpModalOpen, setIsCloseUpModalOpen] = useState<boolean>(false);
   const [closeUpSearchTarget, setCloseUpSearchTarget] = useState<string>('Jezero Crater');
 
+  // Mars Science Dossier Modal State (Water, Gas, Safety, Rain)
+  const [isScienceDossierOpen, setIsScienceDossierOpen] = useState<boolean>(false);
+  const [scienceDossierTarget, setScienceDossierTarget] = useState<{
+    lat: number;
+    lng: number;
+    elevationM: number;
+    name?: string;
+    type?: string;
+  } | null>(null);
+
   // Active modal/drawer tab: 'sites' | 'route' | 'layers' | 'weather' | 'search' | null
   const [activeTab, setActiveTab] = useState<'sites' | 'route' | 'layers' | 'weather' | 'search' | null>(null);
+
+  // Desktop & Mobile Global Hamburger Navigation Drawer
+  const [isHamburgerOpen, setIsHamburgerOpen] = useState<boolean>(false);
 
   // Selected site
   const [selectedSite, setSelectedSite] = useState<MarsSite | null>(null);
@@ -191,6 +219,9 @@ export function RealMarsMap() {
     distToNearestKm?: number;
     containingRegion?: MarsRegion;
   } | null>(null);
+
+  // Arrived surface location notification banner when diving from 3D
+  const [arrivedSurfaceBanner, setArrivedSurfaceBanner] = useState<{ name: string; lat: number; lng: number } | null>(null);
 
   // Route Planning Waypoints
   const [routeWaypoints, setRouteWaypoints] = useState<{ lat: number; lng: number; name: string }[]>([]);
@@ -275,13 +306,20 @@ export function RealMarsMap() {
       minZoom: 2,
       maxZoom: 10,
       maxBounds: [
-        [-85, -180],
-        [85, 180],
+        [-88, -540],
+        [88, 540],
       ],
-      maxBoundsViscosity: 0.8,
+      maxBoundsViscosity: 0.0,
       attributionControl: false,
       zoomControl: false,
       worldCopyJump: true,
+      inertia: true,
+      inertiaDeceleration: 3200,
+      inertiaMaxSpeed: Infinity,
+      zoomAnimation: true,
+      fadeAnimation: true,
+      markerZoomAnimation: true,
+      bounceAtZoomLimits: false,
     });
 
     mapInstanceRef.current = map;
@@ -650,7 +688,7 @@ export function RealMarsMap() {
         const labelIcon = L.divIcon({
           className: 'mars-google-label',
           html: `
-            <div style="
+            <div class="mars-google-label-inner" style="
               display: inline-flex;
               align-items: center;
               gap: 4px;
@@ -662,7 +700,9 @@ export function RealMarsMap() {
               text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 3px #000;
               white-space: nowrap;
               pointer-events: none;
-              transform: translate(-50%, -50%);
+              transform: translate(-50%, -50%) rotate(var(--map-bearing, 0deg));
+              transform-origin: center center;
+              transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);
               opacity: ${isSelected ? 1 : 0.85};
             ">
               <span>${shortLabel}</span>
@@ -709,10 +749,10 @@ export function RealMarsMap() {
       const colorClass = getCategoryColor(site.category || site.type);
 
       const iconHtml = `
-        <div class="relative flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-125">
+        <div class="mars-site-pin relative flex items-center justify-center cursor-pointer" style="width: 20px; height: 20px; transform: rotate(var(--map-bearing, 0deg)); transform-origin: 10px 10px; transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);">
           <div class="w-5 h-5 rounded-full flex items-center justify-center border-2 shadow-lg ${colorClass} ${
             isSelected ? 'ring-4 ring-white scale-125' : ''
-          }">
+          } transition-transform duration-200 hover:scale-125">
             <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
           </div>
           <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-950/95 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-200 pointer-events-none shadow">
@@ -803,13 +843,13 @@ export function RealMarsMap() {
 
       const wpIcon = L.divIcon({
         html: `
-          <div class="flex items-center justify-center w-6 h-6 rounded-full font-bold text-[10px] text-white shadow-lg border-2 ${
+          <div class="mars-waypoint-badge flex items-center justify-center w-6 h-6 rounded-full font-bold text-[10px] text-white shadow-lg border-2 ${
             isStart
               ? 'bg-emerald-600 border-white'
               : isEnd
               ? 'bg-red-600 border-white'
               : 'bg-cyan-600 border-cyan-200'
-          }">
+          }" style="transform: rotate(var(--map-bearing, 0deg)); transform-origin: center center; transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);">
             ${idx + 1}
           </div>
         `,
@@ -857,12 +897,23 @@ export function RealMarsMap() {
   }, [routeWaypoints]);
 
   // Fly to site - AUTO-CLOSES MODAL to immediately show the target
-  const handleFlyTo = (site: MarsSite) => {
-    setSelectedSite(site);
+  const handleFlyTo = (site: MarsSite | MarsFeature, zoomLevel = 6) => {
+    const fullSite: MarsSite = {
+      ...site,
+      elevation: (site as any).elevation ?? (site as any).elevationM ?? 0,
+      category: (site as any).category ?? (site as any).type ?? 'Surface Feature',
+      significance: (site as any).significance ?? (site as any).description ?? 'Martian surface feature',
+    };
+    setSelectedSite(fullSite);
     setActiveTab(null); // Auto-close modal as requested
-    mapInstanceRef.current?.flyTo([site.lat, site.lng], 6, {
-      duration: 1.5,
-    });
+    
+    const map = mapInstanceRef.current;
+    if (map) {
+      map.invalidateSize();
+      map.flyTo([site.lat, site.lng], zoomLevel, {
+        duration: 1.2,
+      });
+    }
   };
 
   // Global reset view
@@ -980,6 +1031,40 @@ export function RealMarsMap() {
           </div>
         </div>
 
+        {/* Primary View Mode Switcher: 3D Planet Globe vs 2D Flat Map */}
+        <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-neutral-900/90 border border-neutral-700/80 shadow-inner shrink-0">
+          <button
+            onClick={() => setViewMode('3d')}
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewMode === '3d'
+                ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md shadow-orange-950/60'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Interactive 3D Mars Planet Globe with Deep Space & Stars"
+          >
+            <Globe className="w-3.5 h-3.5 text-amber-300" />
+            <span>3D Globe</span>
+            <span className="text-[8.5px] px-1 py-0.2 rounded bg-orange-950/90 text-orange-300 border border-orange-700/80 font-mono hidden sm:inline">
+              PRIMARY
+            </span>
+          </button>
+          <button
+            onClick={() => {
+              setViewMode('2d');
+              setTimeout(() => mapInstanceRef.current?.invalidateSize(), 60);
+            }}
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              viewMode === '2d'
+                ? 'bg-neutral-800 text-white shadow border border-neutral-600'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Flat Mercator 2D Map with Elevation & Route Traverses"
+          >
+            <Layers className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Flat Map</span>
+          </button>
+        </div>
+
         {/* Desktop Search Bar (Hidden on mobile) */}
         <div className="relative max-w-xs w-full hidden md:block">
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -1028,278 +1113,532 @@ export function RealMarsMap() {
           )}
         </div>
 
-        {/* Desktop Navigation Tabs (Hidden on mobile) */}
-        <div className="hidden md:flex items-center gap-1.5">
-          <button
-            onClick={() => setActiveTab(activeTab === 'sites' ? null : 'sites')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTab === 'sites'
-                ? 'bg-orange-600 text-white border-orange-400 shadow-md shadow-orange-950'
-                : 'bg-neutral-900/90 text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>Landmarks</span>
-          </button>
+        {/* Desktop & Mobile Unified Hamburger Menu Button */}
+        <div className="flex items-center gap-2 shrink-0">
+          {routeWaypoints.length > 0 && (
+            <button
+              onClick={() => setActiveTab('route')}
+              className="px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-800/80 text-cyan-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+            >
+              <Navigation className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{routeWaypoints.length} pts</span>
+            </button>
+          )}
 
           <button
-            onClick={() => setActiveTab(activeTab === 'route' ? null : 'route')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTab === 'route'
-                ? 'bg-cyan-600 text-white border-cyan-400 shadow-md shadow-cyan-950'
-                : 'bg-neutral-900/90 text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white'
+            id="mars-global-hamburger-button"
+            type="button"
+            onClick={() => setIsHamburgerOpen(!isHamburgerOpen)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-lg ${
+              isHamburgerOpen
+                ? 'bg-orange-600 text-white border-orange-400 shadow-orange-950/60'
+                : 'bg-neutral-900/95 text-neutral-200 border-neutral-700/80 hover:bg-neutral-800 hover:text-white'
             }`}
+            title="Open Mars Mission & Navigation Suite"
           >
-            <Navigation className="w-3.5 h-3.5" />
-            <span>Route Planner</span>
-            {routeWaypoints.length > 0 && (
-              <span className="ml-1 w-4 h-4 rounded-full bg-cyan-400 text-cyan-950 text-[10px] flex items-center justify-center font-bold">
-                {routeWaypoints.length}
-              </span>
-            )}
+            <Menu className="w-4 h-4 text-orange-400" />
+            <span className="hidden sm:inline tracking-wide">Menu</span>
           </button>
+        </div>
+      </header>
 
-          <button
-            onClick={() => setActiveTab(activeTab === 'layers' ? null : 'layers')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTab === 'layers'
-                ? 'bg-neutral-700 text-white border-neutral-500 shadow-md'
-                : 'bg-neutral-900/90 text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white'
-            }`}
+      {/* GLOBAL HAMBURGER SLIDE-OVER NAVIGATION SUITE */}
+      {isHamburgerOpen && (
+        <div className="fixed inset-0 z-[9990] flex justify-end pointer-events-auto animate-in fade-in duration-200">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsHamburgerOpen(false)}
+          />
+
+          {/* Slide-over Drawer Panel */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mars Mission Navigation Suite"
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm sm:max-w-md h-full bg-[#0c101a] border-l border-neutral-800/90 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-250 text-neutral-200"
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Surface View</span>
-          </button>
+            {/* Drawer Header */}
+            <div className="p-4 sm:p-5 border-b border-neutral-800 bg-[#0e1422] flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-orange-600/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
+                    Mars Mission Navigation
+                  </h2>
+                  <p className="text-[11px] text-neutral-400">
+                    Cartography, Datasets & Scientific Tools
+                  </p>
+                </div>
+              </div>
 
-          {/* Authentic Google Maps Borders Dropdown & Selector */}
-          <div className="relative">
-            <div className="flex items-center rounded-lg border border-neutral-700 bg-neutral-900/90 shadow-sm overflow-hidden">
               <button
-                onClick={() => setShowRegions(!showRegions)}
-                className={`px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  showRegions
-                    ? 'bg-neutral-800 text-white'
-                    : 'text-neutral-400 hover:text-white'
-                }`}
-                title="Toggle Google Maps-Style Area Borders"
+                type="button"
+                aria-label="Close navigation menu"
+                onClick={() => setIsHamburgerOpen(false)}
+                className="p-2 rounded-xl bg-neutral-800/90 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 transition-colors cursor-pointer"
               >
-                <Globe className={`w-3.5 h-3.5 ${showRegions ? 'text-[#ea4335]' : 'text-neutral-500'}`} />
-                <span>Area Borders</span>
-                <span
-                  className={`text-[9px] px-1 py-0.2 rounded font-mono font-bold ${
-                    showRegions
-                      ? 'bg-red-950 text-red-300 border border-red-800/80'
-                      : 'bg-neutral-800 text-neutral-400'
-                  }`}
-                >
-                  {showRegions ? 'ON' : 'OFF'}
-                </span>
-              </button>
-              <button
-                onClick={() => setIsBordersMenuOpen(!isBordersMenuOpen)}
-                className={`px-1.5 py-1.5 border-l border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer ${
-                  isBordersMenuOpen ? 'bg-neutral-800 text-white' : ''
-                }`}
-                title="Google Maps Border Options & Area Picker"
-              >
-                <ChevronDown className="w-3 h-3" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Google Maps Borders Popover Menu */}
-            {isBordersMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsBordersMenuOpen(false)}
-                />
-                <div className="absolute top-full right-0 mt-2 z-50 w-72 sm:w-80 bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700 rounded-2xl shadow-2xl p-3.5 space-y-3 animate-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-[#ea4335]" />
-                      <span className="text-xs font-bold text-white">Google Maps Boundary System</span>
-                    </div>
-                    <button
-                      onClick={() => setIsBordersMenuOpen(false)}
-                      className="text-neutral-400 hover:text-white p-1 rounded-md hover:bg-neutral-800 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+            {/* Scrollable Navigation Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 text-xs">
+              {/* PRIMARY VIEW SELECTOR */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                  Planet Projection Mode
+                </span>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-900/90 p-1.5 rounded-xl border border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('3d');
+                      setIsHamburgerOpen(false);
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      viewMode === '3d'
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>3D Globe</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('2d');
+                      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 60);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      viewMode === '2d'
+                        ? 'bg-neutral-800 text-white shadow border border-neutral-600'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <Layers className="w-4 h-4" />
+                    <span>Flat Mercator</span>
+                  </button>
+                </div>
+              </div>
 
-                  {/* Master Toggle */}
-                  <div className="flex items-center justify-between bg-neutral-900/90 p-2.5 rounded-xl border border-neutral-800">
-                    <div>
-                      <span className="text-xs font-semibold text-neutral-200 block">Show Borders</span>
-                      <span className="text-[10px] text-neutral-400 block">Clean hairline boundaries, no color fill</span>
+              {/* MISSION EXPLORATION & CARTOGRAPHY */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                  Exploration & Cartography
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(activeTab === 'sites' ? null : 'sites');
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-orange-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-950/80 text-orange-400 border border-orange-800/60 group-hover:scale-105 transition-transform">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Landmarks & Historic Sites</span>
+                        <span className="text-[10px] text-neutral-400">Olympus Mons, Jezero, Gale, Valles Marineris</span>
+                      </div>
                     </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(activeTab === 'route' ? null : 'route');
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-cyan-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 group-hover:scale-105 transition-transform">
+                        <Navigation className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Rover Route & Traverse Planner</span>
+                        <span className="text-[10px] text-neutral-400">Click anywhere to measure distance in km</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(activeTab === 'layers' ? null : 'layers');
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-emerald-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 group-hover:scale-105 transition-transform">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Surface Imagery & Basemaps</span>
+                        <span className="text-[10px] text-neutral-400">Viking Color, MOLA Elevation, THEMIS Thermal</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* GOOGLE MAPS AREA BORDERS & USGS 30 QUADRANGLES */}
+              <div className="p-3.5 rounded-xl bg-[#0e1422] border border-neutral-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-[#ea4335]" />
+                    <span className="text-xs font-bold text-white">Google Maps Area Borders</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={showRegions}
                       onChange={(e) => setShowRegions(e.target.checked)}
-                      className="accent-[#ea4335] rounded w-4 h-4 cursor-pointer"
+                      className="sr-only peer"
                     />
-                  </div>
-
-                  {/* Dataset Choice */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
-                      Grid & Territory Standard
-                    </span>
-                    <div className="grid grid-cols-2 gap-1.5 bg-neutral-900/90 p-1 rounded-xl border border-neutral-800">
-                      <button
-                        onClick={() => setRegionDataset('usgs')}
-                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
-                          regionDataset === 'usgs'
-                            ? 'bg-neutral-800 text-white shadow border border-neutral-700'
-                            : 'text-neutral-400 hover:text-neutral-200'
-                        }`}
-                      >
-                        <span>USGS 30 Quads</span>
-                        <span className="text-[8.5px] font-normal opacity-70">100% Global Grid</span>
-                      </button>
-                      <button
-                        onClick={() => setRegionDataset('geological')}
-                        className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
-                          regionDataset === 'geological'
-                            ? 'bg-neutral-800 text-white shadow border border-neutral-700'
-                            : 'text-neutral-400 hover:text-neutral-200'
-                        }`}
-                      >
-                        <span>Geological</span>
-                        <span className="text-[8.5px] font-normal opacity-70">Natural Provinces</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Quick Jump / Search to Area */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
-                      Jump to Area (Highlights in Google Red)
-                    </span>
-                    <select
-                      value={selectedRegion?.id || ''}
-                      onChange={(e) => {
-                        const reg = activeRegions.find((r) => r.id === e.target.value);
-                        if (reg) {
-                          setSelectedRegion(reg);
-                          setShowRegions(true);
-                          const polygon = L.polygon(reg.polygon);
-                          mapInstanceRef.current?.fitBounds(polygon.getBounds(), {
-                            padding: [50, 50],
-                            maxZoom: 7,
-                          });
-                        } else {
-                          setSelectedRegion(null);
-                        }
-                        setIsBordersMenuOpen(false);
-                      }}
-                      className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-[#ea4335] cursor-pointer"
-                    >
-                      <option value="">Select an area to highlight...</option>
-                      {activeRegions.map((reg) => (
-                        <option key={reg.id} value={reg.id}>
-                          {reg.quadCode ? `[${reg.quadCode}] ` : ''}{reg.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Labels Toggle */}
-                  <div className="flex items-center justify-between pt-2 border-t border-neutral-800 text-xs">
-                    <span className="text-neutral-300 text-xs">Show Typography Labels</span>
-                    <input
-                      type="checkbox"
-                      checked={showRegionLabels}
-                      onChange={(e) => setShowRegionLabels(e.target.checked)}
-                      className="accent-[#ea4335] rounded w-3.5 h-3.5 cursor-pointer"
-                    />
-                  </div>
+                    <div className="w-9 h-5 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#ea4335]"></div>
+                  </label>
                 </div>
-              </>
-            )}
+
+                <div className="grid grid-cols-2 gap-1.5 bg-neutral-900/90 p-1 rounded-lg border border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => setRegionDataset('usgs')}
+                    className={`py-1.5 px-2 rounded-md text-[10px] font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                      regionDataset === 'usgs'
+                        ? 'bg-neutral-800 text-white shadow border border-neutral-700'
+                        : 'text-neutral-400 hover:text-neutral-200'
+                    }`}
+                  >
+                    <span>USGS 30 Quads</span>
+                    <span className="text-[8px] font-normal opacity-70">100% Global Grid</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegionDataset('geological')}
+                    className={`py-1.5 px-2 rounded-md text-[10px] font-bold transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                      regionDataset === 'geological'
+                        ? 'bg-neutral-800 text-white shadow border border-neutral-700'
+                        : 'text-neutral-400 hover:text-neutral-200'
+                    }`}
+                  >
+                    <span>Geological</span>
+                    <span className="text-[8px] font-normal opacity-70">Natural Provinces</span>
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold text-neutral-400 block">
+                    Jump to Area & Highlight
+                  </span>
+                  <select
+                    value={selectedRegion?.id || ''}
+                    onChange={(e) => {
+                      const reg = activeRegions.find((r) => r.id === e.target.value);
+                      if (reg) {
+                        setSelectedRegion(reg);
+                        setShowRegions(true);
+                        const polygon = L.polygon(reg.polygon);
+                        mapInstanceRef.current?.fitBounds(polygon.getBounds(), {
+                          padding: [50, 50],
+                          maxZoom: 7,
+                        });
+                      } else {
+                        setSelectedRegion(null);
+                      }
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-[#ea4335] cursor-pointer"
+                  >
+                    <option value="">Select an area to highlight...</option>
+                    {activeRegions.map((reg) => (
+                      <option key={reg.id} value={reg.id}>
+                        {reg.quadCode ? `[${reg.quadCode}] ` : ''}{reg.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-neutral-800/80">
+                  <span className="text-[11px] text-neutral-300">Show Area Labels</span>
+                  <input
+                    type="checkbox"
+                    checked={showRegionLabels}
+                    onChange={(e) => setShowRegionLabels(e.target.checked)}
+                    className="accent-[#ea4335] rounded w-3.5 h-3.5 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* SCIENTIFIC DOSSIER & IN-SITU DATA */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                  Scientific Telemetry & Imagery
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCloseUpSearchTarget(selectedSite?.name || 'Jezero Crater');
+                      setIsCloseUpModalOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-orange-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-950/80 text-orange-400 border border-orange-800/60 group-hover:scale-105 transition-transform">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">NASA In-Situ Close-Up Imagery</span>
+                        <span className="text-[10px] text-neutral-400">25cm/pixel HiRISE & Rover Micro-Imagers</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScienceDossierTarget({
+                        lat: cursorPos?.lat || 18.38,
+                        lng: cursorPos?.lng || 77.58,
+                        elevationM: -2500,
+                        name: selectedSite?.name || 'Current Surface Sector',
+                        type: selectedSite?.type || 'TERRAIN SECTOR',
+                      });
+                      setIsScienceDossierOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-cyan-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 group-hover:scale-105 transition-transform">
+                        <Droplets className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Water, Atmosphere & Safety Dossier</span>
+                        <span className="text-[10px] text-neutral-400">Subsurface ice depth, gas fractions, human safety</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(activeTab === 'weather' ? null : 'weather');
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-amber-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-950/80 text-amber-400 border border-amber-800/60 group-hover:scale-105 transition-transform">
+                        <Thermometer className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Live Weather (Perseverance & InSight)</span>
+                        <span className="text-[10px] text-neutral-400">Ground temp, pressure, wind velocity & opacity</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* CALIBRATION & CONTROLS */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                  Map Calibration
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleResetView();
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBearing(0);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-orange-400" />
+                    <span>Align North</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-
-          <button
-            onClick={() => setActiveTab(activeTab === 'weather' ? null : 'weather')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTab === 'weather'
-                ? 'bg-amber-600 text-white border-amber-400 shadow-md'
-                : 'bg-neutral-900/90 text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white'
-            }`}
-          >
-            <Thermometer className="w-3.5 h-3.5" />
-            <span>Weather</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setCloseUpSearchTarget(selectedSite?.name || 'Jezero Crater');
-              setIsCloseUpModalOpen(true);
-            }}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border bg-orange-950/80 text-orange-200 border-orange-700/80 hover:bg-orange-900 hover:text-white shadow-md shadow-orange-950/50"
-            title="Real NASA in-situ close-up photographs from rovers & HiRISE"
-          >
-            <Camera className="w-3.5 h-3.5 text-orange-400" />
-            <span>NASA Close-Up</span>
-          </button>
         </div>
-
-        {/* Mobile Header Quick Actions */}
-        <div className="flex md:hidden items-center gap-1.5 shrink-0">
-          <button
-            onClick={() => setIsBordersMenuOpen(!isBordersMenuOpen)}
-            className={`px-2 py-1.5 rounded-lg border flex items-center gap-1 cursor-pointer transition-all ${
-              showRegions
-                ? 'bg-neutral-800 text-white border-neutral-600 shadow-sm'
-                : 'bg-neutral-900 text-neutral-400 border-neutral-700'
-            }`}
-            title="Google Maps Border Settings"
-          >
-            <Globe className={`w-3.5 h-3.5 ${showRegions ? 'text-[#ea4335]' : 'text-neutral-500'}`} />
-            <span className="text-[10px] font-bold">Borders</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setCloseUpSearchTarget(selectedSite?.name || 'Jezero Crater');
-              setIsCloseUpModalOpen(true);
-            }}
-            className="px-2 py-1.5 rounded-lg bg-orange-950/80 border border-orange-700/80 text-orange-300 font-bold text-[10px] flex items-center gap-1 shadow cursor-pointer"
-            title="NASA Close-Up"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span>Close-Up</span>
-          </button>
-
-          <button
-            onClick={handleResetView}
-            className="p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer"
-            title="Reset to Full Mars View"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </header>
+      )}
 
       {/* Main Interactive Stage */}
       <div
         ref={mapStageRef}
         className="flex-1 relative w-full h-full overflow-hidden bg-[#07090e]"
       >
-        {/* Rotated Map Canvas Container with Smooth 4-Directional Animation */}
+        {/* 3D Interactive Planet Globe (Primary View Mode) */}
+        {viewMode === '3d' && (
+          <div className="absolute inset-0 z-10">
+            <Mars3DGlobe
+              onSwitchToFlatMap={(site) => {
+                setViewMode('2d');
+                if (site) {
+                  const fullSite: MarsSite = {
+                    id: (site as any).id || `site-${site.lat}-${site.lng}`,
+                    name: site.name || 'Martian Surface Target',
+                    lat: site.lat,
+                    lng: site.lng,
+                    planetocentricLng: (site as any).planetocentricLng ?? (site.lng + 360) % 360,
+                    elevation: (site as any).elevation ?? (site as any).elevationM ?? -2000,
+                    elevationM: (site as any).elevationM ?? (site as any).elevation ?? -2000,
+                    category: (site as any).category ?? (site as any).type ?? 'Surface Feature',
+                    type: (site as any).type ?? 'Surface Feature',
+                    significance: (site as any).significance ?? (site as any).description ?? 'Martian surface coordinates.',
+                    description: (site as any).description ?? 'Martian surface coordinates.',
+                    historicalContext: (site as any).historicalContext ?? '',
+                    scientificValue: (site as any).scientificValue ?? '',
+                    originName: (site as any).originName ?? 'Surface Coordinates',
+                  };
+                  setSelectedSite(fullSite);
+                  setArrivedSurfaceBanner({
+                    name: fullSite.name,
+                    lat: fullSite.lat,
+                    lng: fullSite.lng,
+                  });
+
+                  // Smoothly ensure Leaflet map has valid dimensions and flies to the target coordinates
+                  setTimeout(() => {
+                    const map = mapInstanceRef.current;
+                    if (map) {
+                      map.invalidateSize();
+                      map.setView([site.lat, site.lng], 6, { animate: false });
+                      setTimeout(() => {
+                        map.invalidateSize();
+                        map.flyTo([site.lat, site.lng], 6.5, { duration: 1.0 });
+                      }, 50);
+                    }
+                  }, 40);
+                } else {
+                  setTimeout(() => {
+                    mapInstanceRef.current?.invalidateSize();
+                  }, 40);
+                }
+              }}
+              onOpenNASACloseUp={(name) => {
+                setCloseUpSearchTarget(name);
+                setIsCloseUpModalOpen(true);
+              }}
+              telemetry={ephemeris}
+              initialSelectedSite={selectedSite}
+            />
+          </div>
+        )}
+
+        {/* 2D Flat Mercator Map Container (Always kept mounted so tiles load instantly) */}
         <div
-          className="absolute top-1/2 left-1/2 flex items-center justify-center origin-center transition-transform duration-500 ease-out pointer-events-auto"
+          className={`w-full h-full absolute inset-0 transition-opacity duration-300 ${
+            viewMode === '2d' ? 'z-10 opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'
+          }`}
+        >
+          {/* Quick Jump to 3D Globe Button in 2D View */}
+          <button
+            onClick={() => setViewMode('3d')}
+            className="absolute top-3 right-3 sm:right-16 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-2xl transition-all cursor-pointer border border-orange-400/50"
+            title="Switch to 3D Spherical Mars Globe"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>3D Globe</span>
+          </button>
+
+          {/* Arrived Surface Location Notification Banner */}
+          {arrivedSurfaceBanner && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300 max-w-sm sm:max-w-md w-full px-3">
+              <div className="bg-[#090d16]/95 backdrop-blur-xl border border-emerald-500/80 rounded-2xl px-3.5 py-2.5 shadow-2xl flex items-center justify-between gap-3 text-white">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-950/80 border border-emerald-500/80 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                        Surface 2D View
+                      </span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    </div>
+                    <div className="text-xs font-bold text-white truncate">
+                      {arrivedSurfaceBanner.name}
+                    </div>
+                    <div className="text-[10px] font-mono text-neutral-400">
+                      {arrivedSurfaceBanner.lat >= 0 ? `${arrivedSurfaceBanner.lat.toFixed(2)}°N` : `${Math.abs(arrivedSurfaceBanner.lat).toFixed(2)}°S`},{' '}
+                      {arrivedSurfaceBanner.lng >= 0 ? `${arrivedSurfaceBanner.lng.toFixed(2)}°E` : `${Math.abs(arrivedSurfaceBanner.lng).toFixed(2)}°W`}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('3d')}
+                    className="px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white text-[10.5px] font-mono font-semibold transition-colors cursor-pointer flex items-center gap-1 border border-neutral-700"
+                    title="Return to 3D Globe"
+                  >
+                    <Globe className="w-3 h-3 text-orange-400" />
+                    <span>3D Globe</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setArrivedSurfaceBanner(null)}
+                    className="p-1.5 rounded-xl hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    title="Dismiss notification"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rotated Map Canvas Container with Smooth 4-Directional Animation */}
+        <div
+          className={`flex items-center justify-center origin-center transition-transform duration-500 ease-out pointer-events-auto ${
+            bearing === 0 ? 'absolute inset-0 w-full h-full' : 'absolute top-1/2 left-1/2'
+          }`}
           style={{
-            width: `${stageDiagonal}px`,
-            height: `${stageDiagonal}px`,
-            transform: `translate(-50%, -50%) rotate(${-bearing}deg)`,
+            width: bearing === 0 ? '100%' : `${stageDiagonal}px`,
+            height: bearing === 0 ? '100%' : `${stageDiagonal}px`,
+            transform: bearing === 0 ? 'none' : `translate(-50%, -50%) rotate(${-bearing}deg)`,
             filter: getFilterStyle(),
+            ['--map-bearing' as any]: `${bearing}deg`,
           }}
         >
           {/* Leaflet Map Canvas */}
           <div
             ref={mapContainerRef}
+            style={{
+              ['--map-bearing' as any]: `${bearing}deg`,
+            }}
             className="w-full h-full z-0 cursor-crosshair"
           />
         </div>
@@ -1521,6 +1860,50 @@ export function RealMarsMap() {
               {selectedSite.significance || selectedSite.description}
             </p>
 
+            {/* Quick Science Summary for Selected Landmark */}
+            {(() => {
+              const sc = analyzeMarsLocationScience(selectedSite.lat, selectedSite.lng, selectedSite.elevation);
+              return (
+                <div className="bg-neutral-900/85 rounded-xl p-2 border border-neutral-800 space-y-1.5 text-[10.5px]">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-cyan-300 font-semibold">
+                      <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{sc.water.depthDisplay}</span>
+                    </span>
+                    <span className="text-cyan-400 font-mono font-bold">{sc.water.probabilityChance}% Ice Chance</span>
+                  </div>
+                  <div className="flex items-center justify-between text-neutral-300 text-[10px]">
+                    <span className="flex items-center gap-1 text-orange-300">
+                      <Wind className="w-3 h-3 text-orange-400" />
+                      CO₂ 95.3% • N₂ 2.6%
+                    </span>
+                    <span className="flex items-center gap-1 text-rose-300 font-bold">
+                      <ShieldAlert className="w-3 h-3 text-rose-400" />
+                      Suit Required
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Environmental & Science Dossier Button */}
+            <button
+              onClick={() => {
+                setScienceDossierTarget({
+                  lat: selectedSite.lat,
+                  lng: selectedSite.lng,
+                  elevationM: selectedSite.elevation || 0,
+                  name: selectedSite.name,
+                  type: selectedSite.category || selectedSite.type,
+                });
+                setIsScienceDossierOpen(true);
+              }}
+              className="w-full py-1.5 px-2.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900/80 border border-cyan-700/80 text-cyan-200 font-bold text-center text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+              <span>💧 Full Water, Gas, Weather & Safety Dossier</span>
+            </button>
+
             <div className="flex items-center gap-1.5 pt-0.5">
               <button
                 onClick={() => {
@@ -1624,6 +2007,70 @@ export function RealMarsMap() {
                 </button>
               </div>
             )}
+
+            {/* Instant In-Situ Environmental & Safety Science Analysis */}
+            {(() => {
+              const sc = analyzeMarsLocationScience(inspectedPoint.lat, inspectedPoint.lng);
+              return (
+                <div className="bg-neutral-900/90 rounded-xl p-2.5 border border-neutral-800 space-y-2 text-[10.5px]">
+                  {/* Water / Ice Depth & Abundance */}
+                  <div className="flex items-start gap-2 text-cyan-200">
+                    <Droplets className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-white">Water / Ice: </span>
+                      <span>{sc.water.depthDisplay} ({sc.water.abundanceDisplay}) — <strong className="text-cyan-300">{sc.water.probabilityChance}% chance</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Atmospheric Gas Composition */}
+                  <div className="flex items-start gap-2 text-orange-200">
+                    <Wind className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-white">Gases: </span>
+                      <span>CO₂ 95.3% • N₂ 2.6% • Ar 1.9% • O₂ 0.16% ({sc.atmosphere.pressureDisplay})</span>
+                    </div>
+                  </div>
+
+                  {/* Human & Rover Safety */}
+                  <div className="flex items-start gap-2 text-rose-200">
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-white">Human: </span>
+                      <span className="text-rose-300 font-semibold">Lethal (EVA Suit Mandatory)</span>
+                      <span className="text-neutral-400 mx-1">•</span>
+                      <span className="font-bold text-white">Rover: </span>
+                      <span className="text-emerald-400 font-semibold">{sc.vehicleSafety.trafficabilityRating}</span>
+                    </div>
+                  </div>
+
+                  {/* Precipitation / Rain */}
+                  <div className="flex items-start gap-2 text-indigo-200">
+                    <CloudRain className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-white">Precipitation: </span>
+                      <span>0% Liquid Rain (Triple point barrier) • {sc.precipitation.snowChance}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <button
+              onClick={() => {
+                setScienceDossierTarget({
+                  lat: inspectedPoint.lat,
+                  lng: inspectedPoint.lng,
+                  elevationM: 0,
+                  name: inspectedPoint.nearestFeature ? `Near ${inspectedPoint.nearestFeature.name}` : `Surface (${inspectedPoint.lat}°, ${inspectedPoint.lng}°)`,
+                  type: 'Inspected Surface Point',
+                });
+                setIsScienceDossierOpen(true);
+              }}
+              className="w-full py-2 px-2.5 rounded-xl bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-700/80 text-cyan-200 font-bold text-center text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+            >
+              <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+              <span>💧 Open Complete Scientific Dossier & Gas Table</span>
+            </button>
 
             <div className="flex gap-2 pt-0.5">
               <button
@@ -2809,6 +3256,7 @@ export function RealMarsMap() {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* DEDICATED MOBILE BOTTOM NAVBAR */}
@@ -2924,6 +3372,23 @@ export function RealMarsMap() {
         initialQuery={closeUpSearchTarget}
         featureName={closeUpSearchTarget}
       />
+
+      {/* PLANETARY SCIENCE & ENVIRONMENTAL DOSSIER MODAL */}
+      {scienceDossierTarget && (
+        <MarsScienceDossierModal
+          isOpen={isScienceDossierOpen}
+          onClose={() => setIsScienceDossierOpen(false)}
+          lat={scienceDossierTarget.lat}
+          lng={scienceDossierTarget.lng}
+          elevationM={scienceDossierTarget.elevationM}
+          featureName={scienceDossierTarget.name}
+          featureType={scienceDossierTarget.type}
+          onOpenNASACloseUp={(name) => {
+            setCloseUpSearchTarget(name);
+            setIsCloseUpModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }
