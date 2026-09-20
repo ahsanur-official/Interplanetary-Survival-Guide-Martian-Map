@@ -23,11 +23,15 @@ import {
   Eye,
   Info,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Maximize2,
   Crosshair,
   Sparkles,
   ArrowDown,
   Rocket,
+  Clock,
+  Sliders,
 } from 'lucide-react';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
@@ -88,6 +92,8 @@ interface Mars3DGlobeProps {
   onOpenNASACloseUp: (featureName: string) => void;
   telemetry?: MarsOrbitalTelemetry | null;
   initialSelectedSite?: MarsFeature | null;
+  activeLayer?: string;
+  onLayerChange?: (layerId: string) => void;
 }
 
 export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
@@ -95,9 +101,15 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   onOpenNASACloseUp,
   telemetry,
   initialSelectedSite,
+  activeLayer,
+  onLayerChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Surface raycast inspection & fly-to refs for native mobile touch events
+  const inspectSurfaceRef = useRef<((clientX: number, clientY: number) => void) | null>(null);
+  const flyToSurfaceRef = useRef<((clientX: number, clientY: number) => void) | null>(null);
 
   // Three.js instances ref
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -114,15 +126,54 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   const deimosOrbitLineRef = useRef<THREE.LineLoop | null>(null);
 
   // State
-  const [selectedLayerId, setSelectedLayerId] = useState<string>('viking');
+  const [selectedLayerId, setSelectedLayerId] = useState<string>(activeLayer || 'viking');
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   
-  // Planetary Rotation Speed State: 'normal' (active visible pace by default), 'fast' (orbit time-lapse), 'slow' (gentle drift), 'realtime' (24.6h Sol), 'paused'
-  const [rotationSpeedMode, setRotationSpeedMode] = useState<'normal' | 'fast' | 'slow' | 'realtime' | 'paused'>('normal');
+  // Planetary Rotation Speed State: default to authentic 'realtime' (1x scientific 24.6h Sol)
+  const [rotationSpeedMode, setRotationSpeedMode] = useState<'normal' | 'fast' | 'slow' | 'realtime' | 'paused'>('realtime');
   const rotationSpeedModeRef = useRef(rotationSpeedMode);
   useEffect(() => {
     rotationSpeedModeRef.current = rotationSpeedMode;
   }, [rotationSpeedMode]);
+
+  // 24-Hour Mars Sol Diurnal Time Engine State (0 to 86,400 Sol seconds)
+  const [solSeconds, setSolSeconds] = useState<number>(50400); // 14:00:00 MTC (Afternoon Sunlit default)
+  const solSecondsRef = useRef<number>(50400);
+  const isScrubbingTimeRef = useRef<boolean>(false);
+  const [isTimeDrawerOpen, setIsTimeDrawerOpen] = useState<boolean>(false);
+  // Do not show 24h Sol diurnal modal directly on load; users can open it from the header or mobile dock
+  const [showSolControlBar, setShowSolControlBar] = useState<boolean>(false);
+
+  const handleScrubTime = useCallback((secs: number) => {
+    const val = Math.max(0, Math.min(86399, secs));
+    solSecondsRef.current = val;
+    setSolSeconds(val);
+    const s = sphereState.current;
+    s.marsRotationY = (val / 86400) * Math.PI * 2;
+    s.phobosAngle = (val / 27552) * Math.PI * 2;
+    s.deimosAngle = (val / 109080) * Math.PI * 2;
+  }, []);
+
+  // Formatter for 24-hour Sol Time in MTC (Mars Coordinated Time)
+  const formatSolTime = useCallback((secs: number) => {
+    const s = Math.floor(Math.max(0, Math.min(86399, secs)));
+    const hours = Math.floor(s / 3600);
+    const minutes = Math.floor((s % 3600) / 60);
+    const seconds = s % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, []);
+
+  // Diurnal daylight cycle phase based on 24-hour Martian Sol
+  const getSolDayPhase = useCallback((secs: number) => {
+    const hours = (secs / 3600) % 24;
+    if (hours >= 5.5 && hours < 7.0) return { label: 'Dawn Terminator', icon: '🌅', color: 'text-amber-300' };
+    if (hours >= 7.0 && hours < 11.5) return { label: 'Morning Sun', icon: '☀️', color: 'text-amber-400' };
+    if (hours >= 11.5 && hours < 13.0) return { label: 'Solar Noon (Zenith)', icon: '☀️', color: 'text-yellow-300' };
+    if (hours >= 13.0 && hours < 17.5) return { label: 'Afternoon Sun', icon: '☀️', color: 'text-amber-400' };
+    if (hours >= 17.5 && hours < 19.5) return { label: 'Sunset / Dusk Terminator', icon: '🌇', color: 'text-orange-400' };
+    if (hours >= 19.5 && hours < 23.0) return { label: 'Evening Night', icon: '🌑', color: 'text-indigo-300' };
+    return { label: 'Midnight Shadow', icon: '🌑', color: 'text-indigo-400' };
+  }, []);
   
   // Visual Toggles
   const [showMoons, setShowMoons] = useState(true);
@@ -447,40 +498,32 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     setInspectedCoord(null);
   };
 
-  // Zoom handlers with progressive multi-stage close-up support and automatic 2D map dive
+  // Zoom handlers with progressive multi-stage close-up support in 3D (No auto-dive to 2D)
   const handleZoomIn = () => {
     const s = sphereState.current;
-
-    // If already at close surface distance (< 350 km altitude or radius <= 109.5), zooming in seamlessly dives into the 2D high-res surface map
-    if (s.radius <= 109.5) {
-      diveInto2DMapAtFocalPoint();
-      return;
-    }
-
     let nextRadius = s.radius;
-    if (s.radius > 320) nextRadius = 230;
-    else if (s.radius > 200) nextRadius = 150;
-    else if (s.radius > 130) nextRadius = 112;
-    else {
-      diveInto2DMapAtFocalPoint();
-      return;
-    }
+    if (s.radius > 320) nextRadius = 220;
+    else if (s.radius > 190) nextRadius = 145;
+    else if (s.radius > 125) nextRadius = 108;
+    else if (s.radius > 103) nextRadius = 101.5;
+    else nextRadius = 101.2;
 
-    s.targetRadius = Math.max(106.0, nextRadius);
+    s.targetRadius = Math.max(101.2, nextRadius);
     s.startRadius = s.radius;
     s.startTheta = s.theta;
     s.startPhi = s.phi;
     s.targetTheta = s.theta;
     s.targetPhi = s.phi;
     s.animStartTime = performance.now();
-    s.animDuration = 420;
+    s.animDuration = 400;
     s.isAnimating = true;
   };
 
   const handleZoomOut = () => {
     const s = sphereState.current;
     let nextRadius = s.radius;
-    if (s.radius < 114) nextRadius = 145;
+    if (s.radius < 105) nextRadius = 114;
+    else if (s.radius < 114) nextRadius = 145;
     else if (s.radius < 165) nextRadius = 240;
     else if (s.radius < 260) nextRadius = 360;
     else nextRadius = Math.min(950, s.radius + 140);
@@ -492,22 +535,13 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     s.targetTheta = s.theta;
     s.targetPhi = s.phi;
     s.animStartTime = performance.now();
-    s.animDuration = 420;
+    s.animDuration = 400;
     s.isAnimating = true;
   };
 
-  // Fly directly to a specific altitude preset
+  // Fly directly to a specific altitude preset in 3D (No auto-dive to 2D)
   const handleFlyToAltitude = (targetRad: number) => {
-    // If user clicks 2D View (targetRad <= 104) or clicks Close when already at close range
-    if (targetRad <= 104) {
-      diveInto2DMapAtFocalPoint();
-      return;
-    }
     const s = sphereState.current;
-    if (targetRad <= 108 && s.radius <= 114) {
-      diveInto2DMapAtFocalPoint();
-      return;
-    }
     s.isDragging = false;
     s.velocityTheta = 0;
     s.velocityPhi = 0;
@@ -516,9 +550,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     s.startPhi = s.phi;
     s.targetTheta = s.theta;
     s.targetPhi = s.phi;
-    s.targetRadius = targetRad;
+    s.targetRadius = Math.max(101.2, targetRad);
     s.animStartTime = performance.now();
-    s.animDuration = 900;
+    s.animDuration = 850;
     s.isAnimating = true;
   };
 
@@ -1004,42 +1038,52 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
     // Animation Loop
     let animationFrameId: number;
+    let lastPerfTime = performance.now();
 
     const animate = (time: number) => {
       animationFrameId = requestAnimationFrame(animate);
+      const deltaMs = Math.min(100, Math.max(1, time - lastPerfTime));
+      lastPerfTime = time;
 
       const s = sphereState.current;
 
-      // 1. Mars Planetary Rotation Engine
-      let rotationDelta = 0;
-      if (rotationSpeedModeRef.current === 'normal') {
-        // Active majestic planetary rotation: Mars rotates once every ~85 seconds
-        // Movement is clearly, smoothly, beautifully visible!
-        rotationDelta = 0.0012;
-      } else if (rotationSpeedModeRef.current === 'fast') {
-        // High-speed orbital time-lapse: Mars rotates in ~23 seconds, Phobos orbits every ~7 seconds
-        rotationDelta = 0.0045;
-      } else if (rotationSpeedModeRef.current === 'slow') {
-        // Serene gentle planetary drift (~4.5 minutes per rotation)
-        rotationDelta = 0.00038;
-      } else if (rotationSpeedModeRef.current === 'realtime') {
-        // Authentic 1x Real-Time Martian Sol: 24.62 hours per rotation (0.0000012 rad/frame at 60fps)
-        rotationDelta = 0.0000012;
-      } else {
-        // Paused
-        rotationDelta = 0;
+      // Advance 24-Hour Sol Diurnal Time Engine (86,400 Sol seconds per planetary rotation)
+      if (!isScrubbingTimeRef.current) {
+        let solSecPerEarthSec = 0;
+        if (rotationSpeedModeRef.current === 'realtime') {
+          // Authentic 1x Real-Time Martian Sol: 1 sol second per real second (24.6h Sol)
+          solSecPerEarthSec = 1;
+        } else if (rotationSpeedModeRef.current === 'normal') {
+          // Active majestic rotation: 1 full Sol in 60 real seconds (1440x time-lapse)
+          solSecPerEarthSec = 1440;
+        } else if (rotationSpeedModeRef.current === 'fast') {
+          // Rapid orbital time-lapse: 1 full Sol in 20 real seconds (4320x time-lapse)
+          solSecPerEarthSec = 4320;
+        } else if (rotationSpeedModeRef.current === 'slow') {
+          // Serene cosmic drift: 1 full Sol in 240 seconds (360x)
+          solSecPerEarthSec = 360;
+        } else {
+          // Paused
+          solSecPerEarthSec = 0;
+        }
+
+        solSecondsRef.current = (solSecondsRef.current + (deltaMs / 1000) * solSecPerEarthSec) % 86400;
       }
 
-      s.marsRotationY += rotationDelta;
+      const currentSolSec = solSecondsRef.current;
+
+      // 1. Mars Planetary Rotation tied directly to 24-Hour Sol Time:
+      // 0 to 86,400 Sol seconds = 0 to 2*PI radians
+      s.marsRotationY = (currentSolSec / 86400) * Math.PI * 2;
       if (marsMeshRef.current) {
         marsMeshRef.current.rotation.y = s.marsRotationY;
       }
 
-      // 2. Moons Orbital Motion (Scaled physically to Mars rotation)
-      // Phobos completes ~3.21 orbits per Martian Sol (7h 39m period)
-      // Deimos completes ~0.81 orbits per Martian Sol (30h 18m period)
-      s.phobosAngle += rotationDelta * 3.21;
-      s.deimosAngle += rotationDelta * 0.81;
+      // 2. Moons Orbital Motion accurately scaled to 24-Hour Sol Time:
+      // Phobos Period: 7h 39.2m = 27,552 seconds (~3.136 orbits per 24h Sol)
+      s.phobosAngle = (currentSolSec / 27552) * Math.PI * 2;
+      // Deimos Period: 30.30h = 109,080 seconds (~0.792 orbit per 24h Sol)
+      s.deimosAngle = (currentSolSec / 109080) * Math.PI * 2;
 
       if (phobosMeshRef.current) {
         const px = phobosOrbitRadius * Math.cos(s.phobosAngle);
@@ -1099,6 +1143,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       if (!s.lastTelemetryTime || time - s.lastTelemetryTime > 90) {
         s.lastTelemetryTime = time;
         setCameraDist(s.radius);
+        setSolSeconds(Math.floor(solSecondsRef.current));
 
         // Ground coordinate currently under camera focal center
         const camNorm = camera.position.clone().normalize();
@@ -1149,11 +1194,16 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         const subsolarLat = telemetry?.subSolarLatitude ?? 12.5;
         setSubsolarPoint({ lat: subsolarLat, lng: subsolarLng });
 
-        // 4. Project Surface Markers
+        // 4. Project Surface Markers (On mobile, declutter by showing only major landmarks or selected site)
         if (showMarkers && marsMeshRef.current) {
+          const isMobileViewport = (wHalf * 2) < 768;
+          const visiblePool = isMobileViewport
+            ? activeMarkers.filter((m) => m.name === selectedSite?.name || ['Olympus Mons', 'Valles Marineris', 'Jezero Crater', 'Gale Crater'].includes(m.name))
+            : activeMarkers;
+
           const projected: Array<{ site: MarsFeature; x: number; y: number; visible: boolean }> = [];
 
-          activeMarkers.forEach((site) => {
+          visiblePool.forEach((site) => {
             const localV = latLngToVector3(site.lat, site.lng, marsRadius * 1.012);
             localV.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
             localV.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
@@ -1223,10 +1273,115 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
     animationFrameId = requestAnimationFrame(animate);
 
+    // Native Touch Gestures for Smooth Mobile Pinch-to-Zoom & Pan (Prevents page scrolling/bouncing)
+    let touchStartDist = 0;
+    let initialRadius = 420;
+    let isPinching = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let prevTouchX = 0;
+    let prevTouchY = 0;
+    let touchStartTime = 0;
+    let lastTapTime = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        isPinching = true;
+        sphereState.current.isDragging = false;
+        sphereState.current.isAnimating = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchStartDist = Math.hypot(dx, dy);
+        initialRadius = sphereState.current.radius;
+      } else if (e.touches.length === 1) {
+        isPinching = false;
+        sphereState.current.isDragging = true;
+        sphereState.current.isAnimating = false;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        prevTouchX = touchStartX;
+        prevTouchY = touchStartY;
+        touchStartTime = performance.now();
+        sphereState.current.velocityTheta = 0;
+        sphereState.current.velocityPhi = 0;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      const s = sphereState.current;
+      if (e.touches.length === 2 && isPinching) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const currentDist = Math.hypot(dx, dy);
+        if (touchStartDist > 0 && currentDist > 0) {
+          const pinchScale = touchStartDist / currentDist;
+          s.radius = Math.max(101.2, Math.min(950, initialRadius * pinchScale));
+          setCameraDist(s.radius);
+        }
+      } else if (e.touches.length === 1 && s.isDragging) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - prevTouchX;
+        const dy = touch.clientY - prevTouchY;
+        const distFactor = Math.max(0.16, Math.min(1.0, (s.radius - 98) / 220));
+        const rotSpeed = 0.0035 * distFactor;
+        const dTheta = -dx * rotSpeed;
+        const dPhi = -dy * rotSpeed;
+
+        s.theta += dTheta;
+        s.phi += dPhi;
+        s.phi = Math.max(0.06, Math.min(Math.PI - 0.06, s.phi));
+        s.velocityTheta = dTheta;
+        s.velocityPhi = dPhi;
+
+        prevTouchX = touch.clientX;
+        prevTouchY = touch.clientY;
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      const now = performance.now();
+      const s = sphereState.current;
+      if (e.touches.length === 0) {
+        s.isDragging = false;
+        isPinching = false;
+        const moveDist = Math.hypot(prevTouchX - touchStartX, prevTouchY - touchStartY);
+        const elapsed = now - touchStartTime;
+        if (moveDist < 14 && elapsed < 350) {
+          // Intentional touch tap on mobile surface
+          if (now - lastTapTime < 350) {
+            flyToSurfaceRef.current?.(prevTouchX, prevTouchY);
+            lastTapTime = 0;
+          } else {
+            inspectSurfaceRef.current?.(prevTouchX, prevTouchY);
+            lastTapTime = now;
+          }
+        }
+      } else if (e.touches.length === 1) {
+        isPinching = false;
+        s.isDragging = true;
+        prevTouchX = e.touches[0].clientX;
+        prevTouchY = e.touches[0].clientY;
+      }
+    };
+
+    if (canvas) {
+      canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+      canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+      canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    }
+
     return () => {
       cancelAnimationFrame(animationFrameId);
       ro.disconnect();
       window.removeEventListener('resize', handleResize);
+      if (canvas) {
+        canvas.removeEventListener('touchstart', onTouchStart);
+        canvas.removeEventListener('touchmove', onTouchMove);
+        canvas.removeEventListener('touchend', onTouchEnd);
+        canvas.removeEventListener('touchcancel', onTouchEnd);
+      }
       renderer.dispose();
     };
   }, []);
@@ -1253,10 +1408,30 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     setSelectedLayerId(layerId);
     loadTexturePreset(layerId);
     setIsLayerMenuOpen(false);
+    if (onLayerChange) {
+      onLayerChange(layerId);
+    }
   };
 
-  // Mouse & Touch Controls
+  // Sync selected site from parent
+  useEffect(() => {
+    if (initialSelectedSite) {
+      setSelectedSite(initialSelectedSite);
+      flyToLocation(initialSelectedSite.lat, initialSelectedSite.lng, 108);
+    }
+  }, [initialSelectedSite]);
+
+  // Sync layer from parent
+  useEffect(() => {
+    if (activeLayer && activeLayer !== selectedLayerId) {
+      setSelectedLayerId(activeLayer);
+      loadTexturePreset(activeLayer);
+    }
+  }, [activeLayer]);
+
+  // Mouse & Touch Controls - Ignore pointer touch events to let dedicated touch listeners handle gestures smoothly
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     const s = sphereState.current;
     s.isDragging = true;
     s.isAnimating = false;
@@ -1268,6 +1443,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     const s = sphereState.current;
     if (!s.isDragging) return;
 
@@ -1275,7 +1451,6 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const dy = e.clientY - s.prevMouseY;
 
     // Smoothed drag factor scaled by distance to Mars surface
-    // (Extremely smooth & fine-tuned when zoomed in close)
     const distFactor = Math.max(0.16, Math.min(1.0, (s.radius - 98) / 220));
     const rotSpeed = 0.0035 * distFactor;
     const dTheta = -dx * rotSpeed;
@@ -1293,47 +1468,51 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
     const s = sphereState.current;
     s.isDragging = false;
     (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
   };
 
-  // Wheel Zoom with non-linear fine sensitivity near the surface & auto 2D map dive
+  // Mobile altitude cycler: Close (103) -> Region (140) -> Orbit (220) -> Deep Space (420)
+  const handleCycleAltitudeMobile = () => {
+    const s = sphereState.current;
+    if (s.radius < 125) {
+      handleFlyToAltitude(140);
+    } else if (s.radius < 185) {
+      handleFlyToAltitude(220);
+    } else if (s.radius < 320) {
+      handleFlyToAltitude(420);
+    } else {
+      handleFlyToAltitude(103);
+    }
+  };
+
+  // Wheel Zoom with non-linear fine sensitivity near the surface in 3D (No auto 2D switch)
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const s = sphereState.current;
     s.isAnimating = false;
 
-    // If scrolling in (zooming into surface) when already close (radius <= 109.5), transition directly to 2D view
-    if (e.deltaY < 0 && s.radius <= 109.5) {
-      diveInto2DMapAtFocalPoint();
-      return;
-    }
-
     // Dynamic wheel factor: smooth fine control near ground, fast in space
-    const dist = Math.max(0.6, s.radius - 100);
+    const dist = Math.max(0.4, s.radius - 100);
     const factor = dist > 80 ? 0.45 : dist > 20 ? 0.20 : dist > 4 ? 0.08 : 0.024;
     
     s.radius += e.deltaY * factor;
-    s.radius = Math.max(106.0, Math.min(950, s.radius));
+    s.radius = Math.max(101.2, Math.min(950, s.radius));
     setCameraDist(s.radius);
-
-    // If scroll reached ground threshold, dive into 2D view
-    if (e.deltaY < 0 && s.radius <= 107.5) {
-      diveInto2DMapAtFocalPoint();
-    }
   };
 
-  // Double Click on Mars Surface directly zooms & opens 2D High-Res View at that location
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  // Fly to surface at client (x, y) coordinates (Used by desktop double-click and mobile double-tap)
+  const flyToSurfaceAtClientPos = (clientX: number, clientY: number) => {
     const container = containerRef.current;
     const camera = cameraRef.current;
     const marsMesh = marsMeshRef.current;
     if (!container || !camera || !marsMesh) return;
 
     const rect = container.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
@@ -1351,33 +1530,22 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         }
       });
       if (nearestFeature) {
-        diveInto2DMapAtFocalPoint(nearestFeature);
-      } else {
-        diveInto2DMapAtFocalPoint({
-          id: `target-${lat.toFixed(2)}-${lng.toFixed(2)}`,
-          name: 'Martian Surface Target',
-          type: 'Planitia (Plain)',
-          lat: Number(lat.toFixed(2)),
-          lng: Number(lng.toFixed(2)),
-          planetocentricLng: (lng + 360) % 360,
-          elevationM: -2000,
-          description: `Coordinates at ${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
-          originName: 'Target Coordinates',
-        });
+        setSelectedSite(nearestFeature);
       }
+      flyToLocation(lat, lng, 103.5);
     }
   };
 
-  // Click on Globe Surface to Inspect Science Telemetry
-  const handleCanvasClick = (e: React.MouseEvent) => {
+  // Inspect surface science at client (x, y) coordinates (Used by desktop click and mobile single-tap)
+  const inspectSurfaceAtClientPos = (clientX: number, clientY: number) => {
     const container = containerRef.current;
     const camera = cameraRef.current;
     const marsMesh = marsMeshRef.current;
     if (!container || !camera || !marsMesh) return;
 
     const rect = container.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
@@ -1442,6 +1610,22 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     }
   };
 
+  // Wire refs to handlers
+  useEffect(() => {
+    inspectSurfaceRef.current = inspectSurfaceAtClientPos;
+    flyToSurfaceRef.current = flyToSurfaceAtClientPos;
+  });
+
+  // Double Click on Mars Surface smoothly flies 3D camera to inspect that surface point in 3D
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    flyToSurfaceAtClientPos(e.clientX, e.clientY);
+  };
+
+  // Click on Globe Surface to Inspect Science Telemetry
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    inspectSurfaceAtClientPos(e.clientX, e.clientY);
+  };
+
   return (
     <div ref={containerRef} className="relative w-full h-full bg-[#04060b] overflow-hidden select-none font-sans">
       {/* Three.js Canvas */}
@@ -1457,18 +1641,18 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         onDoubleClick={handleDoubleClick}
       />
 
-      {/* TOP STREAMLINED MISSION HUD */}
-      <div className="absolute top-3 left-3 right-3 z-20 pointer-events-none flex items-center justify-between gap-3">
+      {/* TOP STREAMLINED MISSION HUD (Fully responsive on Mobile, Tablet & Desktop) */}
+      <div className="flex absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 z-20 pointer-events-none items-center justify-between gap-1.5 sm:gap-2">
         {/* Left: Planet Title & Real-Time Auto Day/Night Telemetry */}
-        <div className="flex items-center gap-2.5 pointer-events-auto">
-          <div className="bg-[#090d16]/90 backdrop-blur-xl border border-neutral-700/80 rounded-2xl px-3.5 py-2 shadow-2xl flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse shadow-sm shadow-orange-500/50" />
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-neutral-700/80 rounded-2xl px-2 sm:px-3.5 py-1 sm:py-2 shadow-2xl flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-orange-500 animate-pulse shadow-sm shadow-orange-500/50" />
               <div>
-                <h1 className="text-xs font-black text-white tracking-wider uppercase font-mono">
-                  Mars 3D Orbital
+                <h1 className="text-[10px] sm:text-xs font-black text-white tracking-wider uppercase font-mono">
+                  Mars 3D
                 </h1>
-                <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
+                <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
                   <span>R: 3,389.5 km</span>
                   <span>•</span>
                   <span className="text-orange-400 font-bold">{activeTextureSource.split(' ')[1] || 'Viking'}</span>
@@ -1476,23 +1660,40 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               </div>
             </div>
 
+            {/* Live 24-Hour Martian Sol Clock Button (Toggles Diurnal Scrubber Bar / Mobile Drawer) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setIsTimeDrawerOpen(true);
+                } else {
+                  setShowSolControlBar(!showSolControlBar);
+                }
+              }}
+              className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-neutral-200 transition-colors cursor-pointer active:scale-95"
+              title="Click to open 24-Hour Sol Diurnal Time Scrubber & Celestial Rates"
+            >
+              <Clock className="w-3.5 h-3.5 text-orange-400 animate-spin-slow shrink-0" />
+              <span className="text-[11px] sm:text-xs font-mono font-bold text-white tracking-wide">
+                {formatSolTime(solSeconds).slice(0, 5)}
+              </span>
+              <span className="text-[9px] font-mono text-orange-400 font-bold">MTC</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${focalTelemetry.isDaySide ? 'bg-amber-400' : 'bg-indigo-400'}`} />
+            </button>
+
             {/* Live Auto Day / Night Solar Indicator */}
-            <div className="hidden sm:flex items-center gap-2 border-l border-neutral-800 pl-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-lg bg-neutral-900/90 border border-neutral-700/80 text-neutral-200">
-                <span className={`w-2 h-2 rounded-full ${focalTelemetry.isDaySide ? 'bg-amber-400 shadow-sm shadow-amber-400/50' : 'bg-indigo-400 shadow-sm shadow-indigo-400/50'}`} />
+            <div className="hidden lg:flex items-center gap-2 border-l border-neutral-800 pl-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-lg bg-neutral-900/90 border border-neutral-800 text-neutral-200">
                 <span className={focalTelemetry.isDaySide ? 'text-amber-300 font-bold' : 'text-indigo-300 font-bold'}>
-                  {focalTelemetry.isDaySide ? '☀️ Day (Sunlit)' : '🌑 Night (Shadow)'}
+                  {getSolDayPhase(solSeconds).icon} {getSolDayPhase(solSeconds).label}
                 </span>
                 <span className="text-[10px] text-neutral-400 font-mono">
                   ({focalTelemetry.solarElevationDeg >= 0 ? `+${focalTelemetry.solarElevationDeg}°` : `${focalTelemetry.solarElevationDeg}°`})
                 </span>
               </div>
-              <span className="text-[10px] text-neutral-400 font-mono hidden md:inline">
-                Subsolar: {subsolarPoint.lat}°N, {subsolarPoint.lng}°E
-              </span>
             </div>
 
-            {/* Scientific Celestial Movement Rates Telemetry */}
+            {/* Scientific Celestial Movement Rates Telemetry (Desktop) */}
             <div className="hidden xl:flex items-center gap-3 border-l border-neutral-800 pl-3 text-[10px] font-mono">
               <div title="Mars Orbital Velocity around the Sun: ~24.1 km/s (86,760 km/h or 53,910 mph)">
                 <span className="text-neutral-500">Orbit ☉: </span>
@@ -1511,47 +1712,53 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 <span className="text-neutral-500">Phobos: </span>
                 <span className="text-cyan-400 font-bold">2.14 km/s</span>
               </button>
-              <button
-                type="button"
-                onClick={() => flyToMoon('deimos')}
-                className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1"
-                title="Deimos Orbit: ~1.35 km/s (4,865 km/h), period 30.3h, prograde (rises East ➔ sets West)"
-              >
-                <span className="text-neutral-500">Deimos: </span>
-                <span className="text-amber-400 font-bold">1.35 km/s</span>
-              </button>
             </div>
           </div>
         </div>
 
         {/* Right: Sleek Action Icons */}
-        <div className="flex items-center gap-1.5 pointer-events-auto">
+        <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto">
+          {/* Toggle 24-Hour Scrubber Bar Button (Desktop) */}
+          <button
+            type="button"
+            onClick={() => setShowSolControlBar(!showSolControlBar)}
+            className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border shadow-xl transition-all cursor-pointer text-xs font-mono font-bold ${
+              showSolControlBar
+                ? 'bg-orange-950/90 border-orange-700 text-orange-300'
+                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+            }`}
+            title="Toggle 24-Hour Sol Diurnal Controller Bar"
+          >
+            <Clock className="w-3.5 h-3.5 text-orange-400" />
+            <span>24h Time</span>
+          </button>
+
           {/* Moons Toggle */}
           <button
             type="button"
             onClick={() => setShowMoons(!showMoons)}
-            className={`p-2 rounded-xl border shadow-xl transition-all cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
               showMoons
                 ? 'bg-cyan-950/90 border-cyan-700 text-cyan-300'
                 : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
             }`}
             title={showMoons ? 'Hide Moons (Phobos & Deimos)' : 'Show Moons (Phobos & Deimos)'}
           >
-            <Orbit className="w-4 h-4" />
+            <Orbit className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
           </button>
 
           {/* Surface Pins Toggle */}
           <button
             type="button"
             onClick={() => setShowMarkers(!showMarkers)}
-            className={`p-2 rounded-xl border shadow-xl transition-all cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
               showMarkers
                 ? 'bg-orange-950/90 border-orange-700 text-orange-300'
                 : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
             }`}
             title={showMarkers ? 'Hide Surface Pins' : 'Show Surface Pins'}
           >
-            <MapPin className="w-4 h-4" />
+            <MapPin className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
           </button>
 
           {/* Layer Selector Popover Button */}
@@ -1559,15 +1766,15 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             <button
               type="button"
               onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
-              className="p-2 rounded-xl bg-[#090d16]/90 border border-neutral-700 text-neutral-300 hover:text-white shadow-xl transition-all cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl bg-[#090d16]/90 border border-neutral-700 text-neutral-300 hover:text-white shadow-xl transition-all cursor-pointer active:scale-95"
               title="Select Map Imagery Layer"
             >
-              <Layers className="w-4 h-4" />
+              <Layers className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
             </button>
 
             {/* Layer Picker Dropdown */}
             {isLayerMenuOpen && (
-              <div className="absolute right-0 top-12 w-64 bg-[#0c101a] border border-neutral-700 rounded-2xl p-2 shadow-2xl z-30 flex flex-col gap-1 text-xs">
+              <div className="absolute right-0 top-11 sm:top-12 w-60 sm:w-64 bg-[#0c101a] border border-neutral-700 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 text-xs">
                 <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider px-2 py-1">
                   Global Basemaps
                 </span>
@@ -1599,14 +1806,193 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           <button
             type="button"
             onClick={() => onSwitchToFlatMap(selectedSite || undefined)}
-            className="flex items-center gap-1.5 bg-[#090d16]/90 hover:bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2 shadow-xl text-xs font-semibold text-neutral-300 hover:text-white cursor-pointer transition-all"
+            className="flex items-center gap-1 sm:gap-1.5 bg-[#090d16]/90 hover:bg-neutral-800 border border-neutral-700 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-xl text-xs font-semibold text-neutral-300 hover:text-white cursor-pointer transition-all active:scale-95"
             title="Switch to High-Resolution 2D Mercator Map"
           >
-            <Globe className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">2D Map</span>
+            <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[11px] sm:text-xs">2D</span>
           </button>
         </div>
       </div>
+
+      {/* DESKTOP 24-HOUR MARTIAN SOL DIURNAL CONTROLLER BAR */}
+      {showSolControlBar && (
+        <div className="hidden md:block absolute top-16 left-1/2 -translate-x-1/2 w-[94%] max-w-2xl z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/40 hover:border-orange-500/70 rounded-2xl p-3 shadow-2xl text-neutral-200 transition-colors">
+            {/* Top Row: Live 24h Sol Clock, Diurnal Phase & Speed Selection */}
+            <div className="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-neutral-800/80">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-neutral-900 border border-neutral-700/80 font-mono">
+                  <Clock className="w-3.5 h-3.5 text-orange-400 animate-spin-slow" />
+                  <span className="text-xs sm:text-sm font-black text-white tracking-widest">
+                    {formatSolTime(solSeconds)}
+                  </span>
+                  <span className="text-[9px] text-orange-400 font-bold ml-0.5">MTC</span>
+                </div>
+
+                {/* Diurnal Phase Indicator */}
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-neutral-900/90 border border-neutral-800 text-[11px] font-mono">
+                  <span>{getSolDayPhase(solSeconds).icon}</span>
+                  <span className={`font-bold ${getSolDayPhase(solSeconds).color}`}>
+                    {getSolDayPhase(solSeconds).label}
+                  </span>
+                  <span className="text-[10px] text-neutral-400 ml-1">
+                    ({focalTelemetry.solarElevationDeg >= 0 ? `+${focalTelemetry.solarElevationDeg}°` : `${focalTelemetry.solarElevationDeg}°`})
+                  </span>
+                </div>
+              </div>
+
+              {/* Speed Controls & Pause */}
+              <div className="flex items-center gap-1 bg-neutral-900/90 border border-neutral-800 p-0.5 rounded-xl text-[10px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => setRotationSpeedMode(rotationSpeedMode === 'paused' ? 'normal' : 'paused')}
+                  className={`px-2 py-1 rounded-lg flex items-center gap-1 font-bold cursor-pointer transition-colors ${
+                    rotationSpeedMode === 'paused'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-emerald-950 text-emerald-300 hover:bg-emerald-900'
+                  }`}
+                  title={rotationSpeedMode === 'paused' ? 'Resume Planetary Rotation' : 'Pause at Current Sol Hour'}
+                >
+                  {rotationSpeedMode === 'paused' ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                  <span>{rotationSpeedMode === 'paused' ? 'Play' : 'Active'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRotationSpeedMode('realtime')}
+                  className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                    rotationSpeedMode === 'realtime'
+                      ? 'bg-cyan-900/80 text-cyan-200 font-bold border border-cyan-700/60'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  title="Scientific Real-time speed: 1 full 24.6h Sol in 24.6 Earth hours"
+                >
+                  1x (24.6h)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRotationSpeedMode('normal')}
+                  className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                    rotationSpeedMode === 'normal'
+                      ? 'bg-orange-950 text-orange-200 font-bold border border-orange-700/60'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  title="Active rotation: 1 Sol in 60 seconds"
+                >
+                  60s
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRotationSpeedMode('fast')}
+                  className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                    rotationSpeedMode === 'fast'
+                      ? 'bg-amber-950 text-amber-200 font-bold border border-amber-700/60'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  title="Fast planetary time-lapse: 1 Sol in 20 seconds"
+                >
+                  20s
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRotationSpeedMode('slow')}
+                  className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                    rotationSpeedMode === 'slow'
+                      ? 'bg-indigo-950 text-indigo-200 font-bold border border-indigo-700/60'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  title="Gentle cosmic drift: 1 Sol in 240 seconds"
+                >
+                  Drift
+                </button>
+              </div>
+
+              {/* Close/Minimize Bar Button */}
+              <button
+                type="button"
+                onClick={() => setShowSolControlBar(false)}
+                className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                title="Minimize 24h Control Bar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* 24-Hour Sol Interactive Range Scrubber */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between text-[9px] font-mono text-neutral-400 mb-1">
+                <span className="flex items-center gap-1 text-indigo-300">
+                  <span>🌑 00:00</span>
+                  <span>(Midnight)</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-300">
+                  <span>🌅 06:00</span>
+                  <span>(Dawn)</span>
+                </span>
+                <span className="flex items-center gap-1 text-yellow-300 font-bold">
+                  <span>☀️ 12:00</span>
+                  <span>(Noon)</span>
+                </span>
+                <span className="flex items-center gap-1 text-orange-400">
+                  <span>🌇 18:00</span>
+                  <span>(Dusk)</span>
+                </span>
+                <span className="flex items-center gap-1 text-indigo-300">
+                  <span>🌑 24:00</span>
+                  <span>(Midnight)</span>
+                </span>
+              </div>
+
+              <input
+                type="range"
+                min="0"
+                max="86399"
+                step="1"
+                value={solSeconds}
+                onMouseDown={() => { isScrubbingTimeRef.current = true; }}
+                onMouseUp={() => { isScrubbingTimeRef.current = false; }}
+                onTouchStart={() => { isScrubbingTimeRef.current = true; }}
+                onTouchEnd={() => { isScrubbingTimeRef.current = false; }}
+                onChange={(e) => handleScrubTime(Number(e.target.value))}
+                className="w-full accent-orange-500 cursor-pointer h-2 bg-neutral-800 rounded-lg appearance-none focus:outline-none"
+                title="Scrub 24-Hour Martian Sol Time (Terminator & Sun Rotates Dynamically)"
+              />
+
+              {/* Scientific Celestial Velocities */}
+              <div className="flex items-center justify-between text-[9px] font-mono text-neutral-400 mt-1.5 pt-1.5 border-t border-neutral-800/60 overflow-x-auto gap-2">
+                <div className="flex items-center gap-1 whitespace-nowrap">
+                  <span className="text-neutral-500">Mars Rotation:</span>
+                  <span className="text-orange-400 font-bold">868 km/h</span>
+                </div>
+                <div className="flex items-center gap-1 whitespace-nowrap">
+                  <span className="text-neutral-500">Sun Orbit:</span>
+                  <span className="text-amber-400 font-bold">24.1 km/s (86,760 km/h)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => flyToMoon('phobos')}
+                  className="flex items-center gap-1 hover:text-cyan-300 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span className="text-neutral-500">Phobos:</span>
+                  <span className="text-cyan-400 font-bold">2.14 km/s (7h 39m)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => flyToMoon('deimos')}
+                  className="flex items-center gap-1 hover:text-amber-300 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span className="text-neutral-500">Deimos:</span>
+                  <span className="text-amber-400 font-bold">1.35 km/s (30.3h)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FLOATING 3D MARKERS OVERLAY */}
       {showMarkers &&
@@ -1631,10 +2017,10 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               }}
             >
               <div
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono border backdrop-blur-md transition-all shadow-md ${
+                className={`flex items-center gap-1 transition-all shadow-md ${
                   isSelected
-                    ? 'bg-orange-600 border-white text-white scale-110'
-                    : 'bg-[#090d16]/80 border-neutral-700 text-neutral-300 group-hover:border-orange-500 group-hover:text-white'
+                    ? 'px-2 py-0.5 rounded-full text-[10px] font-mono border bg-orange-600 border-white text-white scale-110'
+                    : 'p-1 sm:px-1.5 sm:py-0.5 rounded-full text-[10px] font-mono border bg-[#090d16]/80 border-neutral-700 text-neutral-300 group-hover:border-orange-500 group-hover:text-white'
                 }`}
               >
                 <span
@@ -1642,7 +2028,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                     site.type === 'Robotic Rover/Lander' ? 'bg-cyan-400' : 'bg-orange-400'
                   }`}
                 />
-                <span className="font-semibold">{site.name}</span>
+                <span className={`font-semibold ${isSelected ? 'inline' : 'hidden sm:inline'}`}>
+                  {site.name}
+                </span>
               </div>
             </div>
           );
@@ -1683,38 +2071,72 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         </div>
       )}
 
-      {/* RIGHT CONTROLS: ZOOM, ALTITUDE PRESETS & ROTATION PACE */}
-      <div className="absolute right-3 top-20 z-20 flex flex-col gap-2 pointer-events-auto">
-        {/* Zoom In / Out / Reset Stack */}
-        <div className="flex flex-col bg-[#090d16]/90 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl">
+      {/* RIGHT CONTROLS: ZOOM, ALTITUDE PRESETS & ROTATION PACE (Responsive on Mobile & Desktop) */}
+      <div className="flex absolute right-2 sm:right-3 top-16 sm:top-20 z-25 flex-col gap-1.5 sm:gap-2 pointer-events-auto">
+        {/* Zoom In / Out / Reset Stack (Icon Only) */}
+        <div className="flex flex-col bg-[#090d16]/95 backdrop-blur-xl border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-xs font-mono">
           <button
             type="button"
             onClick={handleZoomIn}
-            className="p-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer border-b border-neutral-800"
+            className="p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer border-b border-neutral-800/80 flex items-center justify-center active:scale-95"
             title="Zoom In (Progressive to Surface)"
+            aria-label="Zoom In"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-4 h-4 text-orange-400 shrink-0" />
           </button>
           <button
             type="button"
             onClick={handleZoomOut}
-            className="p-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer border-b border-neutral-800"
+            className="p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer border-b border-neutral-800/80 flex items-center justify-center active:scale-95"
             title="Zoom Out to Deep Space"
+            aria-label="Zoom Out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-4 h-4 text-orange-400 shrink-0" />
           </button>
           <button
             type="button"
             onClick={handleResetToSpace}
-            className="p-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+            className="p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer flex items-center justify-center active:scale-95"
             title="Reset to Deep Space Mars View"
+            aria-label="Reset View"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4 text-cyan-400 shrink-0" />
           </button>
         </div>
 
-        {/* Quick Altitude Presets Stack */}
-        <div className="flex flex-col bg-[#090d16]/90 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
+        {/* Mobile-only altitude cycler pill */}
+        <button
+          type="button"
+          onClick={handleCycleAltitudeMobile}
+          className="sm:hidden p-2 rounded-2xl bg-[#090d16]/95 border border-neutral-700/80 text-cyan-300 flex flex-col items-center justify-center shadow-2xl active:scale-95 cursor-pointer text-[8.5px] font-mono font-bold"
+          title="Cycle Altitude: Close -> Region -> Orbit -> Deep Space"
+        >
+          <Crosshair className="w-4 h-4 text-cyan-400 mb-0.5" />
+          <span>{cameraDist < 125 ? 'Close' : cameraDist < 185 ? 'Region' : cameraDist < 320 ? 'Orbit' : 'Space'}</span>
+        </button>
+
+        {/* Mobile Quick Play / Pause Planetary Rotation Toggle */}
+        <button
+          type="button"
+          onClick={() => setRotationSpeedMode(rotationSpeedMode === 'paused' ? 'realtime' : 'paused')}
+          className="sm:hidden p-2 rounded-2xl bg-[#090d16]/95 border border-neutral-700/80 text-emerald-300 flex flex-col items-center justify-center shadow-2xl active:scale-95 cursor-pointer text-[8.5px] font-mono font-bold"
+          title={rotationSpeedMode === 'paused' ? 'Start Planetary Rotation' : 'Pause Planetary Rotation'}
+        >
+          {rotationSpeedMode !== 'paused' ? (
+            <>
+              <Pause className="w-4 h-4 text-emerald-400 mb-0.5" />
+              <span>1x</span>
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 text-emerald-400 mb-0.5" />
+              <span>Play</span>
+            </>
+          )}
+        </button>
+
+        {/* Quick Altitude Presets Stack (Tablet & Desktop) */}
+        <div className="hidden sm:flex flex-col bg-[#090d16]/90 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
           <div className="px-2 py-1 bg-neutral-900/90 text-neutral-400 font-bold border-b border-neutral-800 text-[8.5px] text-center uppercase tracking-wider">
             Altitude
           </div>
@@ -1809,15 +2231,28 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           {/* Speed Presets */}
           <button
             type="button"
+            onClick={() => setRotationSpeedMode('realtime')}
+            className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
+              rotationSpeedMode === 'realtime'
+                ? 'bg-cyan-950 text-cyan-300 font-bold'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
+            }`}
+            title="Authentic Scientific 1x Speed (24.6h Sol - Real-time planetary rotation)"
+          >
+            1x (Real)
+          </button>
+
+          <button
+            type="button"
             onClick={() => setRotationSpeedMode('normal')}
             className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
               rotationSpeedMode === 'normal'
                 ? 'bg-orange-950 text-orange-300 font-bold'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
             }`}
-            title="Active Planetary Rotation: Mars completes a full Sol in ~85s; Phobos orbits in ~27s"
+            title="Dynamic Active Rotation: Mars completes a full Sol in ~60s"
           >
-            Normal (1x)
+            60s
           </button>
 
           <button
@@ -1828,35 +2263,22 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 ? 'bg-amber-950 text-amber-300 font-bold'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
             }`}
-            title="Time-Lapse Orbit: Mars rotates in ~23s; Phobos orbits every ~7s; Deimos in ~28s"
+            title="Time-Lapse Orbit: Mars completes a Sol in 20s"
           >
-            Fast (4x)
+            20s
           </button>
 
           <button
             type="button"
             onClick={() => setRotationSpeedMode('slow')}
-            className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
+            className={`px-2 py-1.5 text-center transition-colors cursor-pointer ${
               rotationSpeedMode === 'slow'
                 ? 'bg-indigo-950 text-indigo-300 font-bold'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
             }`}
-            title="Gentle Cosmic Planetary Drift (~4.5 minutes per rotation)"
+            title="Gentle Cosmic Planetary Drift (~4 minutes per rotation)"
           >
             Drift
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setRotationSpeedMode('realtime')}
-            className={`px-2 py-1.5 text-center transition-colors cursor-pointer ${
-              rotationSpeedMode === 'realtime'
-                ? 'bg-cyan-950 text-cyan-300 font-bold'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
-            }`}
-            title="Authentic Scientific Real Speed (24.6h Sol - virtually imperceptible in seconds)"
-          >
-            Real 24h
           </button>
         </div>
 
@@ -1886,9 +2308,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         </div>
       </div>
 
-      {/* HiRISE SURFACE CLOSE-UP VIEWFINDER HUD (Active when camera is close to the surface) */}
+      {/* HiRISE SURFACE CLOSE-UP VIEWFINDER HUD (Active when camera is close to the surface - Desktop Only) */}
       {cameraDist <= 145 && !inspectedCoord && !selectedSite && (
-        <div className="absolute top-20 left-3 sm:left-4 z-20 pointer-events-auto max-w-xs sm:max-w-sm animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="hidden md:block absolute top-20 left-3 sm:left-4 z-20 pointer-events-auto max-w-xs sm:max-w-sm animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="bg-[#090d16]/95 backdrop-blur-xl border border-emerald-500/60 rounded-2xl p-3.5 shadow-2xl text-neutral-200 font-mono">
             {/* Viewfinder Header */}
             <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
@@ -2004,8 +2426,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
       {/* BOTTOM INSPECTION CARD (Single unified card for surface point, rover, or landmark) */}
       {(inspectedCoord || selectedSite) && (
-        <div className="absolute bottom-4 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-md z-20 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-4 shadow-2xl text-neutral-200">
+        <div className="absolute bottom-16 sm:bottom-4 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-md z-20 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-4 shadow-2xl text-neutral-200 max-h-[75vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-start justify-between gap-2 border-b border-neutral-800 pb-2.5">
               <div className="min-w-0">
@@ -2134,57 +2556,181 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         </div>
       )}
 
-      {/* Quick Surface Dive Prompt Button (Appears when zoomed near surface) */}
-      {cameraDist <= 145 && !inspectedCoord && !selectedSite && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-[92vw]">
-          <button
-            type="button"
-            onClick={() => diveInto2DMapAtFocalPoint()}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-2xl border border-emerald-400/80 cursor-pointer transition-transform hover:scale-105 active:scale-95 font-mono"
-            title="Dive into high-resolution 2D surface map for this location"
-          >
-            <Maximize2 className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
-            <span>Open 2D High-Res Map (Sub-Meter Detail)</span>
-            <span className="text-[10px] text-emerald-100 bg-emerald-800/70 px-2 py-0.5 rounded-full hidden sm:inline">or zoom closer</span>
-          </button>
-        </div>
-      )}
-
-      {/* QUICK PLANETARY DESTINATIONS DOCK (Bottom Center) */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-15 pointer-events-auto hidden md:flex items-center gap-1 bg-[#090d16]/85 backdrop-blur-md border border-neutral-800/90 px-3 py-1.5 rounded-full shadow-2xl">
-        <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider mr-1">
-          Quick Fly:
+      {/* QUICK SATELLITES FLY DOCK (Phobos & Deimos Moons) */}
+      <div className="absolute bottom-16 sm:bottom-16 md:bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto flex items-center gap-1.5 bg-[#090d16]/90 backdrop-blur-md border border-neutral-800/90 px-3 py-1 sm:py-1.5 rounded-full shadow-2xl max-w-[95vw] overflow-x-auto no-scrollbar">
+        <span className="text-[9.5px] sm:text-[10px] font-mono text-neutral-400 uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
+          <Orbit className="w-3 h-3 text-cyan-400" />
+          <span>Quick Fly:</span>
         </span>
-        {QUICK_DESTINATIONS.slice(0, 5).map((dest) => (
-          <button
-            key={dest.id}
-            type="button"
-            onClick={() => flyToLocation(dest.lat, dest.lng, dest.zoom)}
-            className="px-2.5 py-1 rounded-full text-[10.5px] font-mono text-neutral-300 hover:text-white hover:bg-neutral-800 border border-transparent hover:border-neutral-700 transition-colors cursor-pointer"
-          >
-            {dest.name.split(' ')[0]}
-          </button>
-        ))}
-        <span className="w-px h-3 bg-neutral-700 mx-1" />
         <button
           type="button"
           onClick={() => flyToMoon('phobos')}
-          className="px-2.5 py-1 rounded-full text-[10.5px] font-mono text-cyan-300 hover:text-cyan-100 hover:bg-cyan-950/80 border border-cyan-800/60 transition-colors cursor-pointer flex items-center gap-1"
-          title="Fly camera directly to Phobos"
+          className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 ${
+            selectedMoon === 'phobos'
+              ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 font-bold shadow-sm shadow-cyan-500/30'
+              : 'text-cyan-300 hover:text-cyan-100 hover:bg-cyan-950/80 border border-cyan-800/60'
+          }`}
+          title="Fly camera directly to Phobos (Inner Satellite)"
         >
-          <Orbit className="w-2.5 h-2.5 text-cyan-400" />
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
           <span>Phobos</span>
         </button>
         <button
           type="button"
           onClick={() => flyToMoon('deimos')}
-          className="px-2.5 py-1 rounded-full text-[10.5px] font-mono text-amber-300 hover:text-amber-100 hover:bg-amber-950/80 border border-amber-800/60 transition-colors cursor-pointer flex items-center gap-1"
-          title="Fly camera directly to Deimos"
+          className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 ${
+            selectedMoon === 'deimos'
+              ? 'bg-amber-500/20 text-amber-200 border border-amber-400 font-bold shadow-sm shadow-amber-500/30'
+              : 'text-amber-300 hover:text-amber-100 hover:bg-amber-950/80 border border-amber-800/60'
+          }`}
+          title="Fly camera directly to Deimos (Outer Satellite)"
         >
-          <Orbit className="w-2.5 h-2.5 text-amber-400" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
           <span>Deimos</span>
         </button>
       </div>
+
+      {/* MOBILE 24-HOUR SOL DIURNAL DRAWER / BOTTOM SHEET */}
+      {isTimeDrawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[9995] flex flex-col justify-end bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsTimeDrawerOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full bg-[#090d16] border-t border-orange-500/50 rounded-t-3xl p-4 shadow-2xl text-neutral-200 animate-in slide-in-from-bottom duration-250 max-h-[85vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-950 border border-orange-800 text-orange-400">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-black text-white text-base tracking-widest font-mono">
+                      {formatSolTime(solSeconds)}
+                    </span>
+                    <span className="text-[10px] font-bold text-orange-400 font-mono">MTC</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-mono mt-0.5">
+                    <span>{getSolDayPhase(solSeconds).icon}</span>
+                    <span className={getSolDayPhase(solSeconds).color}>
+                      {getSolDayPhase(solSeconds).label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsTimeDrawerOpen(false)}
+                className="p-2 rounded-xl bg-neutral-800 text-neutral-300 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Time Scrubber Slider */}
+            <div className="py-4">
+              <div className="flex items-center justify-between text-[10px] font-mono text-neutral-400 mb-1.5">
+                <span>🌑 00:00</span>
+                <span>🌅 06:00</span>
+                <span>☀️ 12:00</span>
+                <span>🌇 18:00</span>
+                <span>🌑 24:00</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="86399"
+                step="1"
+                value={solSeconds}
+                onMouseDown={() => { isScrubbingTimeRef.current = true; }}
+                onMouseUp={() => { isScrubbingTimeRef.current = false; }}
+                onTouchStart={() => { isScrubbingTimeRef.current = true; }}
+                onTouchEnd={() => { isScrubbingTimeRef.current = false; }}
+                onChange={(e) => handleScrubTime(Number(e.target.value))}
+                className="w-full accent-orange-500 h-3 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            {/* Speed Controls */}
+            <div className="grid grid-cols-4 gap-2 pt-1 pb-3">
+              <button
+                type="button"
+                onClick={() => setRotationSpeedMode(rotationSpeedMode === 'paused' ? 'normal' : 'paused')}
+                className={`py-2 px-1 rounded-xl text-xs font-mono font-bold flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                  rotationSpeedMode === 'paused'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                }`}
+              >
+                {rotationSpeedMode === 'paused' ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                <span>{rotationSpeedMode === 'paused' ? 'Play' : 'Pause'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRotationSpeedMode('realtime')}
+                className={`py-2 px-1 rounded-xl text-xs font-mono font-bold flex flex-col items-center justify-center gap-0.5 border cursor-pointer ${
+                  rotationSpeedMode === 'realtime'
+                    ? 'bg-cyan-950 border-cyan-700 text-cyan-200'
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                }`}
+              >
+                <span>1x</span>
+                <span className="text-[9px] text-neutral-500">24.6h Sol</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRotationSpeedMode('normal')}
+                className={`py-2 px-1 rounded-xl text-xs font-mono font-bold flex flex-col items-center justify-center gap-0.5 border cursor-pointer ${
+                  rotationSpeedMode === 'normal'
+                    ? 'bg-orange-950 border-orange-700 text-orange-200'
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                }`}
+              >
+                <span>60s</span>
+                <span className="text-[9px] text-neutral-500">1 Sol</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRotationSpeedMode('fast')}
+                className={`py-2 px-1 rounded-xl text-xs font-mono font-bold flex flex-col items-center justify-center gap-0.5 border cursor-pointer ${
+                  rotationSpeedMode === 'fast'
+                    ? 'bg-amber-950 border-amber-700 text-amber-200'
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                }`}
+              >
+                <span>20s</span>
+                <span className="text-[9px] text-neutral-500">Time-lapse</span>
+              </button>
+            </div>
+
+            {/* Celestial Movement Rates */}
+            <div className="bg-neutral-900/90 border border-neutral-800 rounded-2xl p-3 text-[11px] font-mono space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">Mars Rotation Speed:</span>
+                <span className="text-orange-400 font-bold">868 km/h</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">Orbital Speed around Sun:</span>
+                <span className="text-amber-400 font-bold">24.1 km/s (86,760 km/h)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">Phobos Orbital Speed:</span>
+                <span className="text-cyan-400 font-bold">2.14 km/s (Period: 7h 39m)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400">Deimos Orbital Speed:</span>
+                <span className="text-amber-400 font-bold">1.35 km/s (Period: 30.3h)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PLANETARY SCIENCE DOSSIER MODAL */}
       {inspectedCoord && (

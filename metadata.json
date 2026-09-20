@@ -1,6 +1,6 @@
 {
-  "name": "MARSWAY — Real-Time NASA Mars Map & Mission GIS",
-  "description": "Real-time interactive planetary GIS map of Mars using live NASA Viking Color mosaics, MGS MOLA elevation, and OpenPlanetary basemaps with mission site exploration and traverse planning.",
+  "name": "MarsWay — Explore Mars. Understand Missions. Plan the Future.",
+  "description": "An interactive Mars exploration and mission intelligence platform combining planetary maps, NASA mission data, scientific layers, rover exploration, terrain analysis, and future human mission planning.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

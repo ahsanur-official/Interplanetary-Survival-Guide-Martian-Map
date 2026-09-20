@@ -66,6 +66,29 @@ import { NASACloseUpModal } from './NASACloseUpModal';
 import { MarsRegionDetailModal } from './MarsRegionDetailModal';
 import { Mars3DGlobe } from './Mars3DGlobe';
 import { MarsScienceDossierModal } from './MarsScienceDossierModal';
+import { MissionExplorerDrawer } from '../mission/MissionExplorerDrawer';
+import { HumanMissionMode } from '../mission/HumanMissionMode';
+import { MarsSearchModal } from '../common/MarsSearchModal';
+import { MarsTimeline } from '../common/MarsTimeline';
+import { CompareSitesModal } from '../science/CompareSitesModal';
+import { DataSourcesModal } from '../provenance/DataSourcesModal';
+import { MarsBookmarksModal } from '../common/MarsBookmarksModal';
+import { MarsMeasurementTool, MeasurementPoint } from './MarsMeasurementTool';
+import { MarsPlatformTourModal } from '../common/MarsPlatformTourModal';
+import { MarsPresentationMode } from '../common/MarsPresentationMode';
+import { AskMarsWayModal } from '../common/AskMarsWayModal';
+import { marsSonification } from '../../engine/marsSonification';
+import {
+  Ruler,
+  Bookmark,
+  FileText,
+  Volume2,
+  VolumeX,
+  Clock,
+  ArrowRightLeft,
+  ShieldCheck,
+  Presentation,
+} from 'lucide-react';
 
 export interface MarsSite extends MarsFeature {
   mission?: string;
@@ -189,6 +212,32 @@ export function RealMarsMap() {
 
   // Desktop & Mobile Global Hamburger Navigation Drawer
   const [isHamburgerOpen, setIsHamburgerOpen] = useState<boolean>(false);
+
+  // MarsWay Intelligence Modules & Tool Modals
+  const [isMissionExplorerOpen, setIsMissionExplorerOpen] = useState<boolean>(false);
+  const [selectedMissionId, setSelectedMissionId] = useState<string | undefined>(undefined);
+  const [isHumanMissionModeOpen, setIsHumanMissionModeOpen] = useState<boolean>(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState<boolean>(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState<boolean>(false);
+  const [compareSite1Id, setCompareSite1Id] = useState<string | undefined>('perseverance');
+  const [compareSite2Id, setCompareSite2Id] = useState<string | undefined>('curiosity');
+  const [isDataSourcesModalOpen, setIsDataSourcesModalOpen] = useState<boolean>(false);
+  const [isBookmarksModalOpen, setIsBookmarksModalOpen] = useState<boolean>(false);
+  const [isTourModalOpen, setIsTourModalOpen] = useState<boolean>(false);
+  const [isPresentationModeOpen, setIsPresentationModeOpen] = useState<boolean>(false);
+  const [isAskMarsWayOpen, setIsAskMarsWayOpen] = useState<boolean>(false);
+
+  // GIS Distance & Area Measurement Tool State
+  const [isMeasureToolOpen, setIsMeasureToolOpen] = useState<boolean>(false);
+  const isMeasureToolOpenRef = useRef<boolean>(false);
+  useEffect(() => {
+    isMeasureToolOpenRef.current = isMeasureToolOpen;
+  }, [isMeasureToolOpen]);
+
+  const [measurePoints, setMeasurePoints] = useState<MeasurementPoint[]>([]);
+  const [measureMode, setMeasureMode] = useState<'distance' | 'area'>('distance');
+  const measureLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Selected site
   const [selectedSite, setSelectedSite] = useState<MarsSite | null>(null);
@@ -413,6 +462,7 @@ export function RealMarsMap() {
     roverTrackLayerRef.current = L.layerGroup().addTo(map);
     routeMarkersLayerRef.current = L.layerGroup().addTo(map);
     graticuleLayerRef.current = L.layerGroup().addTo(map);
+    measureLayerRef.current = L.layerGroup().addTo(map);
 
     // Mouse / Touch tracker
     const updateCoordinates = (lat: number, rawLng: number) => {
@@ -435,7 +485,7 @@ export function RealMarsMap() {
       updateCoordinates(center.lat, center.lng);
     });
 
-    // Map click / tap -> only adds route waypoints if route planning mode is explicitly active!
+    // Map click / tap -> adds route waypoints, measurement points, or inspects feature
     map.on('click', (e: L.LeafletMouseEvent) => {
       let lng = e.latlng.lng;
       lng = ((((lng + 180) % 360) + 360) % 360) - 180;
@@ -443,7 +493,10 @@ export function RealMarsMap() {
       const cleanLng = Number(lng.toFixed(4));
       const eastLng = Number(((cleanLng + 360) % 360).toFixed(4));
 
-      if (isRoutePlanningActiveRef.current) {
+      if (isMeasureToolOpenRef.current) {
+        // Measurement tool active: drop measurement pin
+        setMeasurePoints((prev) => [...prev, { lat, lng: cleanLng }]);
+      } else if (isRoutePlanningActiveRef.current) {
         // Explicit route planning mode active: add waypoint
         setRouteWaypoints((prev) => [
           ...prev,
@@ -486,8 +539,53 @@ export function RealMarsMap() {
       map.remove();
       mapInstanceRef.current = null;
       regionsLayerRef.current = null;
+      measureLayerRef.current = null;
     };
   }, []);
+
+  // Render Measurement Tool Pins & Lines on Map
+  useEffect(() => {
+    const layer = measureLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+
+    if (!isMeasureToolOpen || measurePoints.length === 0) return;
+
+    // Draw markers
+    measurePoints.forEach((pt, idx) => {
+      const markerHtml = `
+        <div class="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 border-2 border-white text-[10px] font-bold text-neutral-950 shadow-lg font-mono">
+          ${idx + 1}
+        </div>
+      `;
+      const icon = L.divIcon({
+        html: markerHtml,
+        className: 'measure-pin',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      L.marker([pt.lat, pt.lng], { icon }).addTo(layer);
+    });
+
+    // Draw path or polygon
+    const latlngs: [number, number][] = measurePoints.map((p) => [p.lat, p.lng]);
+    if (measureMode === 'distance' && latlngs.length >= 2) {
+      L.polyline(latlngs, {
+        color: '#06b6d4',
+        weight: 3,
+        dashArray: '6, 6',
+        opacity: 0.9,
+      }).addTo(layer);
+    } else if (measureMode === 'area' && latlngs.length >= 3) {
+      L.polygon(latlngs, {
+        color: '#06b6d4',
+        fillColor: '#0891b2',
+        fillOpacity: 0.3,
+        weight: 2,
+      }).addTo(layer);
+    }
+  }, [isMeasureToolOpen, measurePoints, measureMode]);
+
 
   // Update Basemap Layer
   useEffect(() => {
@@ -995,21 +1093,22 @@ export function RealMarsMap() {
     setActiveTab(null); // Auto-close modal
   };
 
-  // Surface filter CSS style
+  // Surface filter CSS style - Ultra-clear detail and high-pass topography definition
   const getFilterStyle = () => {
-    if (surfaceFilter === 'contrast') {
-      return 'contrast(1.25) saturate(1.15) brightness(1.05)';
-    }
     if (surfaceFilter === 'sharp') {
-      return 'contrast(1.4) brightness(0.95)';
+      return 'contrast(1.35) brightness(0.98) saturate(1.15)';
+    }
+    if (surfaceFilter === 'contrast') {
+      return 'contrast(1.26) saturate(1.2) brightness(1.03)';
     }
     if (surfaceFilter === 'dark') {
-      return 'brightness(0.62) contrast(1.18) saturate(0.85)';
+      return 'brightness(0.65) contrast(1.22) saturate(0.85)';
     }
     if (surfaceFilter === 'night') {
       return 'brightness(0.42) contrast(1.28) hue-rotate(200deg) saturate(0.65)';
     }
-    return 'none';
+    // High-definition clarity default: slightly boosted contrast & saturation so the red planet's ridges, dunes, and craters pop with realistic crispness
+    return 'contrast(1.12) saturate(1.1) brightness(1.02)';
   };
 
   return (
@@ -1069,51 +1168,68 @@ export function RealMarsMap() {
         </div>
 
         {/* Desktop Search Bar (Hidden on mobile) */}
-        <div className="relative max-w-xs w-full hidden md:block">
+        <div className="relative max-w-xs w-full hidden lg:block">
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             type="text"
             placeholder="Search crater, rover, mountain..."
             value={searchQuery}
+            onFocus={() => setIsSearchModalOpen(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-neutral-900/90 border border-neutral-700/80 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 transition-colors"
+            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-neutral-900/90 border border-neutral-700/80 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 transition-colors cursor-pointer"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        </div>
 
-          {/* Search Dropdown Popup */}
-          {searchQuery.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#0f1422] border border-neutral-700 rounded-lg shadow-2xl overflow-hidden z-50 max-h-64 overflow-y-auto">
-              {filteredSites.length === 0 ? (
-                <div className="p-3 text-xs text-neutral-400 text-center">No locations found</div>
-              ) : (
-                filteredSites.map((site) => (
-                  <button
-                    key={site.id}
-                    onClick={() => {
-                      handleFlyTo(site);
-                      setSearchQuery('');
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-orange-950/40 border-b border-neutral-800/50 flex items-center justify-between text-xs transition-colors cursor-pointer"
-                  >
-                    <div>
-                      <span className="font-semibold text-white">{site.name}</span>
-                      <span className="block text-[10px] text-neutral-400">{site.significance}</span>
-                    </div>
-                    <span className="text-[10px] text-orange-400 font-mono">
-                      {site.lat > 0 ? `+${site.lat}` : site.lat}°
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+        {/* Quick Access Platform Actions Bar */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Universal Search Modal Button */}
+          <button
+            onClick={() => setIsSearchModalOpen(true)}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Search all Martian craters, volcanoes, canyons, missions & landing sites"
+          >
+            <Search className="w-3.5 h-3.5 text-orange-400" />
+            <span className="hidden xl:inline">Search</span>
+          </button>
+
+          {/* Missions Explorer Button */}
+          <button
+            onClick={() => setIsMissionExplorerOpen(true)}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Browse NASA, ESA, CNSA Mars rovers, landers & orbiters"
+          >
+            <Radio className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline font-semibold">Missions</span>
+          </button>
+
+          {/* Human Mission Mode Button */}
+          <button
+            onClick={() => setIsHumanMissionModeOpen(true)}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Evaluate future human landing candidate zones & ISRU resources"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden md:inline font-semibold">Human Base</span>
+          </button>
+
+          {/* Ask MarsWay AI Button */}
+          <button
+            onClick={() => setIsAskMarsWayOpen(true)}
+            className="px-2.5 py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900/90 border border-purple-700/80 text-xs text-purple-200 hover:text-white flex items-center gap-1.5 transition shadow shadow-purple-950/50"
+            title="Ask MarsWay AI spatial assistant with live map actions"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+            <span className="hidden sm:inline font-bold">Ask AI</span>
+          </button>
+
+          {/* Guided Tour & Presentation Button */}
+          <button
+            onClick={() => setIsTourModalOpen(true)}
+            className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-300 hover:text-white flex items-center gap-1 transition hidden lg:flex"
+            title="Open Platform Tour & Presentation"
+          >
+            <Presentation className="w-3.5 h-3.5 text-amber-400" />
+          </button>
         </div>
 
         {/* Desktop & Mobile Unified Hamburger Menu Button */}
@@ -1144,6 +1260,7 @@ export function RealMarsMap() {
           </button>
         </div>
       </header>
+
 
       {/* GLOBAL HAMBURGER SLIDE-OVER NAVIGATION SUITE */}
       {isHamburgerOpen && (
@@ -1291,6 +1408,182 @@ export function RealMarsMap() {
                       <div>
                         <span className="font-bold text-white text-xs block">Surface Imagery & Basemaps</span>
                         <span className="text-[10px] text-neutral-400">Viking Color, MOLA Elevation, THEMIS Thermal</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* MISSION INTELLIGENCE & HUMAN FLIGHT */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
+                  Mission Intelligence & Future Bases
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMissionExplorerOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-cyan-900/40 hover:border-cyan-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 group-hover:scale-105 transition-transform">
+                        <Radio className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Missions & Traverses Explorer</span>
+                        <span className="text-[10px] text-neutral-400">Curiosity, Perseverance, Opportunity, InSight</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsHumanMissionModeOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-blue-900/40 hover:border-blue-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-950/80 text-blue-400 border border-blue-800/60 group-hover:scale-105 transition-transform">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Human Landing & Habitation Mode</span>
+                        <span className="text-[10px] text-neutral-400">Subsurface ice, radiation shield, slope & ISRU</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTimelineOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-amber-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-950/80 text-amber-400 border border-amber-800/60 group-hover:scale-105 transition-transform">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Exploration Chronology (1965–Present)</span>
+                        <span className="text-[10px] text-neutral-400">Interactive timeline of all human missions to Mars</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCompareModalOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-indigo-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-indigo-950/80 text-indigo-400 border border-indigo-800/60 group-hover:scale-105 transition-transform">
+                        <ArrowRightLeft className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Dual-Site Comparison Matrix</span>
+                        <span className="text-[10px] text-neutral-400">Side-by-side elevation, pressure, ice & geology</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* GIS SCIENTIFIC TOOLS & PLATFORM SUITE */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                  GIS Scientific Analysis & Tools
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMeasureToolOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-cyan-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 group-hover:scale-105 transition-transform">
+                        <Ruler className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Measurement Tool (Distance & Area)</span>
+                        <span className="text-[10px] text-neutral-400">Great-circle distance, bearings & spherical polygon km²</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBookmarksModalOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-amber-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-950/80 text-amber-400 border border-amber-800/60 group-hover:scale-105 transition-transform">
+                        <Bookmark className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Saved Waypoints & Bookmarks</span>
+                        <span className="text-[10px] text-neutral-400">Save coordinate pins with custom scientific tags</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPresentationModeOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-purple-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/60 group-hover:scale-105 transition-transform">
+                        <Presentation className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Interactive Presentation Mode</span>
+                        <span className="text-[10px] text-neutral-400">Fullscreen guided showcase of major Mars features</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDataSourcesModalOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-emerald-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 group-hover:scale-105 transition-transform">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Data Sources & Provenance</span>
+                        <span className="text-[10px] text-neutral-400">NASA PDS, USGS, MOLA, THEMIS, Mars Trek specs</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
@@ -1566,16 +1859,6 @@ export function RealMarsMap() {
             viewMode === '2d' ? 'z-10 opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'
           }`}
         >
-          {/* Quick Jump to 3D Globe Button in 2D View */}
-          <button
-            onClick={() => setViewMode('3d')}
-            className="absolute top-3 right-3 sm:right-16 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-2xl transition-all cursor-pointer border border-orange-400/50"
-            title="Switch to 3D Spherical Mars Globe"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>3D Globe</span>
-          </button>
-
           {/* Arrived Surface Location Notification Banner */}
           {arrivedSurfaceBanner && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300 max-w-sm sm:max-w-md w-full px-3">
@@ -1655,38 +1938,38 @@ export function RealMarsMap() {
               <span className="text-orange-400 font-bold">{currentZoom}x / 10x</span>
             </div>
 
-            {/* Zoom In Button with Visible Text on Desktop */}
+            {/* Zoom In Button (Icon Only) */}
             <button
               onClick={() => mapInstanceRef.current?.zoomIn()}
               disabled={currentZoom >= 10}
-              className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 p-2 sm:px-2.5 sm:py-1.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg font-semibold text-xs transition-colors cursor-pointer"
+              className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
               title="Zoom In to Mars Surface (Max 10x)"
+              aria-label="Zoom In"
             >
               <ZoomIn className="w-4 h-4 text-orange-400 shrink-0" />
-              <span className="font-bold tracking-tight hidden sm:inline">Zoom In</span>
             </button>
 
-            {/* Zoom Out Button with Visible Text on Desktop */}
+            {/* Zoom Out Button (Icon Only) */}
             <button
               onClick={() => mapInstanceRef.current?.zoomOut()}
               disabled={currentZoom <= 2}
-              className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 p-2 sm:px-2.5 sm:py-1.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg font-semibold text-xs transition-colors cursor-pointer"
+              className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
               title="Zoom Out from Mars Surface"
+              aria-label="Zoom Out"
             >
               <ZoomOut className="w-4 h-4 text-orange-400 shrink-0" />
-              <span className="font-bold tracking-tight hidden sm:inline">Zoom Out</span>
             </button>
 
             <div className="h-[1px] bg-neutral-800/80 my-0.5" />
 
-            {/* Reset View Button with Visible Text on Desktop */}
+            {/* Reset View Button (Icon Only) */}
             <button
               onClick={handleResetView}
-              className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 p-2 sm:px-2.5 sm:py-1.5 text-neutral-300 hover:text-orange-400 hover:bg-neutral-800/90 rounded-lg font-medium text-xs transition-colors cursor-pointer"
+              className="flex items-center justify-center p-2 text-neutral-300 hover:text-orange-400 hover:bg-neutral-800/90 rounded-lg transition-colors cursor-pointer"
               title="Reset to Full Global Mars View & True North"
+              aria-label="Reset View"
             >
               <RotateCcw className="w-4 h-4 text-neutral-400 shrink-0" />
-              <span className="font-medium hidden sm:inline">Reset View</span>
             </button>
 
             {/* If Rotated, Show Quick Align True North (0°) Button */}
@@ -1835,7 +2118,7 @@ export function RealMarsMap() {
 
         {/* FLOATING SELECTED SITE CARD (Mobile & Desktop Place Card) */}
         {selectedSite && !inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-orange-500/70 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2 animate-in slide-in-from-bottom-3 duration-200">
+          <div className="absolute bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-orange-500/70 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2 animate-in slide-in-from-bottom-3 duration-200 max-h-[75vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -1933,7 +2216,7 @@ export function RealMarsMap() {
 
         {/* INSPECTED POINT CARD (Exploration Mode - Does NOT create routes) */}
         {inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/90 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-80 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200">
+          <div className="absolute bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/90 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-80 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[75vh] overflow-y-auto">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-1.5 text-orange-400 font-bold">
                 <Crosshair className="w-4 h-4" />
@@ -3262,81 +3545,76 @@ export function RealMarsMap() {
         </div>
       </div>
 
-      {/* DEDICATED MOBILE BOTTOM NAVBAR */}
-      <nav className="md:hidden z-30 bg-[#0c101a]/98 backdrop-blur-xl border-t border-neutral-800/80 px-1.5 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-2xl shrink-0">
+      {/* DEDICATED MOBILE BOTTOM NAVBAR: 100% Desktop Feature Parity on Touch Devices */}
+      <nav className="md:hidden z-30 bg-[#0c101a]/98 backdrop-blur-xl border-t border-neutral-800/80 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-2xl shrink-0">
         <button
           onClick={() => setActiveTab(activeTab === 'sites' ? null : 'sites')}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] min-h-[48px] active:scale-95 ${
-            activeTab === 'sites'
-              ? 'text-orange-400 font-bold'
-              : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+            activeTab === 'sites' ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <div className={`p-1 rounded-lg ${activeTab === 'sites' ? 'bg-orange-950/80' : ''}`}>
             <MapPin className="w-4 h-4" />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight">Landmarks</span>
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Landmarks</span>
         </button>
 
         <button
-          onClick={() => setActiveTab(activeTab === 'route' ? null : 'route')}
-          className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] min-h-[48px] active:scale-95 ${
-            activeTab === 'route'
-              ? 'text-cyan-400 font-bold'
-              : 'text-neutral-400 hover:text-neutral-200'
+          onClick={() => setIsMissionExplorerOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+            isMissionExplorerOpen ? 'text-cyan-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${activeTab === 'route' ? 'bg-cyan-950/80' : ''}`}>
-            <Navigation className="w-4 h-4" />
+          <div className={`p-1 rounded-lg ${isMissionExplorerOpen ? 'bg-cyan-950/80' : ''}`}>
+            <Radio className="w-4 h-4" />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight">Route</span>
-          {routeWaypoints.length > 0 && (
-            <span className="absolute top-0.5 right-1.5 w-4 h-4 rounded-full bg-cyan-500 text-cyan-950 text-[9px] flex items-center justify-center font-bold">
-              {routeWaypoints.length}
-            </span>
-          )}
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Missions</span>
         </button>
 
         <button
-          onClick={() => setActiveTab(activeTab === 'layers' ? null : 'layers')}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] min-h-[48px] active:scale-95 ${
-            activeTab === 'layers'
-              ? 'text-emerald-400 font-bold'
-              : 'text-neutral-400 hover:text-neutral-200'
+          onClick={() => setIsHumanMissionModeOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+            isHumanMissionModeOpen ? 'text-blue-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${activeTab === 'layers' ? 'bg-emerald-950/80' : ''}`}>
-            <Layers className="w-4 h-4" />
+          <div className={`p-1 rounded-lg ${isHumanMissionModeOpen ? 'bg-blue-950/80' : ''}`}>
+            <ShieldAlert className="w-4 h-4" />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight">Surface</span>
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Human Base</span>
         </button>
 
         <button
-          onClick={() => setActiveTab(activeTab === 'weather' ? null : 'weather')}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] min-h-[48px] active:scale-95 ${
-            activeTab === 'weather'
-              ? 'text-amber-400 font-bold'
-              : 'text-neutral-400 hover:text-neutral-200'
+          onClick={() => setIsMeasureToolOpen(!isMeasureToolOpen)}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+            isMeasureToolOpen ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${activeTab === 'weather' ? 'bg-amber-950/80' : ''}`}>
-            <Thermometer className="w-4 h-4" />
+          <div className={`p-1 rounded-lg ${isMeasureToolOpen ? 'bg-emerald-950/80' : ''}`}>
+            <Ruler className="w-4 h-4" />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight">Weather</span>
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Measure</span>
         </button>
 
         <button
-          onClick={() => setActiveTab(activeTab === 'search' ? null : 'search')}
-          className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] min-h-[48px] active:scale-95 ${
-            activeTab === 'search'
-              ? 'text-orange-400 font-bold'
-              : 'text-neutral-400 hover:text-neutral-200'
+          onClick={() => setIsAskMarsWayOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+            isAskMarsWayOpen ? 'text-purple-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${activeTab === 'search' ? 'bg-orange-950/80' : ''}`}>
-            <Search className="w-4 h-4" />
+          <div className={`p-1 rounded-lg ${isAskMarsWayOpen ? 'bg-purple-950/80' : ''}`}>
+            <Sparkles className="w-4 h-4" />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight">Search</span>
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Ask AI</span>
+        </button>
+
+        <button
+          onClick={() => setIsHamburgerOpen(true)}
+          className="flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 text-neutral-400 hover:text-white"
+        >
+          <div className="p-1 rounded-lg">
+            <Menu className="w-4 h-4" />
+          </div>
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Menu</span>
         </button>
       </nav>
 
@@ -3359,7 +3637,6 @@ export function RealMarsMap() {
           const polygon = L.polygon(region.polygon);
           mapInstanceRef.current?.fitBounds(polygon.getBounds(), {
             padding: [40, 40],
-            maxZoom: 7,
           });
         }}
         onOpenNASAImages={(query: string) => {
@@ -3392,6 +3669,159 @@ export function RealMarsMap() {
           }}
         />
       )}
+
+      {/* MARSWAY MISSION EXPLORER DRAWER */}
+      <MissionExplorerDrawer
+        isOpen={isMissionExplorerOpen}
+        onClose={() => setIsMissionExplorerOpen(false)}
+        selectedMissionId={selectedMissionId}
+        onSelectMission={(mission) => {
+          setSelectedMissionId(mission.id);
+          if (mission.lat !== undefined && mission.lng !== undefined) {
+            mapInstanceRef.current?.flyTo([mission.lat, mission.lng], 7, {
+              duration: 1.2,
+            });
+          }
+        }}
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 7, { duration: 1.2 });
+        }}
+      />
+
+      {/* HUMAN MISSION LANDING & HABITATION MODE */}
+      <HumanMissionMode
+        isOpen={isHumanMissionModeOpen}
+        onClose={() => setIsHumanMissionModeOpen(false)}
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+        }}
+      />
+
+      {/* UNIVERSAL SEARCH MODAL */}
+      <MarsSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onSelectResult={(result) => {
+          setIsSearchModalOpen(false);
+          mapInstanceRef.current?.flyTo([result.lat, result.lng], result.zoom ?? 6, {
+            duration: 1.2,
+          });
+          if (result.elevationM !== undefined) {
+            marsSonification.sonifyLocation(result.elevationM, 2);
+          }
+        }}
+      />
+
+      {/* HISTORICAL EXPLORATION TIMELINE */}
+      <MarsTimeline
+        isOpen={isTimelineOpen}
+        onClose={() => setIsTimelineOpen(false)}
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+        }}
+        onSelectMissionById={(missionId) => {
+          setSelectedMissionId(missionId);
+          setIsMissionExplorerOpen(true);
+        }}
+      />
+
+      {/* DUAL-SITE COMPARISON MATRIX */}
+      <CompareSitesModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        initialSite1Id={compareSite1Id}
+        initialSite2Id={compareSite2Id}
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+        }}
+      />
+
+      {/* SCIENTIFIC DATA SOURCES & PROVENANCE MODAL */}
+      <DataSourcesModal
+        isOpen={isDataSourcesModalOpen}
+        onClose={() => setIsDataSourcesModalOpen(false)}
+      />
+
+      {/* SAVED WAYPOINTS & BOOKMARKS MODAL */}
+      <MarsBookmarksModal
+        isOpen={isBookmarksModalOpen}
+        onClose={() => setIsBookmarksModalOpen(false)}
+        currentLocation={
+          cursorPos
+            ? {
+                lat: cursorPos.lat,
+                lng: cursorPos.lng,
+                name: inspectedPoint?.nearestFeature?.name,
+                elevationM: inspectedPoint?.nearestFeature?.elevationM,
+              }
+            : null
+        }
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+        }}
+      />
+
+      {/* GIS DISTANCE & AREA MEASUREMENT FLOATING TOOL */}
+      <MarsMeasurementTool
+        isOpen={isMeasureToolOpen}
+        onClose={() => setIsMeasureToolOpen(false)}
+        points={measurePoints}
+        onClear={() => setMeasurePoints([])}
+        onUndo={() => setMeasurePoints((prev) => prev.slice(0, -1))}
+        measurementMode={measureMode}
+        onChangeMode={(mode) => setMeasureMode(mode)}
+      />
+
+      {/* ONBOARDING & PLATFORM TOUR MODAL */}
+      <MarsPlatformTourModal
+        isOpen={isTourModalOpen}
+        onClose={() => setIsTourModalOpen(false)}
+        onSelectAction={(action) => {
+          setIsTourModalOpen(false);
+          if (action === 'globe') setViewMode('3d');
+          else if (action === 'missions') setIsMissionExplorerOpen(true);
+          else if (action === 'human') setIsHumanMissionModeOpen(true);
+          else if (action === 'layers') setActiveTab('layers');
+          else if (action === 'ai') setIsAskMarsWayOpen(true);
+        }}
+      />
+
+      {/* INTERACTIVE PRESENTATION MODE */}
+      <MarsPresentationMode
+        isOpen={isPresentationModeOpen}
+        onClose={() => setIsPresentationModeOpen(false)}
+        onSelectLayer={(layer) => setActiveLayer(layer)}
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+        }}
+      />
+
+      {/* ASK MARSWAY AI SPATIAL ASSISTANT */}
+      <AskMarsWayModal
+        isOpen={isAskMarsWayOpen}
+        onClose={() => setIsAskMarsWayOpen(false)}
+        currentContext={{
+          lat: cursorPos?.lat,
+          lng: cursorPos?.lng,
+          name: inspectedPoint?.nearestFeature?.name,
+          activeLayer,
+        }}
+        onFlyToLocation={(lat, lng, zoom, name) => {
+          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+        }}
+        onOpenMissions={(missionId) => {
+          setSelectedMissionId(missionId);
+          setIsMissionExplorerOpen(true);
+        }}
+        onOpenHumanMode={() => setIsHumanMissionModeOpen(true)}
+        onOpenCompare={(s1, s2) => {
+          if (s1) setCompareSite1Id(s1);
+          if (s2) setCompareSite2Id(s2);
+          setIsCompareModalOpen(true);
+        }}
+        onSelectLayer={(layer) => setActiveLayer(layer)}
+      />
+
     </div>
   );
 }

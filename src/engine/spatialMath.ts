@@ -100,3 +100,48 @@ export function distanceToSegmentMeters(
   const perp = Math.sqrt(Math.max(0, dAP * dAP - proj * proj));
   return perp;
 }
+
+/**
+ * Computes spherical polygon area on Mars in square kilometers using spherical excess
+ */
+export function calculateMarsPolygonAreaKm2(coords: MarsCoordinate[]): number {
+  if (coords.length < 3) return 0;
+
+  let totalAngle = 0;
+  const n = coords.length;
+
+  for (let i = 0; i < n; i++) {
+    const p1 = coords[i];
+    const p2 = coords[(i + 1) % n];
+    const p3 = coords[(i + 2) % n];
+
+    // Compute bearings
+    const bearing1 = calculateBearing(p2, p1);
+    const bearing2 = calculateBearing(p2, p3);
+
+    let angle = bearing2 - bearing1;
+    while (angle < 0) angle += 360;
+    while (angle >= 360) angle -= 360;
+
+    totalAngle += angle * (Math.PI / 180);
+  }
+
+  const excess = Math.abs(totalAngle - (n - 2) * Math.PI);
+  return excess * MARS_RADIUS_KM * MARS_RADIUS_KM;
+}
+
+function calculateBearing(start: MarsCoordinate, dest: MarsCoordinate): number {
+  const startLat = (start.latitude * Math.PI) / 180;
+  const startLon = (start.longitude * Math.PI) / 180;
+  const destLat = (dest.latitude * Math.PI) / 180;
+  const destLon = (dest.longitude * Math.PI) / 180;
+
+  const y = Math.sin(destLon - startLon) * Math.cos(destLat);
+  const x =
+    Math.cos(startLat) * Math.sin(destLat) -
+    Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLon - startLon);
+
+  const brng = Math.atan2(y, x);
+  return ((brng * 180) / Math.PI + 360) % 360;
+}
+

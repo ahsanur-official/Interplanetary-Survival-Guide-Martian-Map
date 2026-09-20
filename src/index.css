@@ -1,6 +1,18 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+/* Modern high-contrast typography and smooth text rendering */
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+code, kbd, samp, pre, .font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
 /* Ensure silky smooth map rendering and clear planetary tiles */
 .leaflet-container {
   background: #080b11 !important;
