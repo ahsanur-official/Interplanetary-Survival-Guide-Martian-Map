@@ -234,3 +234,57 @@ export function createProceduralMolaTexture(width = 2048, height = 1024): string
 
   return canvas.toDataURL('image/jpeg', 0.88);
 }
+
+// Procedural high-frequency Martian regolith & crater bump map
+// Applied with high UV repeating factor (e.g. 96x48) so that close-up 3D views reveal
+// crisp terrain relief, micro-craters, dune ripples, and rocky shadows instead of flat blur
+export function createProceduralMicroTerrainBumpMap(size = 512): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // Base neutral 50% grey heightfield
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, size, size);
+
+  // High-frequency dune & crag noise
+  const imgData = ctx.getImageData(0, 0, size, size);
+  const data = imgData.data;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const n1 = Math.sin(x * 0.14) * Math.cos(y * 0.14);
+      const n2 = Math.sin((x + y) * 0.28) * 0.5;
+      const n3 = Math.cos(x * 0.45 - y * 0.35) * 0.28;
+      const val = Math.max(0, Math.min(255, 128 + (n1 + n2 + n3) * 60));
+      data[idx] = val;
+      data[idx + 1] = val;
+      data[idx + 2] = val;
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Scattered procedural micro-impact craters with raised rims
+  for (let i = 0; i < 48; i++) {
+    const cx = Math.random() * size;
+    const cy = Math.random() * size;
+    const r = 4 + Math.random() * 18;
+
+    const grad = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r * 1.3);
+    grad.addColorStop(0, '#2b2b2b'); // Floor depression
+    grad.addColorStop(0.65, '#505050');
+    grad.addColorStop(0.88, '#f5f5f5'); // Raised illuminated rim
+    grad.addColorStop(1, '#808080');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return canvas.toDataURL('image/png');
+}

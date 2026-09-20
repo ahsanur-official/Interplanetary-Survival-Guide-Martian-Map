@@ -18,6 +18,10 @@ export interface MarsMoonData {
   altitudeAboveSurfaceKm: number;
   orbitalPeriodHours: number;
   orbitalPeriodDisplay: string;
+  orbitalSpeedKmS: number;
+  orbitalSpeedKmH: string;
+  motionDetail: string;
+  skyDirection: string;
   dimensionsKm: string;
   meanRadiusKm: number;
   massKg: string;
@@ -41,7 +45,11 @@ export const MARS_MOONS_DATA: Record<'phobos' | 'deimos', MarsMoonData> = {
     semiMajorAxisKm: 9376,
     altitudeAboveSurfaceKm: 5980,
     orbitalPeriodHours: 7.65,
-    orbitalPeriodDisplay: '7h 39m 12s (3.2 orbits per Martian Sol)',
+    orbitalPeriodDisplay: '7h 39m (3.2 orbits per Martian Sol)',
+    orbitalSpeedKmS: 2.14,
+    orbitalSpeedKmH: '~2.14 km/s (approx. 7,700 km/h or 4,783 mph)',
+    motionDetail: 'Phobos orbits so fast that it circles Mars three times a day, meaning it moves across the Martian sky backwards (rising in the west and setting in the east).',
+    skyDirection: 'Retrograde (Rises West ➔ Sets East in 4h 15m)',
     dimensionsKm: '26.8 × 22.4 × 18.4 km',
     meanRadiusKm: 11.26,
     massKg: '1.066 × 10¹⁶ kg',
@@ -57,7 +65,7 @@ export const MARS_MOONS_DATA: Record<'phobos' | 'deimos', MarsMoonData> = {
       'Limtoc and Hall impact craters',
     ],
     scientificSummary:
-      'Phobos orbits closer to its primary planet than any other moon in the Solar System. Because its orbital period is shorter than a Martian Sol, it rises in the west, travels rapidly across the Martian sky in 4 hours 15 minutes, and sets in the east twice each Martian day.',
+      'Phobos orbits closer to its primary planet than any other moon in the Solar System. Average orbital speed around Mars is ~2.14 km/s (7,700 km/h). Because its 7h 39m orbital period is much shorter than the Martian day, it rises in the west, travels rapidly across the sky, and sets in the east.',
     futureFate:
       'Tidal deceleration is drawing Phobos inward by ~1.8 cm per year. In approximately 30 to 50 million years, it will cross the Martian fluid Roche limit and either break apart into a dense planetary ring system or collide with the surface.',
     missions: [
@@ -75,6 +83,10 @@ export const MARS_MOONS_DATA: Record<'phobos' | 'deimos', MarsMoonData> = {
     altitudeAboveSurfaceKm: 20063,
     orbitalPeriodHours: 30.3,
     orbitalPeriodDisplay: '30h 18m (Longer than 1 Martian Sol)',
+    orbitalSpeedKmS: 1.35,
+    orbitalSpeedKmH: '~1.35 km/s (approx. 4,865 km/h or 3,023 mph)',
+    motionDetail: 'Deimos moves much slower than Phobos and sits further out, taking just over a day to complete an orbit and appearing to move in the normal east-to-west direction from the Martian surface.',
+    skyDirection: 'Prograde (Rises East ➔ Sets West slowly over 64 hours)',
     dimensionsKm: '15.0 × 12.2 × 11.0 km',
     meanRadiusKm: 6.2,
     massKg: '1.476 × 10¹⁵ kg',
@@ -90,7 +102,7 @@ export const MARS_MOONS_DATA: Record<'phobos' | 'deimos', MarsMoonData> = {
       'Bright albedo streaks across low-relief ridges',
     ],
     scientificSummary:
-      'Deimos orbits just beyond synchronous orbit distance (17,000 km). Because its orbital period (30.3 hours) is slightly longer than the Martian day (24.6 hours), it rises in the east very slowly, taking 2.7 Martian sols (64 hours) to cross the sky before setting in the west.',
+      'Deimos orbits just beyond synchronous orbit distance (17,000 km) at ~1.35 km/s (4,865 km/h). Because its orbital period (30.3 hours) is slightly longer than the Martian day (24.6 hours), it rises in the east very slowly, taking 2.7 Martian sols (64 hours) to cross the sky before setting in the west.',
     futureFate:
       'Unlike Phobos, Deimos orbits outside Mars synchronous radius. Tidal forces are slowly accelerating Deimos, causing its orbit to gradually spiral outward away from Mars, maintaining orbital stability.',
     missions: [
@@ -219,6 +231,46 @@ export const MarsMoonDossierModal: React.FC<MarsMoonDossierModalProps> = ({
               <span className="text-[10px] text-neutral-500 block">
                 Escape Vel: {data.escapeVelocityKmH} km/h
               </span>
+            </div>
+          </div>
+
+          {/* Real Astronomical Movement Speed & Sky Trajectory Card */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-950/40 via-cyan-950/30 to-purple-950/40 border border-cyan-700/60 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Rocket className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                  Orbital Velocity & Celestial Mechanics
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-900/60 text-cyan-300 border border-cyan-700/50">
+                v = {data.orbitalSpeedKmS} km/s
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded-lg bg-neutral-900/80 border border-neutral-800">
+                <span className="text-[10px] text-neutral-400 font-mono block">ORBITAL SPEED AROUND MARS</span>
+                <span className="text-sm font-bold text-cyan-300 font-mono">
+                  {data.orbitalSpeedKmH}
+                </span>
+              </div>
+              <div className="p-2 rounded-lg bg-neutral-900/80 border border-neutral-800">
+                <span className="text-[10px] text-neutral-400 font-mono block">MARTIAN SKY MOVEMENT</span>
+                <span className={`text-xs font-bold font-mono ${data.id === 'phobos' ? 'text-amber-300' : 'text-emerald-300'}`}>
+                  {data.skyDirection}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11.5px] text-neutral-300 leading-relaxed bg-black/40 p-2.5 rounded-lg border border-neutral-800/80">
+              <span className="font-semibold text-white">Movement Detail: </span>
+              {data.motionDetail}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-mono text-neutral-400 pt-1 border-t border-cyan-900/40">
+              <span>Mars Orbit around Sun: <strong className="text-white">24.1 km/s</strong> (86,760 km/h)</span>
+              <span>Mars Equator Spin: <strong className="text-white">868 km/h</strong> (539 mph)</span>
             </div>
           </div>
 

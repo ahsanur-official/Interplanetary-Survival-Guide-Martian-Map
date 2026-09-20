@@ -72,6 +72,9 @@ export interface MarsSite extends MarsFeature {
   elevation: number;
   category?: string;
   significance?: string;
+  historicalContext?: string;
+  scientificValue?: string;
+  [key: string]: any;
 }
 
 export const FAMOUS_MARS_SITES: MarsSite[] = ALL_MARS_FEATURES.map((f) => ({

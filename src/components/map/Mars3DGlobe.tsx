@@ -27,11 +27,13 @@ import {
   Crosshair,
   Sparkles,
   ArrowDown,
+  Rocket,
 } from 'lucide-react';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
   createProceduralMarsTexture,
   createProceduralMolaTexture,
+  createProceduralMicroTerrainBumpMap,
 } from '../../engine/marsTextureGenerator';
 import { MarsOrbitalTelemetry } from '../../engine/nasaMarsService';
 import {
@@ -115,8 +117,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   const [selectedLayerId, setSelectedLayerId] = useState<string>('viking');
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   
-  // Planetary Rotation Speed State: 'realtime' (true 24.6h Sol by default), 'slow' (gentle cosmic drift), 'paused'
-  const [rotationSpeedMode, setRotationSpeedMode] = useState<'realtime' | 'slow' | 'paused'>('realtime');
+  // Planetary Rotation Speed State: 'normal' (active visible pace by default), 'fast' (orbit time-lapse), 'slow' (gentle drift), 'realtime' (24.6h Sol), 'paused'
+  const [rotationSpeedMode, setRotationSpeedMode] = useState<'normal' | 'fast' | 'slow' | 'realtime' | 'paused'>('normal');
   const rotationSpeedModeRef = useRef(rotationSpeedMode);
   useEffect(() => {
     rotationSpeedModeRef.current = rotationSpeedMode;
@@ -201,17 +203,18 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       isTransitioningTo2DRef.current = false;
     }, 1500);
 
-    const target = specificFeature || focalTelemetry.nearestFeature || {
+    const nearest = focalTelemetry.nearestFeature;
+    const target = specificFeature || (nearest ? nearest : {
       id: `target-${focalTelemetry.lat.toFixed(2)}-${focalTelemetry.lng.toFixed(2)}`,
-      name: focalTelemetry.nearestFeature?.name || `Surface Target (${focalTelemetry.lat >= 0 ? `${focalTelemetry.lat}°N` : `${Math.abs(focalTelemetry.lat)}°S`}, ${focalTelemetry.lng >= 0 ? `${focalTelemetry.lng}°E` : `${Math.abs(focalTelemetry.lng)}°W`})`,
-      type: focalTelemetry.nearestFeature?.type || 'Planitia (Plain)',
+      name: `Surface Target (${focalTelemetry.lat >= 0 ? `${focalTelemetry.lat.toFixed(2)}°N` : `${Math.abs(focalTelemetry.lat).toFixed(2)}°S`}, ${focalTelemetry.lng >= 0 ? `${focalTelemetry.lng.toFixed(2)}°E` : `${Math.abs(focalTelemetry.lng).toFixed(2)}°W`})`,
+      type: 'Planitia (Plain)' as const,
       lat: focalTelemetry.lat,
       lng: focalTelemetry.lng,
       planetocentricLng: (focalTelemetry.lng + 360) % 360,
       elevationM: focalTelemetry.elevationM,
-      description: `High-resolution surface coordinates at ${focalTelemetry.lat >= 0 ? `${focalTelemetry.lat}°N` : `${Math.abs(focalTelemetry.lat)}°S`}, ${focalTelemetry.lng >= 0 ? `${focalTelemetry.lng}°E` : `${Math.abs(focalTelemetry.lng)}°W`}`,
+      description: `High-resolution surface coordinates at ${focalTelemetry.lat >= 0 ? `${focalTelemetry.lat.toFixed(2)}°N` : `${Math.abs(focalTelemetry.lat).toFixed(2)}°S`}, ${focalTelemetry.lng >= 0 ? `${focalTelemetry.lng.toFixed(2)}°E` : `${Math.abs(focalTelemetry.lng).toFixed(2)}°W`}`,
       originName: 'Target Coordinates',
-    };
+    });
 
     onSwitchToFlatMap(target as any);
   }, [focalTelemetry, onSwitchToFlatMap]);
@@ -323,7 +326,11 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
         tex.generateMipmaps = true;
+        if (rendererRef.current) {
+          tex.anisotropy = rendererRef.current.capabilities.getMaxAnisotropy();
+        }
         if (mars.material instanceof THREE.MeshStandardMaterial) {
           mars.material.map = tex;
           mars.material.needsUpdate = true;
@@ -339,6 +346,13 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           : createProceduralMarsTexture(2048, 1024);
         
         textureLoader.load(fallbackUrl, (fbTex) => {
+          fbTex.colorSpace = THREE.SRGBColorSpace;
+          fbTex.minFilter = THREE.LinearMipmapLinearFilter;
+          fbTex.magFilter = THREE.LinearFilter;
+          fbTex.generateMipmaps = true;
+          if (rendererRef.current) {
+            fbTex.anisotropy = rendererRef.current.capabilities.getMaxAnisotropy();
+          }
           if (mars.material instanceof THREE.MeshStandardMaterial) {
             mars.material.map = fbTex;
             mars.material.needsUpdate = true;
@@ -387,9 +401,10 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const moonMesh = moonId === 'phobos' ? phobosMeshRef.current : deimosMeshRef.current;
     if (!moonMesh) return;
 
-    const pos = moonMesh.position;
+    const pos = new THREE.Vector3();
+    moonMesh.getWorldPosition(pos);
     const dist = pos.length();
-    const phi = Math.acos(pos.y / dist);
+    const phi = Math.acos(Math.max(-1, Math.min(1, pos.y / Math.max(1, dist))));
     let theta = Math.atan2(pos.x, pos.z);
 
     while (theta - s.theta > Math.PI) theta -= Math.PI * 2;
@@ -400,8 +415,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     s.startRadius = s.radius;
 
     s.targetTheta = theta;
-    s.targetPhi = phi;
-    s.targetRadius = moonId === 'phobos' ? 320 : 620;
+    s.targetPhi = Math.max(0.08, Math.min(Math.PI - 0.08, phi));
+    s.targetRadius = moonId === 'phobos' ? 340 : 640;
 
     s.animStartTime = performance.now();
     s.animDuration = 1400;
@@ -436,23 +451,22 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   const handleZoomIn = () => {
     const s = sphereState.current;
 
-    // If already at close surface distance, zooming in enters the 2D high-res surface map
-    if (s.radius <= 103.5) {
+    // If already at close surface distance (< 350 km altitude or radius <= 109.5), zooming in seamlessly dives into the 2D high-res surface map
+    if (s.radius <= 109.5) {
       diveInto2DMapAtFocalPoint();
       return;
     }
 
     let nextRadius = s.radius;
-    if (s.radius > 280) nextRadius = 210;
-    else if (s.radius > 170) nextRadius = 140;
-    else if (s.radius > 118) nextRadius = 108;
-    else if (s.radius > 103.5) nextRadius = 102.0;
+    if (s.radius > 320) nextRadius = 230;
+    else if (s.radius > 200) nextRadius = 150;
+    else if (s.radius > 130) nextRadius = 112;
     else {
       diveInto2DMapAtFocalPoint();
       return;
     }
 
-    s.targetRadius = Math.max(101.5, nextRadius);
+    s.targetRadius = Math.max(106.0, nextRadius);
     s.startRadius = s.radius;
     s.startTheta = s.theta;
     s.startPhi = s.phi;
@@ -466,10 +480,10 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   const handleZoomOut = () => {
     const s = sphereState.current;
     let nextRadius = s.radius;
-    if (s.radius < 103) nextRadius = 112;
-    else if (s.radius < 125) nextRadius = 175;
-    else if (s.radius < 220) nextRadius = 320;
-    else nextRadius = Math.min(950, s.radius + 120);
+    if (s.radius < 114) nextRadius = 145;
+    else if (s.radius < 165) nextRadius = 240;
+    else if (s.radius < 260) nextRadius = 360;
+    else nextRadius = Math.min(950, s.radius + 140);
 
     s.targetRadius = nextRadius;
     s.startRadius = s.radius;
@@ -484,7 +498,16 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
   // Fly directly to a specific altitude preset
   const handleFlyToAltitude = (targetRad: number) => {
+    // If user clicks 2D View (targetRad <= 104) or clicks Close when already at close range
+    if (targetRad <= 104) {
+      diveInto2DMapAtFocalPoint();
+      return;
+    }
     const s = sphereState.current;
+    if (targetRad <= 108 && s.radius <= 114) {
+      diveInto2DMapAtFocalPoint();
+      return;
+    }
     s.isDragging = false;
     s.velocityTheta = 0;
     s.velocityPhi = 0;
@@ -629,6 +652,23 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       color: 0xd35b2e, // Authentic Martian terracotta base
       roughness: 0.88,
       metalness: 0.04,
+    });
+
+    // Attach procedural micro-terrain relief bump map with high repeating frequency
+    // Prevents surface from looking flat and blurry when zoomed into orbital close-up
+    const microBumpUrl = createProceduralMicroTerrainBumpMap(512);
+    const microBumpLoader = new THREE.TextureLoader();
+    microBumpLoader.setCrossOrigin('anonymous');
+    microBumpLoader.load(microBumpUrl, (bTex) => {
+      bTex.wrapS = THREE.RepeatWrapping;
+      bTex.wrapT = THREE.RepeatWrapping;
+      bTex.repeat.set(96, 48); // repeats across the globe for micro-scale crater & dune relief
+      if (renderer) {
+        bTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      }
+      marsMat.bumpMap = bTex;
+      marsMat.bumpScale = 0.55;
+      marsMat.needsUpdate = true;
     });
     const marsMesh = new THREE.Mesh(marsGeo, marsMat);
     marsGroup.add(marsMesh);
@@ -810,6 +850,11 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const phobosOrbitRadius = 265;
     const deimosOrbitRadius = 560;
 
+    // Orbits Group tilted at Mars's axial tilt (25.19°) so moons orbit in Mars's equatorial plane
+    const marsOrbitsGroup = new THREE.Group();
+    marsOrbitsGroup.rotation.z = (25.19 * Math.PI) / 180;
+    scene.add(marsOrbitsGroup);
+
     // Helper to create irregular asteroid geometry
     const createAsteroidGeometry = (radius: number, stretch: [number, number, number]) => {
       const geo = new THREE.IcosahedronGeometry(radius, 3);
@@ -826,21 +871,52 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       return geo;
     };
 
+    // Helper to generate a luminous moon beacon sprite so moons are clearly visible from afar
+    const createMoonBeaconSprite = (colorStr: string) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 32);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.28, colorStr);
+        grad.addColorStop(0.7, colorStr.replace('1.0', '0.2').replace('1)', '0.2)'));
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 64);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.92,
+      });
+      const sprite = new THREE.Sprite(mat);
+      return sprite;
+    };
+
     // Phobos Mesh (Irregular oblong potato, ~4.2 units, dark carbonaceous chondrite)
     const phobosGeo = createAsteroidGeometry(4.2, [1.3, 1.0, 0.85]);
     const phobosMat = new THREE.MeshStandardMaterial({
-      color: 0x48423d,
-      roughness: 0.94,
-      metalness: 0.05,
+      color: 0x6b635b,
+      roughness: 0.9,
+      metalness: 0.08,
     });
     const phobosMesh = new THREE.Mesh(phobosGeo, phobosMat);
-    scene.add(phobosMesh);
+    marsOrbitsGroup.add(phobosMesh);
     phobosMeshRef.current = phobosMesh;
 
+    // Glowing cyan beacon for Phobos
+    const phobosBeacon = createMoonBeaconSprite('rgba(56, 189, 248, 1.0)');
+    phobosBeacon.scale.set(16, 16, 1);
+    phobosMesh.add(phobosBeacon);
+
     // Phobos Orbit Line Loop
-    const phobosSegments = 96;
+    const phobosSegments = 128;
     const phobosOrbitPoints: THREE.Vector3[] = [];
-    const phobosInc = (1.08 * Math.PI) / 180; // Phobos inclination
+    const phobosInc = (1.08 * Math.PI) / 180; // Phobos inclination to Mars equator
     for (let i = 0; i < phobosSegments; i++) {
       const a = (i / phobosSegments) * Math.PI * 2;
       const x = phobosOrbitRadius * Math.cos(a);
@@ -852,27 +928,32 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const phobosOrbitMat = new THREE.LineBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.55,
     });
     const phobosOrbitLine = new THREE.LineLoop(phobosOrbitGeo, phobosOrbitMat);
-    scene.add(phobosOrbitLine);
+    marsOrbitsGroup.add(phobosOrbitLine);
     phobosOrbitLineRef.current = phobosOrbitLine;
 
-    // Deimos Mesh (Smaller irregular mini-asteroid, ~2.2 units, dusty reddish-grey)
+    // Deimos Mesh (Smaller irregular mini-asteroid, ~2.3 units, dusty reddish-grey)
     const deimosGeo = createAsteroidGeometry(2.3, [1.2, 1.0, 0.9]);
     const deimosMat = new THREE.MeshStandardMaterial({
-      color: 0x5a524a,
-      roughness: 0.92,
-      metalness: 0.04,
+      color: 0x7c7165,
+      roughness: 0.9,
+      metalness: 0.08,
     });
     const deimosMesh = new THREE.Mesh(deimosGeo, deimosMat);
-    scene.add(deimosMesh);
+    marsOrbitsGroup.add(deimosMesh);
     deimosMeshRef.current = deimosMesh;
 
+    // Glowing amber beacon for Deimos
+    const deimosBeacon = createMoonBeaconSprite('rgba(245, 158, 11, 1.0)');
+    deimosBeacon.scale.set(14, 14, 1);
+    deimosMesh.add(deimosBeacon);
+
     // Deimos Orbit Line Loop
-    const deimosSegments = 120;
+    const deimosSegments = 144;
     const deimosOrbitPoints: THREE.Vector3[] = [];
-    const deimosInc = (1.79 * Math.PI) / 180; // Deimos inclination
+    const deimosInc = (1.79 * Math.PI) / 180; // Deimos inclination to Mars equator
     for (let i = 0; i < deimosSegments; i++) {
       const a = (i / deimosSegments) * Math.PI * 2;
       const x = deimosOrbitRadius * Math.cos(a);
@@ -884,10 +965,10 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const deimosOrbitMat = new THREE.LineBasicMaterial({
       color: 0xf59e0b,
       transparent: true,
-      opacity: 0.32,
+      opacity: 0.48,
     });
     const deimosOrbitLine = new THREE.LineLoop(deimosOrbitGeo, deimosOrbitMat);
-    scene.add(deimosOrbitLine);
+    marsOrbitsGroup.add(deimosOrbitLine);
     deimosOrbitLineRef.current = deimosOrbitLine;
 
     // 8. Lighting: High-contrast Sunlight + Deep Space Ambient
@@ -931,12 +1012,19 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
       // 1. Mars Planetary Rotation Engine
       let rotationDelta = 0;
-      if (rotationSpeedModeRef.current === 'realtime') {
+      if (rotationSpeedModeRef.current === 'normal') {
+        // Active majestic planetary rotation: Mars rotates once every ~85 seconds
+        // Movement is clearly, smoothly, beautifully visible!
+        rotationDelta = 0.0012;
+      } else if (rotationSpeedModeRef.current === 'fast') {
+        // High-speed orbital time-lapse: Mars rotates in ~23 seconds, Phobos orbits every ~7 seconds
+        rotationDelta = 0.0045;
+      } else if (rotationSpeedModeRef.current === 'slow') {
+        // Serene gentle planetary drift (~4.5 minutes per rotation)
+        rotationDelta = 0.00038;
+      } else if (rotationSpeedModeRef.current === 'realtime') {
         // Authentic 1x Real-Time Martian Sol: 24.62 hours per rotation (0.0000012 rad/frame at 60fps)
         rotationDelta = 0.0000012;
-      } else if (rotationSpeedModeRef.current === 'slow') {
-        // Serene gentle planetary drift (~10x slower than previous pace)
-        rotationDelta = 0.000045;
       } else {
         // Paused
         rotationDelta = 0;
@@ -1092,17 +1180,20 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
         // 5. Project Moons Screen Coordinates
         if (showMoons && phobosMeshRef.current && deimosMeshRef.current) {
-          const phobosPos = phobosMeshRef.current.position.clone();
-          const deimosPos = deimosMeshRef.current.position.clone();
+          const phobosWorldPos = new THREE.Vector3();
+          phobosMeshRef.current.getWorldPosition(phobosWorldPos);
 
-          const pDot = phobosPos.clone().normalize().dot(camDir);
-          const dDot = deimosPos.clone().normalize().dot(camDir);
+          const deimosWorldPos = new THREE.Vector3();
+          deimosMeshRef.current.getWorldPosition(deimosWorldPos);
+
+          const pDot = phobosWorldPos.clone().normalize().dot(camDir);
+          const dDot = deimosWorldPos.clone().normalize().dot(camDir);
 
           let pProj: { x: number; y: number; visible: boolean; distKm: number } | null = null;
           let dProj: { x: number; y: number; visible: boolean; distKm: number } | null = null;
 
           if (pDot > -0.2) {
-            const pScreen = phobosPos.project(camera);
+            const pScreen = phobosWorldPos.project(camera);
             pProj = {
               x: pScreen.x * wHalf + wHalf,
               y: -(pScreen.y * hHalf) + hHalf,
@@ -1112,7 +1203,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           }
 
           if (dDot > -0.2) {
-            const dScreen = deimosPos.project(camera);
+            const dScreen = deimosWorldPos.project(camera);
             dProj = {
               x: dScreen.x * wHalf + wHalf,
               y: -(dScreen.y * hHalf) + hHalf,
@@ -1213,8 +1304,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const s = sphereState.current;
     s.isAnimating = false;
 
-    // If scrolling in (zooming into surface) when already close, transition directly to 2D view
-    if (e.deltaY < 0 && s.radius <= 103.5) {
+    // If scrolling in (zooming into surface) when already close (radius <= 109.5), transition directly to 2D view
+    if (e.deltaY < 0 && s.radius <= 109.5) {
       diveInto2DMapAtFocalPoint();
       return;
     }
@@ -1224,11 +1315,11 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     const factor = dist > 80 ? 0.45 : dist > 20 ? 0.20 : dist > 4 ? 0.08 : 0.024;
     
     s.radius += e.deltaY * factor;
-    s.radius = Math.max(100.8, Math.min(950, s.radius));
+    s.radius = Math.max(106.0, Math.min(950, s.radius));
     setCameraDist(s.radius);
 
     // If scroll reached ground threshold, dive into 2D view
-    if (e.deltaY < 0 && s.radius <= 101.5) {
+    if (e.deltaY < 0 && s.radius <= 107.5) {
       diveInto2DMapAtFocalPoint();
     }
   };
@@ -1259,17 +1350,21 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           nearestFeature = f;
         }
       });
-      diveInto2DMapAtFocalPoint(nearestFeature || {
-        id: `target-${lat.toFixed(2)}-${lng.toFixed(2)}`,
-        name: nearestFeature ? nearestFeature.name : 'Martian Surface Target',
-        type: nearestFeature ? nearestFeature.type : 'Planitia (Plain)',
-        lat: Number(lat.toFixed(2)),
-        lng: Number(lng.toFixed(2)),
-        planetocentricLng: (lng + 360) % 360,
-        elevationM: nearestFeature?.elevationM ?? -2000,
-        description: `Coordinates at ${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
-        originName: 'Target Coordinates',
-      });
+      if (nearestFeature) {
+        diveInto2DMapAtFocalPoint(nearestFeature);
+      } else {
+        diveInto2DMapAtFocalPoint({
+          id: `target-${lat.toFixed(2)}-${lng.toFixed(2)}`,
+          name: 'Martian Surface Target',
+          type: 'Planitia (Plain)',
+          lat: Number(lat.toFixed(2)),
+          lng: Number(lng.toFixed(2)),
+          planetocentricLng: (lng + 360) % 360,
+          elevationM: -2000,
+          description: `Coordinates at ${lat.toFixed(2)}°, ${lng.toFixed(2)}°`,
+          originName: 'Target Coordinates',
+        });
+      }
     }
   };
 
@@ -1395,6 +1490,36 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               <span className="text-[10px] text-neutral-400 font-mono hidden md:inline">
                 Subsolar: {subsolarPoint.lat}°N, {subsolarPoint.lng}°E
               </span>
+            </div>
+
+            {/* Scientific Celestial Movement Rates Telemetry */}
+            <div className="hidden xl:flex items-center gap-3 border-l border-neutral-800 pl-3 text-[10px] font-mono">
+              <div title="Mars Orbital Velocity around the Sun: ~24.1 km/s (86,760 km/h or 53,910 mph)">
+                <span className="text-neutral-500">Orbit ☉: </span>
+                <span className="text-amber-400 font-bold">24.1 km/s</span>
+              </div>
+              <div title="Mars Equatorial Rotation Speed: ~868 km/h (539 mph), Sol period: 24h 37m">
+                <span className="text-neutral-500">Rotation ⟳: </span>
+                <span className="text-orange-400 font-bold">868 km/h</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => flyToMoon('phobos')}
+                className="hover:text-cyan-300 transition-colors cursor-pointer flex items-center gap-1"
+                title="Phobos Orbit: ~2.14 km/s (7,700 km/h), period 7h 39m, retrograde (rises West ➔ sets East)"
+              >
+                <span className="text-neutral-500">Phobos: </span>
+                <span className="text-cyan-400 font-bold">2.14 km/s</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => flyToMoon('deimos')}
+                className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1"
+                title="Deimos Orbit: ~1.35 km/s (4,865 km/h), period 30.3h, prograde (rises East ➔ sets West)"
+              >
+                <span className="text-neutral-500">Deimos: </span>
+                <span className="text-amber-400 font-bold">1.35 km/s</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1645,46 +1770,118 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           </button>
         </div>
 
-        {/* Mars Rotation Speed Controller: Authentic Real Speed by Default */}
-        <div className="flex flex-col bg-[#090d16]/90 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
-          <div className="px-2 py-1 bg-neutral-900/90 text-neutral-400 font-bold border-b border-neutral-800 text-[8px] text-center uppercase tracking-wider">
-            Speed
+        {/* Mars Rotation & Moons Orbit Speed Controller */}
+        <div className="flex flex-col bg-[#090d16]/95 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
+          <div className="px-2 py-1 bg-neutral-900/90 text-neutral-400 font-bold border-b border-neutral-800 text-[8px] text-center uppercase tracking-wider flex items-center justify-between gap-1">
+            <span>Rotation</span>
+            {rotationSpeedMode !== 'paused' && (
+              <span className="flex h-1.5 w-1.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+            )}
           </div>
+
+          {/* Quick Play / Pause Toggle */}
           <button
             type="button"
-            onClick={() => setRotationSpeedMode('realtime')}
-            className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
-              rotationSpeedMode === 'realtime'
-                ? 'bg-cyan-950 text-cyan-300 font-bold'
-                : 'text-neutral-400 hover:text-white'
+            onClick={() => setRotationSpeedMode(rotationSpeedMode === 'paused' ? 'normal' : 'paused')}
+            className={`px-2 py-1.5 border-b border-neutral-800 flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+              rotationSpeedMode !== 'paused'
+                ? 'bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900/80'
+                : 'bg-neutral-800 text-neutral-300 hover:text-white'
             }`}
-            title="Authentic Real Speed (True 24.6h Sol rotation & Keplerian orbital period)"
+            title={rotationSpeedMode === 'paused' ? 'Start Planetary Rotation' : 'Pause Planetary Rotation'}
           >
-            1x Real
+            {rotationSpeedMode !== 'paused' ? (
+              <>
+                <Pause className="w-3 h-3 text-emerald-400" />
+                <span className="font-bold">Active</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-3 h-3 text-emerald-400" />
+                <span className="font-bold">Play</span>
+              </>
+            )}
           </button>
+
+          {/* Speed Presets */}
+          <button
+            type="button"
+            onClick={() => setRotationSpeedMode('normal')}
+            className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
+              rotationSpeedMode === 'normal'
+                ? 'bg-orange-950 text-orange-300 font-bold'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
+            }`}
+            title="Active Planetary Rotation: Mars completes a full Sol in ~85s; Phobos orbits in ~27s"
+          >
+            Normal (1x)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setRotationSpeedMode('fast')}
+            className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
+              rotationSpeedMode === 'fast'
+                ? 'bg-amber-950 text-amber-300 font-bold'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
+            }`}
+            title="Time-Lapse Orbit: Mars rotates in ~23s; Phobos orbits every ~7s; Deimos in ~28s"
+          >
+            Fast (4x)
+          </button>
+
           <button
             type="button"
             onClick={() => setRotationSpeedMode('slow')}
             className={`px-2 py-1.5 border-b border-neutral-800 text-center transition-colors cursor-pointer ${
               rotationSpeedMode === 'slow'
-                ? 'bg-amber-950 text-amber-300 font-bold'
-                : 'text-neutral-400 hover:text-white'
+                ? 'bg-indigo-950 text-indigo-300 font-bold'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
             }`}
-            title="Gentle Cosmic Planetary Drift"
+            title="Gentle Cosmic Planetary Drift (~4.5 minutes per rotation)"
           >
             Drift
           </button>
+
           <button
             type="button"
-            onClick={() => setRotationSpeedMode('paused')}
+            onClick={() => setRotationSpeedMode('realtime')}
             className={`px-2 py-1.5 text-center transition-colors cursor-pointer ${
-              rotationSpeedMode === 'paused'
-                ? 'bg-neutral-800 text-white font-bold'
-                : 'text-neutral-400 hover:text-white'
+              rotationSpeedMode === 'realtime'
+                ? 'bg-cyan-950 text-cyan-300 font-bold'
+                : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
             }`}
-            title="Pause Planetary Rotation"
+            title="Authentic Scientific Real Speed (24.6h Sol - virtually imperceptible in seconds)"
           >
-            Pause
+            Real 24h
+          </button>
+        </div>
+
+        {/* Quick Moons Tracking Selector */}
+        <div className="flex flex-col bg-[#090d16]/95 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
+          <div className="px-2 py-1 bg-neutral-900/90 text-neutral-400 font-bold border-b border-neutral-800 text-[8px] text-center uppercase tracking-wider">
+            Moons
+          </div>
+          <button
+            type="button"
+            onClick={() => flyToMoon('phobos')}
+            className="px-2 py-1.5 border-b border-neutral-800 text-cyan-400 hover:bg-cyan-950/60 hover:text-cyan-200 text-center transition-colors cursor-pointer flex items-center justify-center gap-1 font-semibold"
+            title="Fly camera to Phobos and view its fast 7.7h Keplerian orbit"
+          >
+            <Orbit className="w-2.5 h-2.5 text-cyan-400 shrink-0" />
+            <span>Phobos</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => flyToMoon('deimos')}
+            className="px-2 py-1.5 text-amber-400 hover:bg-amber-950/60 hover:text-amber-200 text-center transition-colors cursor-pointer flex items-center justify-center gap-1 font-semibold"
+            title="Fly camera to Deimos and view its 30.3h orbit"
+          >
+            <Orbit className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+            <span>Deimos</span>
           </button>
         </div>
       </div>
@@ -1704,9 +1901,14 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                   HiRISE Close-Up Viewfinder
                 </span>
               </div>
-              <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
-                {focalTelemetry.zoomScale}x
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-[8.5px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+                  Micro-Relief Active
+                </span>
+                <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
+                  {focalTelemetry.zoomScale}x
+                </span>
+              </div>
             </div>
 
             {/* Target Location & Focal Coordinates */}
@@ -1731,6 +1933,13 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                   <span className="ml-2 text-neutral-500">({focalTelemetry.nearestFeature.type})</span>
                 )}
               </div>
+              
+              {/* Planetary Resolution Note */}
+              <div className="mt-2 text-[9.5px] text-neutral-400 bg-neutral-900/80 rounded-lg p-2 border border-neutral-800/80 leading-relaxed">
+                <span className="text-emerald-400 font-semibold">3D Globe:</span> Procedural micro-relief active (~2 km/px).
+                <br />
+                <span className="text-neutral-300">Dive into 2D High-Res Map for sub-meter (25 cm/px) HiRISE satellite images & rover tracks!</span>
+              </div>
             </div>
 
             {/* Viewfinder Action Buttons */}
@@ -1752,11 +1961,11 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                     }
                   );
                 }}
-                className="col-span-2 py-1.5 px-2 rounded-xl bg-gradient-to-r from-emerald-950 to-teal-950 hover:from-emerald-900 hover:to-teal-900 border border-emerald-600/80 text-emerald-200 text-[10.5px] font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+                className="col-span-2 py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/50 cursor-pointer transition-all border border-emerald-400/50"
                 title="Open high-resolution flat satellite map for this exact location"
               >
-                <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Dive into 2D High-Res Map</span>
+                <Maximize2 className="w-4 h-4 text-emerald-100 animate-pulse" />
+                <span>Dive into 2D High-Res Map (Sub-Meter)</span>
               </button>
 
               <button
@@ -1926,17 +2135,17 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       )}
 
       {/* Quick Surface Dive Prompt Button (Appears when zoomed near surface) */}
-      {cameraDist <= 140 && !inspectedCoord && !selectedSite && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {cameraDist <= 145 && !inspectedCoord && !selectedSite && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-[92vw]">
           <button
             type="button"
             onClick={() => diveInto2DMapAtFocalPoint()}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-2xl border border-emerald-400/80 cursor-pointer transition-transform hover:scale-105 active:scale-95 font-mono"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-2xl border border-emerald-400/80 cursor-pointer transition-transform hover:scale-105 active:scale-95 font-mono"
             title="Dive into high-resolution 2D surface map for this location"
           >
-            <Maximize2 className="w-3.5 h-3.5 text-emerald-200" />
-            <span>Open 2D High-Res Map for this Location</span>
-            <span className="text-[10px] text-emerald-200 opacity-80">(or zoom closer)</span>
+            <Maximize2 className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
+            <span>Open 2D High-Res Map (Sub-Meter Detail)</span>
+            <span className="text-[10px] text-emerald-100 bg-emerald-800/70 px-2 py-0.5 rounded-full hidden sm:inline">or zoom closer</span>
           </button>
         </div>
       )}
@@ -1956,6 +2165,25 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             {dest.name.split(' ')[0]}
           </button>
         ))}
+        <span className="w-px h-3 bg-neutral-700 mx-1" />
+        <button
+          type="button"
+          onClick={() => flyToMoon('phobos')}
+          className="px-2.5 py-1 rounded-full text-[10.5px] font-mono text-cyan-300 hover:text-cyan-100 hover:bg-cyan-950/80 border border-cyan-800/60 transition-colors cursor-pointer flex items-center gap-1"
+          title="Fly camera directly to Phobos"
+        >
+          <Orbit className="w-2.5 h-2.5 text-cyan-400" />
+          <span>Phobos</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => flyToMoon('deimos')}
+          className="px-2.5 py-1 rounded-full text-[10.5px] font-mono text-amber-300 hover:text-amber-100 hover:bg-amber-950/80 border border-amber-800/60 transition-colors cursor-pointer flex items-center gap-1"
+          title="Fly camera directly to Deimos"
+        >
+          <Orbit className="w-2.5 h-2.5 text-amber-400" />
+          <span>Deimos</span>
+        </button>
       </div>
 
       {/* PLANETARY SCIENCE DOSSIER MODAL */}
