@@ -32,6 +32,9 @@ import {
   Rocket,
   Clock,
   Sliders,
+  Globe2,
+  Moon,
+  Grid,
 } from 'lucide-react';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
@@ -47,7 +50,7 @@ import {
 import { MarsScienceDossierModal } from './MarsScienceDossierModal';
 import { MarsMoonDossierModal, MARS_MOONS_DATA } from './MarsMoonDossierModal';
 
-// Official NASA & USGS Planetary Mosaics
+// Official NASA & USGS Planetary Mosaics with verified WMS parameters
 const MARS_TEXTURE_PRESETS = [
   {
     id: 'viking',
@@ -57,18 +60,32 @@ const MARS_TEXTURE_PRESETS = [
     type: 'natural',
   },
   {
+    id: 'mola_blend',
+    name: 'NASA MOLA Elevation & Shaded Relief',
+    subtext: 'Topographic Color with Physical Hillshade',
+    url: 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&version=1.1.1&layers=MOLA_THEMIS_blend&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024',
+    type: 'topo',
+  },
+  {
     id: 'mola',
-    name: 'NASA MOLA Topography Elevation',
-    subtext: 'Laser Altimeter Color Rainbow',
-    url: 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&layers=mola_color&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024',
+    name: 'NASA MOLA Rainbow Altimetry',
+    subtext: 'Laser Altimeter Color Spectrum (-8km to +21km)',
+    url: 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&version=1.1.1&layers=MOLA_color&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024',
     type: 'topo',
   },
   {
     id: 'themis',
-    name: 'NASA THEMIS Infrared Day',
-    subtext: 'Thermal Surface Temperature Imagery',
-    url: 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&layers=themis_ir_day&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024',
+    name: 'NASA THEMIS Infrared Daytime',
+    subtext: 'Thermal Surface Temperature & Regolith 100m',
+    url: 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&version=1.1.1&layers=THEMIS&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024',
     type: 'infrared',
+  },
+  {
+    id: 'mdim21',
+    name: 'USGS MDIM 2.1 Mars Mosaic',
+    subtext: 'USGS Astrogeology Clean Global Cartographic Basemap',
+    url: 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&version=1.1.1&layers=MDIM21_color&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024',
+    type: 'natural',
   },
 ];
 
@@ -90,6 +107,8 @@ const SUN_POSITION_VECTOR = new THREE.Vector3(1400, 280, 900).normalize();
 interface Mars3DGlobeProps {
   onSwitchToFlatMap: (site?: MarsFeature | { lat: number; lng: number; name?: string; elevationM?: number; type?: string; [key: string]: any }) => void;
   onOpenNASACloseUp: (featureName: string) => void;
+  onOpenEarthComparison?: (comparisonId?: string) => void;
+  onOpenPlaceIdentifier?: (feature: MarsFeature) => void;
   telemetry?: MarsOrbitalTelemetry | null;
   initialSelectedSite?: MarsFeature | null;
   activeLayer?: string;
@@ -99,6 +118,8 @@ interface Mars3DGlobeProps {
 export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   onSwitchToFlatMap,
   onOpenNASACloseUp,
+  onOpenEarthComparison,
+  onOpenPlaceIdentifier,
   telemetry,
   initialSelectedSite,
   activeLayer,
@@ -117,6 +138,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const marsGroupRef = useRef<THREE.Group | null>(null);
   const marsMeshRef = useRef<THREE.Mesh | null>(null);
+  const surfaceFeaturesRef = useRef<THREE.Group | null>(null);
   const atmosphereMeshRef = useRef<THREE.Mesh | null>(null);
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
@@ -128,6 +150,12 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   // State
   const [selectedLayerId, setSelectedLayerId] = useState<string>(activeLayer || 'viking');
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
+  const [showGraticule, setShowGraticule] = useState<boolean>(false);
+  const [lightingMode, setLightingMode] = useState<'survey' | 'sunlit'>('survey');
+  const lightingModeRef = useRef(lightingMode);
+  useEffect(() => {
+    lightingModeRef.current = lightingMode;
+  }, [lightingMode]);
   
   // Planetary Rotation Speed State: default to authentic 'realtime' (1x scientific 24.6h Sol)
   const [rotationSpeedMode, setRotationSpeedMode] = useState<'normal' | 'fast' | 'slow' | 'realtime' | 'paused'>('realtime');
@@ -307,17 +335,22 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     return new THREE.Vector3(x, y, z);
   };
 
-  // Convert 3D Vector to Lat/Lng taking Mars rotation into account
+  // Convert 3D Vector to Lat/Lng taking Mars rotation and axial tilt into account
   const vector3ToLatLng = (v: THREE.Vector3) => {
-    const norm = v.clone().normalize();
-    const lat = 90 - Math.acos(norm.y) * (180 / Math.PI);
-    let lng = (Math.atan2(norm.z, -norm.x) * (180 / Math.PI)) - 180;
-    
-    // Adjust for current Mars rotation
-    const rotDeg = (sphereState.current.marsRotationY * 180) / Math.PI;
-    lng = (lng - rotDeg) % 360;
-    if (lng < -180) lng += 360;
-    if (lng > 180) lng -= 360;
+    let localPt: THREE.Vector3;
+    if (marsMeshRef.current) {
+      localPt = marsMeshRef.current.worldToLocal(v.clone()).normalize();
+    } else {
+      localPt = v.clone();
+      localPt.applyAxisAngle(new THREE.Vector3(0, 0, 1), -(25.19 * Math.PI) / 180);
+      localPt.applyAxisAngle(new THREE.Vector3(0, 1, 0), -sphereState.current.marsRotationY);
+      localPt.normalize();
+    }
+
+    const lat = 90 - Math.acos(Math.max(-1, Math.min(1, localPt.y))) * (180 / Math.PI);
+    let lng = (Math.atan2(localPt.z, -localPt.x) * (180 / Math.PI)) - 180;
+    while (lng < -180) lng += 360;
+    while (lng > 180) lng -= 360;
     return { lat, lng };
   };
 
@@ -353,11 +386,16 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       if (markerFilter === 'landmarks') {
         return f.type !== 'Robotic Rover/Lander';
       }
-      // When zoomed in close (cameraDist < 190), show ALL sites, craters, and landing sites!
-      if (cameraDist < 190) {
-        return true;
+      // At deep space zoom (> 280), show only prime landmarks to prevent screen clutter
+      if (cameraDist > 280) {
+        return f.featured && (f.type === 'Mons (Volcano)' || f.type === 'Robotic Rover/Lander' || f.name.includes('Olympus') || f.name.includes('Valles') || f.name.includes('Jezero'));
       }
-      return f.featured || f.type === 'Robotic Rover/Lander' || f.type === 'Mons (Volcano)';
+      // In mid-orbit (170-280), show all prominent featured sites & volcanoes
+      if (cameraDist > 170) {
+        return f.featured || f.type === 'Robotic Rover/Lander' || f.type === 'Mons (Volcano)';
+      }
+      // In close orbital approach (< 170), show all geological features
+      return true;
     });
   }, [markerFilter, cameraDist]);
 
@@ -384,6 +422,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         }
         if (mars.material instanceof THREE.MeshStandardMaterial) {
           mars.material.map = tex;
+          mars.material.color.setHex(0xffffff); // Pure white diffuse so texture retains 100% authentic color fidelity
+          mars.material.roughness = 0.90;
+          mars.material.metalness = 0.02;
           mars.material.needsUpdate = true;
         }
         setActiveTextureSource(preset.name);
@@ -406,6 +447,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           }
           if (mars.material instanceof THREE.MeshStandardMaterial) {
             mars.material.map = fbTex;
+            mars.material.color.setHex(0xffffff);
             mars.material.needsUpdate = true;
           }
         });
@@ -415,16 +457,35 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     );
   };
 
-  // Fly Camera to specific Lat/Lng
+  // Fly Camera directly to specific Lat/Lng with 0-degree error
   const flyToLocation = (lat: number, lng: number, targetDist = 180) => {
     const s = sphereState.current;
     s.isDragging = false;
     s.velocityTheta = 0;
     s.velocityPhi = 0;
 
-    const targetPhi = Math.max(0.08, Math.min(Math.PI - 0.08, (90 - lat) * (Math.PI / 180)));
-    // Offset by current Mars rotation
-    let targetTheta = -((lng + 180) * (Math.PI / 180)) + Math.PI / 2 + s.marsRotationY;
+    // 1. Calculate local coordinates on the Mars sphere
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lng + 180) * (Math.PI / 180);
+    const x = -(100 * Math.sin(phi) * Math.cos(theta));
+    const z = 100 * Math.sin(phi) * Math.sin(theta);
+    const y = 100 * Math.cos(phi);
+    const siteLocal = new THREE.Vector3(x, y, z);
+
+    // 2. Transform site to exact 3D world space (including Mars axial tilt & Sol rotation)
+    let siteWorld: THREE.Vector3;
+    if (marsMeshRef.current) {
+      siteWorld = marsMeshRef.current.localToWorld(siteLocal.clone());
+    } else {
+      siteWorld = siteLocal.clone();
+      siteWorld.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
+      siteWorld.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
+    }
+
+    // 3. Solve camera spherical coordinates (s.phi, s.theta) from siteWorld normal vector
+    const dir = siteWorld.clone().normalize();
+    const targetPhi = Math.max(0.08, Math.min(Math.PI - 0.08, Math.acos(Math.max(-1, Math.min(1, dir.y)))));
+    let targetTheta = Math.atan2(dir.x, dir.z);
 
     while (targetTheta - s.theta > Math.PI) targetTheta -= Math.PI * 2;
     while (targetTheta - s.theta < -Math.PI) targetTheta += Math.PI * 2;
@@ -679,31 +740,46 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     scene.add(marsGroup);
     marsGroupRef.current = marsGroup;
 
-    // Mars Sphere (Radius 100)
+    // Mars Sphere (Radius 100) - High polygon resolution for smooth planetary curvature
     const marsRadius = 100;
-    const marsGeo = new THREE.SphereGeometry(marsRadius, 96, 96);
+    const marsGeo = new THREE.SphereGeometry(marsRadius, 128, 128);
     const marsMat = new THREE.MeshStandardMaterial({
-      color: 0xd35b2e, // Authentic Martian terracotta base
-      roughness: 0.88,
-      metalness: 0.04,
+      color: 0xffffff, // Pure white diffuse so map texture retains true colors and dynamic range!
+      roughness: 0.90,
+      metalness: 0.02,
     });
 
-    // Attach procedural micro-terrain relief bump map with high repeating frequency
-    // Prevents surface from looking flat and blurry when zoomed into orbital close-up
-    const microBumpUrl = createProceduralMicroTerrainBumpMap(512);
-    const microBumpLoader = new THREE.TextureLoader();
-    microBumpLoader.setCrossOrigin('anonymous');
-    microBumpLoader.load(microBumpUrl, (bTex) => {
-      bTex.wrapS = THREE.RepeatWrapping;
-      bTex.wrapT = THREE.RepeatWrapping;
-      bTex.repeat.set(96, 48); // repeats across the globe for micro-scale crater & dune relief
-      if (renderer) {
-        bTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    // Real Global Topography Elevation Bump Map using official USGS MOLA Shaded Relief
+    // This creates authentic physical 3D elevation relief for Olympus Mons, Valles Marineris & impact craters!
+    const molaBumpUrl = 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&version=1.1.1&layers=MOLA_bw&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024';
+    const bumpLoader = new THREE.TextureLoader();
+    bumpLoader.setCrossOrigin('anonymous');
+    bumpLoader.load(
+      molaBumpUrl,
+      (bTex) => {
+        bTex.minFilter = THREE.LinearMipmapLinearFilter;
+        bTex.magFilter = THREE.LinearFilter;
+        bTex.generateMipmaps = true;
+        if (renderer) {
+          bTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        }
+        marsMat.bumpMap = bTex;
+        marsMat.bumpScale = 0.06;
+        marsMat.needsUpdate = true;
+      },
+      undefined,
+      () => {
+        // Fallback: subtle single-tile smooth elevation relief
+        const fallbackBumpUrl = createProceduralMicroTerrainBumpMap(512);
+        bumpLoader.load(fallbackBumpUrl, (fbTex) => {
+          fbTex.wrapS = THREE.ClampToEdgeWrapping;
+          fbTex.wrapT = THREE.ClampToEdgeWrapping;
+          marsMat.bumpMap = fbTex;
+          marsMat.bumpScale = 0.03;
+          marsMat.needsUpdate = true;
+        });
       }
-      marsMat.bumpMap = bTex;
-      marsMat.bumpScale = 0.55;
-      marsMat.needsUpdate = true;
-    });
+    );
     const marsMesh = new THREE.Mesh(marsGeo, marsMat);
     marsGroup.add(marsMesh);
     marsMeshRef.current = marsMesh;
@@ -712,6 +788,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     // (Rotates in sync with Mars's planetary rotation!)
     const surfaceFeatures = new THREE.Group();
     marsMesh.add(surfaceFeatures);
+    surfaceFeaturesRef.current = surfaceFeatures;
+    surfaceFeatures.visible = false; // Graticule & outlines OFF by default for photorealism!
 
     // Cartographic Graticule Coordinate Rings
     const addLatitudeRing = (lat: number, color: number, opacity = 0.25) => {
@@ -835,8 +913,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       surfaceFeatures.add(dotMesh);
     });
 
-    // Thin Martian Carbon Dioxide Atmosphere Limb Glow (Sunlit Terminator Haze)
-    const atmoGeo = new THREE.SphereGeometry(marsRadius * 1.018, 64, 64);
+    // Thin Martian Carbon Dioxide Atmosphere Limb Glow (Ethereal Amber Horizon Haze)
+    const atmoGeo = new THREE.SphereGeometry(marsRadius * 1.025, 64, 64);
     const atmoMat = new THREE.ShaderMaterial({
       vertexShader: `
         varying vec3 vNormal;
@@ -855,21 +933,26 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         varying vec3 vWorldNormal;
         uniform vec3 color;
         uniform vec3 sunDirection;
+        uniform float uniformMode;
         void main() {
           vec3 viewDir = normalize(-vPosition);
-          float intensity = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.2);
+          float rim = 1.0 - max(dot(vNormal, viewDir), 0.0);
+          float intensity = pow(rim, 3.8);
           // Only illuminate atmosphere facing the Sun, fading smoothly across the terminator
           float sunAlignment = dot(vWorldNormal, sunDirection);
-          float sunFactor = smoothstep(-0.25, 0.35, sunAlignment);
-          gl_FragColor = vec4(color, intensity * 0.75 * sunFactor);
+          float sunFactor = mix(smoothstep(-0.35, 0.45, sunAlignment), 1.0, uniformMode * 0.75);
+          float alpha = intensity * (0.2 + 0.8 * sunFactor) * 0.75;
+          if (alpha < 0.005) discard;
+          gl_FragColor = vec4(color, alpha);
         }
       `,
       uniforms: {
-        color: { value: new THREE.Color(0xd97736) },
+        color: { value: new THREE.Color(0xd48b52) },
         sunDirection: { value: SUN_POSITION_VECTOR.clone().normalize() },
+        uniformMode: { value: 1.0 },
       },
       blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
+      side: THREE.FrontSide,
       transparent: true,
       depthWrite: false,
     });
@@ -1006,13 +1089,13 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     deimosOrbitLineRef.current = deimosOrbitLine;
 
     // 8. Lighting: High-contrast Sunlight + Deep Space Ambient
-    // Ambient light is subtle to show the distinct dark night side
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.22);
+    // Configurable Survey Daylight (clear cartographic viewing) vs Sun Terminator (diurnal shadow)
+    const ambientLight = new THREE.AmbientLight(0xffffff, lightingMode === 'survey' ? 1.6 : 0.38);
     scene.add(ambientLight);
     ambientLightRef.current = ambientLight;
 
     // Directional Sunlight aligned from the Sun vector towards Mars
-    const sunLight = new THREE.DirectionalLight(0xfff7ed, 2.8);
+    const sunLight = new THREE.DirectionalLight(0xfff7ed, lightingMode === 'survey' ? 1.3 : 2.8);
     sunLight.position.copy(SUN_POSITION_VECTOR.clone().multiplyScalar(800));
     scene.add(sunLight);
     sunLightRef.current = sunLight;
@@ -1146,20 +1229,30 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         setSolSeconds(Math.floor(solSecondsRef.current));
 
         // Ground coordinate currently under camera focal center
-        const camNorm = camera.position.clone().normalize();
-        camNorm.applyAxisAngle(new THREE.Vector3(0, 0, 1), -(25.19 * Math.PI) / 180);
-        camNorm.applyAxisAngle(new THREE.Vector3(0, 1, 0), -s.marsRotationY);
+        let camLocal: THREE.Vector3;
+        if (marsMeshRef.current) {
+          camLocal = marsMeshRef.current.worldToLocal(camera.position.clone()).normalize();
+        } else {
+          camLocal = camera.position.clone().normalize();
+          camLocal.applyAxisAngle(new THREE.Vector3(0, 0, 1), -(25.19 * Math.PI) / 180);
+          camLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), -s.marsRotationY);
+        }
 
-        const fLat = Number((90 - Math.acos(Math.max(-1, Math.min(1, camNorm.y))) * (180 / Math.PI)).toFixed(2));
-        let fLng = Number(((Math.atan2(camNorm.z, -camNorm.x) * (180 / Math.PI)) - 180).toFixed(2));
-        if (fLng < -180) fLng += 360;
-        if (fLng > 180) fLng -= 360;
+        const fLat = Number((90 - Math.acos(Math.max(-1, Math.min(1, camLocal.y))) * (180 / Math.PI)).toFixed(2));
+        let fLng = Number(((Math.atan2(camLocal.z, -camLocal.x) * (180 / Math.PI)) - 180).toFixed(2));
+        while (fLng < -180) fLng += 360;
+        while (fLng > 180) fLng -= 360;
 
         // Auto Day / Night computation for focal point
-        const focalLocalVec = latLngToVector3(fLat, fLng, 1.0);
-        focalLocalVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
-        focalLocalVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
-        const sunDot = focalLocalVec.normalize().dot(SUN_POSITION_VECTOR);
+        let focalWorldVec: THREE.Vector3;
+        if (marsMeshRef.current) {
+          focalWorldVec = marsMeshRef.current.localToWorld(latLngToVector3(fLat, fLng, 100.0));
+        } else {
+          focalWorldVec = latLngToVector3(fLat, fLng, 1.0);
+          focalWorldVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
+          focalWorldVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
+        }
+        const sunDot = focalWorldVec.normalize().dot(SUN_POSITION_VECTOR);
         const isDaySide = sunDot > -0.05;
         const solarElevationDeg = Math.round(Math.asin(Math.max(-1, Math.min(1, sunDot))) * (180 / Math.PI));
 
@@ -1205,14 +1298,20 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
           visiblePool.forEach((site) => {
             const localV = latLngToVector3(site.lat, site.lng, marsRadius * 1.012);
-            localV.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
-            localV.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
+            let worldPos: THREE.Vector3;
+            if (marsMeshRef.current) {
+              worldPos = marsMeshRef.current.localToWorld(localV.clone());
+            } else {
+              worldPos = localV.clone();
+              worldPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
+              worldPos.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
+            }
 
-            const siteDir = localV.clone().normalize();
+            const siteDir = worldPos.clone().normalize();
             const dot = siteDir.dot(camDir);
 
             if (dot > 0.15) {
-              const screenPos = localV.clone().project(camera);
+              const screenPos = worldPos.clone().project(camera);
               const sx = screenPos.x * wHalf + wHalf;
               const sy = -(screenPos.y * hHalf) + hHalf;
               projected.push({
@@ -1223,7 +1322,25 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               });
             }
           });
-          setProjectedMarkers(projected);
+
+          // Elegant visual decluttering: prioritize selected site and iconic landmarks, avoid overlapping badges
+          const nonOverlapping: Array<{ site: MarsFeature; x: number; y: number; visible: boolean }> = [];
+          const sorted = [...projected].sort((a, b) => {
+            if (a.site.name === selectedSite?.name) return -1;
+            if (b.site.name === selectedSite?.name) return 1;
+            if (a.site.featured && !b.site.featured) return -1;
+            if (!a.site.featured && b.site.featured) return 1;
+            return 0;
+          });
+
+          for (const item of sorted) {
+            const collides = nonOverlapping.some((p) => Math.hypot(p.x - item.x, p.y - item.y) < 46);
+            if (!collides || item.site.name === selectedSite?.name) {
+              nonOverlapping.push(item);
+              if (nonOverlapping.length >= (isMobileViewport ? 8 : 16)) break;
+            }
+          }
+          setProjectedMarkers(nonOverlapping);
         } else {
           setProjectedMarkers([]);
         }
@@ -1402,6 +1519,29 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       deimosOrbitLineRef.current.visible = showMoons;
     }
   }, [showMoons]);
+
+  // Update Surface Features / Graticule Visibility
+  useEffect(() => {
+    if (surfaceFeaturesRef.current) {
+      surfaceFeaturesRef.current.visible = showGraticule;
+    }
+  }, [showGraticule]);
+
+  // Update Lighting Mode (Survey Daylight vs Real Sunlit Terminator)
+  useEffect(() => {
+    if (ambientLightRef.current && sunLightRef.current) {
+      if (lightingMode === 'survey') {
+        ambientLightRef.current.intensity = 1.6;
+        sunLightRef.current.intensity = 1.3;
+      } else {
+        ambientLightRef.current.intensity = 0.38;
+        sunLightRef.current.intensity = 2.8;
+      }
+    }
+    if (atmosphereMeshRef.current && (atmosphereMeshRef.current.material as THREE.ShaderMaterial).uniforms) {
+      (atmosphereMeshRef.current.material as THREE.ShaderMaterial).uniforms.uniformMode.value = lightingMode === 'survey' ? 1.0 : 0.0;
+    }
+  }, [lightingMode]);
 
   // Change Map Texture
   const handleSelectLayer = (layerId: string) => {
@@ -1733,6 +1873,34 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             <span>24h Time</span>
           </button>
 
+          {/* Lighting Mode Toggle: Survey Daylight vs Diurnal Sunlit Terminator */}
+          <button
+            type="button"
+            onClick={() => setLightingMode(lightingMode === 'survey' ? 'sunlit' : 'survey')}
+            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+              lightingMode === 'survey'
+                ? 'bg-amber-950/90 border-amber-700 text-amber-300'
+                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+            }`}
+            title={lightingMode === 'survey' ? 'Lighting: Full Survey Daylight (Cartographic mode). Click for Sunlit Terminator.' : 'Lighting: Realistic Sunlit Terminator. Click for Full Survey Daylight.'}
+          >
+            {lightingMode === 'survey' ? <Sun className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-neutral-300" />}
+          </button>
+
+          {/* Graticule & Feature Outlines Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowGraticule(!showGraticule)}
+            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+              showGraticule
+                ? 'bg-blue-950/90 border-blue-700 text-blue-300'
+                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+            }`}
+            title={showGraticule ? 'Hide Coordinate Graticule & Crater Outlines' : 'Show Coordinate Graticule & Crater Outlines'}
+          >
+            <Grid className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
+          </button>
+
           {/* Moons Toggle */}
           <button
             type="button"
@@ -1760,6 +1928,19 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           >
             <MapPin className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
           </button>
+
+          {/* Earth vs Mars Scale Comparison Trigger (Esri Explore Mars Signature) */}
+          {onOpenEarthComparison && (
+            <button
+              type="button"
+              onClick={() => onOpenEarthComparison()}
+              className="px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-cyan-950/90 border border-cyan-700/80 text-cyan-300 hover:text-white hover:bg-cyan-900 shadow-xl transition-all cursor-pointer active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+              title="Earth vs. Mars Physical Scale Comparison"
+            >
+              <Globe2 className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-cyan-400" />
+              <span className="hidden sm:inline">Earth Scale</span>
+            </button>
+          )}
 
           {/* Layer Selector Popover Button */}
           <div className="relative">
@@ -1999,6 +2180,18 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         projectedMarkers.map(({ site, x, y, visible }) => {
           if (!visible) return null;
           const isSelected = selectedSite?.name === site.name;
+          const getCategoryGlyph = (type: string) => {
+            if (type.includes('Mons') || type.includes('Volcano')) return '🌋';
+            if (type.includes('Crater')) return '☄️';
+            if (type.includes('Chasma') || type.includes('Canyon')) return '🏜️';
+            if (type.includes('Vallis') || type.includes('Valley')) return '🌊';
+            if (type.includes('Planitia') || type.includes('Plain')) return '🪐';
+            if (type.includes('Rover') || type.includes('Lander')) return '🚀';
+            return '📍';
+          };
+          const glyph = getCategoryGlyph(site.type);
+          const shortName = site.name.split('(')[0].trim();
+
           return (
             <div
               key={site.name}
@@ -2014,23 +2207,27 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                   name: site.name,
                   science: sc,
                 });
+                if (onOpenPlaceIdentifier) {
+                  onOpenPlaceIdentifier(site);
+                }
               }}
             >
               <div
-                className={`flex items-center gap-1 transition-all shadow-md ${
+                className={`flex items-center gap-1.5 transition-all shadow-xl select-none backdrop-blur-md ${
                   isSelected
-                    ? 'px-2 py-0.5 rounded-full text-[10px] font-mono border bg-orange-600 border-white text-white scale-110'
-                    : 'p-1 sm:px-1.5 sm:py-0.5 rounded-full text-[10px] font-mono border bg-[#090d16]/80 border-neutral-700 text-neutral-300 group-hover:border-orange-500 group-hover:text-white'
+                    ? 'px-2.5 py-1 rounded-full text-[11px] font-mono border-2 bg-orange-600 border-white text-white scale-110 z-30'
+                    : 'px-2 py-0.5 rounded-full text-[10px] font-mono border bg-[#090d16]/85 border-neutral-700/80 text-neutral-200 hover:border-orange-400 hover:text-white hover:scale-105 z-10'
                 }`}
               >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    site.type === 'Robotic Rover/Lander' ? 'bg-cyan-400' : 'bg-orange-400'
-                  }`}
-                />
-                <span className={`font-semibold ${isSelected ? 'inline' : 'hidden sm:inline'}`}>
-                  {site.name}
+                <span className="text-[10px] leading-none">{glyph}</span>
+                <span className="font-semibold tracking-tight whitespace-nowrap">
+                  {shortName}
                 </span>
+                {site.elevationM !== undefined && (
+                  <span className="text-[8.5px] font-mono opacity-85 px-1 py-0.2 rounded bg-black/40 text-neutral-300">
+                    {site.elevationM > 0 ? `+${(site.elevationM / 1000).toFixed(1)}k` : `${(site.elevationM / 1000).toFixed(1)}k`}
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -2530,22 +2727,46 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             </button>
 
             {/* Secondary Actions */}
-            <div className="flex items-center gap-2 pt-1 border-t border-neutral-800/80">
+            <div className="flex items-center gap-2 pt-1 border-t border-neutral-800/80 flex-wrap">
+              {selectedSite && onOpenPlaceIdentifier && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPlaceIdentifier(selectedSite)}
+                  className="flex-1 py-1.5 px-2.5 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-600/70 text-orange-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  title="Detailed Geological & Nomenclature Dossier"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Place Info</span>
+                </button>
+              )}
+
+              {selectedSite && onOpenEarthComparison && (
+                <button
+                  type="button"
+                  onClick={() => onOpenEarthComparison(selectedSite.id)}
+                  className="flex-1 py-1.5 px-2.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-600/70 text-cyan-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  title="Compare Physical Scale to Earth Landmarks"
+                >
+                  <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Earth Scale</span>
+                </button>
+              )}
+
               {selectedSite && (
                 <button
                   type="button"
                   onClick={() => onOpenNASACloseUp(selectedSite.name)}
-                  className="flex-1 py-1.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  className="py-1.5 px-2.5 rounded-xl bg-neutral-850 hover:bg-neutral-750 text-neutral-200 hover:text-white border border-neutral-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                 >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>NASA Close-Up</span>
+                  <Camera className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Photos</span>
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={() => onSwitchToFlatMap(selectedSite || undefined)}
-                className="py-1.5 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-neutral-700"
+                className="py-1.5 px-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-neutral-700"
                 title="Inspect on 2D Mercator Map"
               >
                 <Globe className="w-3.5 h-3.5 text-emerald-400" />

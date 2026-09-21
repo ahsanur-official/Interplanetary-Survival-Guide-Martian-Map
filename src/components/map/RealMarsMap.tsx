@@ -43,6 +43,7 @@ import {
   Bot,
   CloudRain,
 } from 'lucide-react';
+import { MARS_MISSIONS_DATA } from '../../data/marsMissions';
 import { analyzeMarsLocationScience } from '../../engine/marsEnvironmentalAnalysis';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
@@ -63,6 +64,7 @@ import {
 import { MarsCompassWidget } from './MarsCompassWidget';
 import { MarsScaleBar } from './MarsScaleBar';
 import { NASACloseUpModal } from './NASACloseUpModal';
+import { MarsLayerControlPanel, MissionLayerOptions } from './MarsLayerControlPanel';
 import { MarsRegionDetailModal } from './MarsRegionDetailModal';
 import { Mars3DGlobe } from './Mars3DGlobe';
 import { MarsScienceDossierModal } from './MarsScienceDossierModal';
@@ -88,7 +90,12 @@ import {
   ArrowRightLeft,
   ShieldCheck,
   Presentation,
+  Globe2,
+  Scale,
 } from 'lucide-react';
+import { EarthScaleComparisonModal } from '../science/EarthScaleComparisonModal';
+import { MarsPlaceIdentifierModal } from './MarsPlaceIdentifierModal';
+import { EARTH_MARS_COMPARISONS, EarthComparisonItem } from '../../data/earthMarsComparisons';
 
 export interface MarsSite extends MarsFeature {
   mission?: string;
@@ -173,12 +180,33 @@ export function RealMarsMap() {
     }
   }, [stageDiagonal]);
 
-  // Basemap & Surface Display (Defaults to NASA Viking MDIM 2.1 Natural Planetary Color)
-  const [activeLayer, setActiveLayer] = useState<'themis' | 'viking' | 'mola' | 'opm'>('viking');
+  // Basemap & Surface Display (Defaults to NASA MOLA Topography Shaded Relief - Esri Explore Mars style)
+  const [activeLayer, setActiveLayer] = useState<'themis' | 'viking' | 'mola' | 'opm'>('mola');
   const [surfaceFilter, setSurfaceFilter] = useState<'normal' | 'contrast' | 'sharp' | 'dark' | 'night'>('normal');
   const [showSites, setShowSites] = useState<boolean>(true);
   const [showRoverTrack, setShowRoverTrack] = useState<boolean>(true);
   const [showGraticule, setShowGraticule] = useState<boolean>(false);
+
+  // Esri-style Martian Nomenclature & Place Categorization State
+  const [placeCategoryFilter, setPlaceCategoryFilter] = useState<'all' | 'mons' | 'crater' | 'chasma' | 'vallis' | 'planitia' | 'mission'>('all');
+  const [isEarthComparisonOpen, setIsEarthComparisonOpen] = useState<boolean>(false);
+  const [selectedEarthComparisonId, setSelectedEarthComparisonId] = useState<string>('olympus_vs_everest');
+  const [activeEarthComparison, setActiveEarthComparison] = useState<EarthComparisonItem | null>(null);
+  const [isPlaceIdentifierOpen, setIsPlaceIdentifierOpen] = useState<boolean>(false);
+  const [placeIdentifierFeature, setPlaceIdentifierFeature] = useState<MarsFeature | null>(null);
+  const earthComparisonLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Granular Mars Missions & Traverses Layer Control Panel State
+  const [isMissionLayersPanelOpen, setIsMissionLayersPanelOpen] = useState<boolean>(false);
+  const [missionLayerOptions, setMissionLayerOptions] = useState<MissionLayerOptions>({
+    showAllMissions: true,
+    showHistoricLandings: true,
+    showActiveRovers: true,
+    showTraverseTracks: true,
+    enabledTraverseMissionIds: ['perseverance', 'curiosity', 'opportunity', 'spirit', 'zhurong'],
+    agencyFilter: 'all',
+    missionTypeFilter: 'all',
+  });
 
   // Authentic Google Maps-style Boundary System State
   const [showRegions, setShowRegions] = useState<boolean>(true);
@@ -353,18 +381,19 @@ export function RealMarsMap() {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
+      crs: L.CRS.EPSG4326,
       center: [18.38, 77.58],
-      zoom: 4,
-      minZoom: 2,
-      maxZoom: 10,
+      zoom: 3,
+      minZoom: 1,
+      maxZoom: 9,
       maxBounds: [
-        [-88, -540],
-        [88, 540],
+        [-90, -180],
+        [90, 180],
       ],
-      maxBoundsViscosity: 0.0,
+      maxBoundsViscosity: 0.8,
       attributionControl: false,
       zoomControl: false,
-      worldCopyJump: true,
+      worldCopyJump: false,
       inertia: true,
       inertiaDeceleration: 3200,
       inertiaMaxSpeed: Infinity,
@@ -463,6 +492,7 @@ export function RealMarsMap() {
     routeMarkersLayerRef.current = L.layerGroup().addTo(map);
     graticuleLayerRef.current = L.layerGroup().addTo(map);
     measureLayerRef.current = L.layerGroup().addTo(map);
+    earthComparisonLayerRef.current = L.layerGroup().addTo(map);
 
     // Mouse / Touch tracker
     const updateCoordinates = (lat: number, rawLng: number) => {
@@ -604,8 +634,8 @@ export function RealMarsMap() {
       newTileLayer = L.tileLayer(
         'https://trek.nasa.gov/tiles/Mars/EQ/THEMIS_DayIR_ControlledMosaics_100m_v2_oct2018/1.0.0/default/default028mm/{z}/{y}/{x}.png',
         {
-          minZoom: 2,
-          maxNativeZoom: 9,
+          minZoom: 1,
+          maxNativeZoom: 8,
           maxZoom: 10,
           attribution: 'NASA Odyssey THEMIS 100m Controlled Mosaic',
           noWrap: false,
@@ -616,7 +646,7 @@ export function RealMarsMap() {
       newTileLayer = L.tileLayer(
         'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
         {
-          minZoom: 2,
+          minZoom: 1,
           maxNativeZoom: 7,
           maxZoom: 10,
           attribution: 'NASA Mars Trek / Viking MDIM2.1',
@@ -628,7 +658,7 @@ export function RealMarsMap() {
       newTileLayer = L.tileLayer(
         'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
         {
-          minZoom: 2,
+          minZoom: 1,
           maxNativeZoom: 7,
           maxZoom: 10,
           attribution: 'NASA MGS MOLA Elevation',
@@ -637,15 +667,14 @@ export function RealMarsMap() {
         }
       );
     } else {
-      newTileLayer = L.tileLayer(
-        'https://cartocdn-gusc.global.ssl.fastly.net/opmbuilder/api/v1/map/named/opm-mars-basemap-v0-2/all/{z}/{x}/{y}.png',
+      newTileLayer = L.tileLayer.wms(
+        'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map',
         {
-          minZoom: 2,
-          maxNativeZoom: 8,
+          layers: 'mola_color',
+          format: 'image/jpeg',
+          attribution: 'USGS Astrogeology Mars MOLA',
+          minZoom: 1,
           maxZoom: 10,
-          attribution: 'OpenPlanetary & USGS',
-          noWrap: false,
-          updateWhenIdle: false,
         }
       );
     }
@@ -823,101 +852,388 @@ export function RealMarsMap() {
     });
   }, [showRegions, regionDataset, showRegionLabels, selectedRegion, mapInstance]);
 
-  // Render Mission Sites Markers
+  // Render Earth Scale Comparison Overlay Stencil on Map (Esri Explore Mars Signature)
+  useEffect(() => {
+    const layerGroup = earthComparisonLayerRef.current;
+    if (!layerGroup || !mapInstanceRef.current) return;
+    layerGroup.clearLayers();
+
+    if (!activeEarthComparison) return;
+
+    const { centerLat, centerLng, radiusKm, lengthKm, widthKm } = activeEarthComparison.overlayBoundsKm;
+
+    if (activeEarthComparison.overlayType === 'circle' && radiusKm) {
+      const earthCircle = L.circle([centerLat, centerLng], {
+        radius: radiusKm * 1000,
+        color: activeEarthComparison.color,
+        weight: 3,
+        dashArray: '8, 8',
+        fillColor: activeEarthComparison.color,
+        fillOpacity: 0.22,
+      });
+
+      earthCircle.bindTooltip(
+        `<div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 4px; line-height: 1.4;">
+          <b style="color: ${activeEarthComparison.color};">🔵 Earth Comparison Stencil</b><br/>
+          <span style="font-weight: 600; color: #f8fafc;">${activeEarthComparison.earthName}</span><br/>
+          <span style="color: #94a3b8; font-size: 10px;">${activeEarthComparison.ratioSummary}</span>
+        </div>`,
+        { permanent: true, direction: 'center', className: 'earth-scale-tooltip' }
+      );
+
+      layerGroup.addLayer(earthCircle);
+    } else if (activeEarthComparison.overlayType === 'rectangle' && lengthKm && widthKm) {
+      const dLat = (widthKm / 2) / 59.2;
+      const dLng = (lengthKm / 2) / 59.2;
+
+      const bounds: L.LatLngBoundsExpression = [
+        [centerLat - dLat, centerLng - dLng],
+        [centerLat + dLat, centerLng + dLng],
+      ];
+
+      const earthRect = L.rectangle(bounds, {
+        color: activeEarthComparison.color,
+        weight: 3,
+        dashArray: '8, 8',
+        fillColor: activeEarthComparison.color,
+        fillOpacity: 0.25,
+      });
+
+      earthRect.bindTooltip(
+        `<div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 4px; line-height: 1.4;">
+          <b style="color: ${activeEarthComparison.color};">🔵 Earth Grand Canyon Stencil</b><br/>
+          <span style="font-weight: 600; color: #f8fafc;">446 km long × 29 km wide</span><br/>
+          <span style="color: #94a3b8; font-size: 10px;">Placed inside Valles Marineris (4,000 km)</span>
+        </div>`,
+        { permanent: true, direction: 'center', className: 'earth-scale-tooltip' }
+      );
+
+      layerGroup.addLayer(earthRect);
+    }
+  }, [activeEarthComparison]);
+
+  // Render Martian Nomenclature, Landmarks & Planetary Landing Sites
   useEffect(() => {
     const sitesGroup = sitesLayerRef.current;
     if (!sitesGroup) return;
     sitesGroup.clearLayers();
 
-    if (!showSites) return;
+    if (!showSites || !missionLayerOptions.showAllMissions) return;
+
+    // Major Global Landmarks shown at all zoom levels (Tier 1)
+    const TIER_1_IDS = new Set([
+      'olympus_mons',
+      'valles_marineris',
+      'hellas_planitia',
+      'curiosity',
+      'perseverance',
+      'elysium_mons',
+      'tharsis_montes',
+      'argyre_planitia',
+      'utopia_planitia',
+      'isidis_planitia',
+      'opportunity',
+      'spirit',
+      'viking1',
+      'viking2',
+      'pathfinder',
+    ]);
+
+    // Prominent Regional Landmarks shown at zoom >= 4 (Tier 2)
+    const TIER_2_IDS = new Set([
+      'ascraeus_mons',
+      'pavonis_mons',
+      'arsia_mons',
+      'alba_mons',
+      'hecates_tholus',
+      'albor_tholus',
+      'apollinaris_mons',
+      'melas_chasma',
+      'candor_chasma',
+      'coprates_chasma',
+      'ius_chasma',
+      'tithonium_chasma',
+      'echus_chasma',
+      'kasei_valles',
+      'ares_vallis',
+      'mawrth_vallis',
+      'korolev',
+      'schiaparelli_crater',
+      'huygens_crater',
+      'cassini_crater',
+      'galle_crater',
+      'victoria_crater',
+      'endeavour_crater',
+      'insight',
+      'phoenix',
+      'zhurong',
+      'beagle2',
+      'mars3',
+      'chryse_planitia',
+      'amazonis_planitia',
+      'elysium_planitia',
+      'terra_sabaea',
+      'arabia_terra',
+      'noachis_terra',
+      'planum_boreum',
+      'planum_australe',
+    ]);
 
     FAMOUS_MARS_SITES.forEach((site) => {
+      // Check mission category filters
+      const isMissionSite =
+        site.type.includes('Rover') ||
+        site.type.includes('Lander') ||
+        site.category?.includes('Mission') ||
+        site.category?.includes('Lander') ||
+        site.category?.includes('Rover');
+
+      if (isMissionSite) {
+        if (!missionLayerOptions.showHistoricLandings && !site.type.includes('Active')) {
+          const isHistoric =
+            site.id.includes('viking') ||
+            site.id.includes('pathfinder') ||
+            site.id.includes('spirit') ||
+            site.id.includes('opportunity') ||
+            site.id.includes('phoenix') ||
+            site.id.includes('insight') ||
+            site.id.includes('mars2') ||
+            site.id.includes('mars3') ||
+            site.id.includes('beagle');
+          if (isHistoric) return;
+        }
+
+        if (!missionLayerOptions.showActiveRovers) {
+          const isActive = site.id === 'perseverance' || site.id === 'curiosity';
+          if (isActive) return;
+        }
+
+        // Agency filter
+        if (missionLayerOptions.agencyFilter !== 'all') {
+          const matchedMission = MARS_MISSIONS_DATA.find(
+            (m) => m.id === site.id || site.name.toLowerCase().includes(m.name.toLowerCase())
+          );
+          if (matchedMission) {
+            const isNasa = matchedMission.agency.includes('NASA');
+            if (missionLayerOptions.agencyFilter === 'nasa' && !isNasa) return;
+            if (
+              missionLayerOptions.agencyFilter === 'international' &&
+              isNasa &&
+              !matchedMission.agency.includes('ESA') &&
+              !matchedMission.agency.includes('CNSA')
+            )
+              return;
+          }
+        }
+
+        // Type filter
+        if (missionLayerOptions.missionTypeFilter !== 'all') {
+          if (missionLayerOptions.missionTypeFilter === 'rover' && !site.type.toLowerCase().includes('rover')) return;
+          if (missionLayerOptions.missionTypeFilter === 'lander' && !site.type.toLowerCase().includes('lander')) return;
+        }
+      }
+
+      // Place Category Quick Filter (overrides LOD when active)
+      const siteTypeLower = (site.type || '').toLowerCase();
+      if (placeCategoryFilter !== 'all') {
+        if (
+          placeCategoryFilter === 'mons' &&
+          !siteTypeLower.includes('mons') &&
+          !siteTypeLower.includes('volcano') &&
+          !siteTypeLower.includes('tholus')
+        )
+          return;
+        if (placeCategoryFilter === 'crater' && !siteTypeLower.includes('crater')) return;
+        if (
+          placeCategoryFilter === 'chasma' &&
+          !siteTypeLower.includes('chasma') &&
+          !siteTypeLower.includes('canyon') &&
+          !siteTypeLower.includes('fossa')
+        )
+          return;
+        if (placeCategoryFilter === 'vallis' && !siteTypeLower.includes('vallis') && !siteTypeLower.includes('valley'))
+          return;
+        if (
+          placeCategoryFilter === 'planitia' &&
+          !siteTypeLower.includes('planitia') &&
+          !siteTypeLower.includes('plain') &&
+          !siteTypeLower.includes('basin') &&
+          !siteTypeLower.includes('terra')
+        )
+          return;
+        if (placeCategoryFilter === 'mission' && !isMissionSite) return;
+      } else {
+        // LOD Zoom-Level Decluttering (when 'all' is selected)
+        if (currentZoom < 4 && !TIER_1_IDS.has(site.id) && selectedSite?.id !== site.id) {
+          return;
+        }
+        if (currentZoom < 5 && !TIER_1_IDS.has(site.id) && !TIER_2_IDS.has(site.id) && selectedSite?.id !== site.id) {
+          return;
+        }
+      }
+
       const isSelected = selectedSite?.id === site.id;
+      const isActiveRover = site.id === 'perseverance' || site.id === 'curiosity';
 
-      const getCategoryColor = (type: string) => {
-        if (type.includes('Rover') || type.includes('Lander')) return 'bg-amber-500 border-amber-300 text-amber-950';
-        if (type.includes('Mons') || type.includes('Volcano')) return 'bg-rose-600 border-rose-300 text-rose-950';
-        if (type.includes('Crater')) return 'bg-purple-500 border-purple-300 text-purple-950';
-        if (type.includes('Chasma') || type.includes('Canyon')) return 'bg-blue-500 border-blue-300 text-blue-950';
-        if (type.includes('Vallis') || type.includes('Valley')) return 'bg-teal-500 border-teal-300 text-teal-950';
-        if (type.includes('Planitia') || type.includes('Plain')) return 'bg-yellow-500 border-yellow-300 text-yellow-950';
-        if (type.includes('Terra') || type.includes('Highland')) return 'bg-orange-600 border-orange-300 text-orange-950';
-        if (type.includes('Polar') || type.includes('Ice')) return 'bg-cyan-400 border-cyan-200 text-cyan-950';
-        if (type.includes('Base')) return 'bg-emerald-500 border-emerald-300 text-emerald-950';
-        return 'bg-red-500 border-red-300 text-red-950';
-      };
+      // Determine Category Glyph, Color & Formatting
+      let categoryGlyph = '📍';
+      let formattedName = site.name.split('(')[0].trim();
+      let metricBadge = '';
+      let accentBorder = 'border-orange-500/70';
+      let accentGlow = 'rgba(249, 115, 22, 0.4)';
 
-      const colorClass = getCategoryColor(site.category || site.type);
+      if (siteTypeLower.includes('mons') || siteTypeLower.includes('volcano') || siteTypeLower.includes('tholus')) {
+        categoryGlyph = '🌋';
+        accentBorder = 'border-rose-500/80';
+        accentGlow = 'rgba(244, 63, 94, 0.5)';
+        if (site.elevation !== undefined) {
+          const km = (site.elevation / 1000).toFixed(1);
+          metricBadge = site.elevation > 0 ? `+${km}km` : `${km}km`;
+        }
+      } else if (siteTypeLower.includes('crater')) {
+        categoryGlyph = '☄️';
+        accentBorder = 'border-purple-500/80';
+        accentGlow = 'rgba(168, 85, 247, 0.5)';
+        if (site.diameterKm) {
+          metricBadge = `Ø${site.diameterKm}km`;
+        }
+      } else if (siteTypeLower.includes('chasma') || siteTypeLower.includes('canyon')) {
+        categoryGlyph = '🏜️';
+        accentBorder = 'border-blue-500/80';
+        accentGlow = 'rgba(59, 130, 246, 0.5)';
+        if (site.diameterKm) {
+          metricBadge = `${site.diameterKm}km`;
+        }
+      } else if (siteTypeLower.includes('vallis') || siteTypeLower.includes('valley')) {
+        categoryGlyph = '🌊';
+        accentBorder = 'border-teal-500/80';
+        accentGlow = 'rgba(20, 184, 166, 0.5)';
+      } else if (siteTypeLower.includes('planitia') || siteTypeLower.includes('plain') || siteTypeLower.includes('basin')) {
+        categoryGlyph = '🪐';
+        accentBorder = 'border-amber-500/80';
+        accentGlow = 'rgba(245, 158, 11, 0.5)';
+      } else if (siteTypeLower.includes('terra') || siteTypeLower.includes('highland')) {
+        categoryGlyph = '🏔️';
+        accentBorder = 'border-orange-500/80';
+        accentGlow = 'rgba(249, 115, 22, 0.5)';
+      } else if (siteTypeLower.includes('polar') || siteTypeLower.includes('ice')) {
+        categoryGlyph = '❄️';
+        accentBorder = 'border-cyan-400/80';
+        accentGlow = 'rgba(6, 182, 212, 0.5)';
+      } else if (isMissionSite) {
+        categoryGlyph = '🚀';
+        accentBorder = 'border-emerald-500/80';
+        accentGlow = 'rgba(16, 185, 129, 0.5)';
+        if (isActiveRover) {
+          metricBadge = 'Active';
+        }
+      }
 
       const iconHtml = `
-        <div class="mars-site-pin relative flex items-center justify-center cursor-pointer" style="width: 20px; height: 20px; transform: rotate(var(--map-bearing, 0deg)); transform-origin: 10px 10px; transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);">
-          <div class="w-5 h-5 rounded-full flex items-center justify-center border-2 shadow-lg ${colorClass} ${
-            isSelected ? 'ring-4 ring-white scale-125' : ''
-          } transition-transform duration-200 hover:scale-125">
-            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
-          </div>
-          <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-950/95 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-200 pointer-events-none shadow">
-            ${site.name}
+        <div class="mars-carto-pin group relative select-none cursor-pointer flex items-center justify-center" style="transform: translate(-50%, -50%) rotate(var(--map-bearing, 0deg)); transform-origin: center center; transition: transform 0.35s ease;">
+          <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-200 backdrop-blur-md ${
+            isSelected
+              ? 'bg-[#060a12]/95 border-2 border-orange-400 shadow-2xl scale-115 z-30'
+              : 'bg-[#080d18]/85 hover:bg-[#080d18]/95 border ' + accentBorder + ' hover:border-white shadow-lg hover:scale-108 z-10'
+          }" style="box-shadow: 0 4px 16px rgba(0,0,0,0.85), 0 0 10px ${isSelected ? 'rgba(249, 115, 22, 0.7)' : accentGlow};">
+            <span class="text-[10.5px] leading-none">${categoryGlyph}</span>
+            <span class="text-[10.5px] font-bold text-neutral-100 whitespace-nowrap tracking-tight" style="text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.9);">
+              ${formattedName}
+            </span>
+            ${
+              metricBadge
+                ? `<span class="text-[8.5px] font-mono font-bold px-1 py-0.2 rounded ${
+                    isActiveRover
+                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-600'
+                      : 'bg-black/50 text-neutral-300 border border-neutral-700/60'
+                  }">${metricBadge}</span>`
+                : ''
+            }
+            ${
+              isActiveRover
+                ? `<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>`
+                : ''
+            }
           </div>
         </div>
       `;
 
       const customIcon = L.divIcon({
         html: iconHtml,
-        className: 'mars-site-icon',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+        className: 'mars-carto-icon-wrapper',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
       });
 
       const marker = L.marker([site.lat, site.lng], { icon: customIcon });
 
       marker.bindTooltip(
-        `<b>${site.name}</b> <span style="color:#a3a3a3;font-size:10px;">(${site.type})</span><br/><span style="color:#f97316;">${site.originName || site.significance}</span><br/>Elev: ${site.elevation > 0 ? '+' : ''}${site.elevation}m`,
-        { className: 'mars-tooltip' }
+        `<div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 4px; line-height: 1.4;">
+          <b style="color: #f97316;">${site.name}</b> <span style="color:#94a3b8; font-size: 10px;">(${site.type})</span><br/>
+          <span style="color: #e2e8f0;">${site.originName || site.significance}</span><br/>
+          <span style="color: #38bdf8; font-family: monospace;">Elevation: ${site.elevation > 0 ? '+' : ''}${site.elevation.toLocaleString()}m</span>
+          ${site.diameterKm ? `<br/><span style="color: #c084fc; font-family: monospace;">Span: ${site.diameterKm.toLocaleString()} km</span>` : ''}
+        </div>`,
+        { className: 'mars-tooltip', direction: 'top', offset: [0, -12] }
       );
 
       marker.on('click', () => {
         setSelectedSite(site);
-        // On marker click, fly smoothly and keep view clear
-        mapInstanceRef.current?.flyTo([site.lat, site.lng], 6, { duration: 1.2 });
+        setPlaceIdentifierFeature(site);
+        setIsPlaceIdentifierOpen(true);
+        mapInstanceRef.current?.flyTo([site.lat, site.lng], Math.max(currentZoom, 5), { duration: 1.0 });
       });
 
       sitesGroup.addLayer(marker);
     });
-  }, [showSites, selectedSite]);
+  }, [showSites, selectedSite, missionLayerOptions, currentZoom, placeCategoryFilter]);
 
-  // Render Perseverance Rover Historical Traverse Track
+  // Render Rover Historical Traverse Tracks (Perseverance, Curiosity, Opportunity, etc.)
   useEffect(() => {
     const roverGroup = roverTrackLayerRef.current;
     if (!roverGroup) return;
     roverGroup.clearLayers();
 
-    if (!showRoverTrack) return;
+    if (!showRoverTrack || !missionLayerOptions.showTraverseTracks) return;
 
-    const latLngs: [number, number][] = PERSEVERANCE_TRAVERSE_TRACK.map((pt) => [pt.lat, pt.lng]);
+    // Iterate through all missions with traverseTrack
+    const missionsWithTracks = MARS_MISSIONS_DATA.filter((m) => m.traverseTrack && m.traverseTrack.length > 0);
 
-    const trackPolyline = L.polyline(latLngs, {
-      color: '#f97316',
-      weight: 3.5,
-      opacity: 0.9,
-      dashArray: '6, 6',
-    });
-    roverGroup.addLayer(trackPolyline);
+    missionsWithTracks.forEach((mission) => {
+      // Check if this rover's traverse is enabled in missionLayerOptions
+      if (!missionLayerOptions.enabledTraverseMissionIds.includes(mission.id)) {
+        return;
+      }
 
-    PERSEVERANCE_TRAVERSE_TRACK.forEach((wp) => {
-      const wpIcon = L.divIcon({
-        html: `<div class="w-2.5 h-2.5 rounded-full bg-orange-400 border border-white shadow"></div>`,
-        className: 'rover-wp',
-        iconSize: [10, 10],
-        iconAnchor: [5, 5],
+      const track = mission.traverseTrack!;
+      const latLngs: [number, number][] = track.map((pt) => [pt.lat, pt.lng]);
+
+      const trackColor = mission.id === 'perseverance' ? '#f97316' : mission.id === 'curiosity' ? '#38bdf8' : '#eab308';
+
+      const trackPolyline = L.polyline(latLngs, {
+        color: trackColor,
+        weight: 3.5,
+        opacity: 0.9,
+        dashArray: '6, 6',
       });
-      const wpMarker = L.marker([wp.lat, wp.lng], { icon: wpIcon });
-      wpMarker.bindTooltip(`<b>${wp.name}</b><br/>Perseverance Sol ${wp.sol}`, {
-        className: 'mars-tooltip',
+      roverGroup.addLayer(trackPolyline);
+
+      track.forEach((wp) => {
+        const wpIcon = L.divIcon({
+          html: `<div class="w-2.5 h-2.5 rounded-full border border-white shadow" style="background-color: ${trackColor};"></div>`,
+          className: 'rover-wp',
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
+        });
+        const wpMarker = L.marker([wp.lat, wp.lng], { icon: wpIcon });
+        wpMarker.bindTooltip(
+          `<b>${wp.name}</b><br/><span style="color:${trackColor};">${mission.name}</span> Sol ${wp.sol}<br/><span style="font-size:10px;color:#a3a3a3;">${wp.discovery}</span>`,
+          { className: 'mars-tooltip' }
+        );
+        roverGroup.addLayer(wpMarker);
       });
-      roverGroup.addLayer(wpMarker);
     });
-  }, [showRoverTrack]);
+  }, [showRoverTrack, missionLayerOptions]);
 
   // Render User Planned Route & Waypoints
   useEffect(() => {
@@ -1078,7 +1394,7 @@ export function RealMarsMap() {
     }));
     setRouteWaypoints(pts);
     setActiveTab(null); // Auto-close modal
-    mapInstanceRef.current?.flyTo([18.46, 77.41], 10, { duration: 1.5 });
+    mapInstanceRef.current?.flyTo([18.46, 77.41], 7, { duration: 1.5 });
   };
 
   // Select Basemap - AUTO-CLOSES MODAL
@@ -1436,6 +1752,26 @@ export function RealMarsMap() {
                       <div>
                         <span className="font-bold text-white text-xs block">Missions & Traverses Explorer</span>
                         <span className="text-[10px] text-neutral-400">Curiosity, Perseverance, Opportunity, InSight</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMissionLayersPanelOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-orange-900/40 hover:border-orange-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-950/80 text-orange-400 border border-orange-800/60 group-hover:scale-105 transition-transform">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Missions & Traverses Layer Control</span>
+                        <span className="text-[10px] text-neutral-400">Toggle NASA/ESA landings & rover track overlays</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
@@ -1847,6 +2183,22 @@ export function RealMarsMap() {
                 setCloseUpSearchTarget(name);
                 setIsCloseUpModalOpen(true);
               }}
+              onOpenEarthComparison={(compTargetId) => {
+                if (compTargetId) {
+                  const match = EARTH_MARS_COMPARISONS.find(
+                    (c) => c.marsFeatureId === compTargetId || c.id === compTargetId
+                  );
+                  if (match) {
+                    setSelectedEarthComparisonId(match.id);
+                    setActiveEarthComparison(match);
+                  }
+                }
+                setIsEarthComparisonOpen(true);
+              }}
+              onOpenPlaceIdentifier={(feature) => {
+                setPlaceIdentifierFeature(feature);
+                setIsPlaceIdentifierOpen(true);
+              }}
               telemetry={ephemeris}
               initialSelectedSite={selectedSite}
             />
@@ -1905,6 +2257,98 @@ export function RealMarsMap() {
               </div>
             </div>
           )}
+
+          {/* Esri Explore Mars-style Place Nomenclature Category Filter & Earth Scale Bar */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-full px-2">
+            <div className="bg-[#090d16]/90 backdrop-blur-xl border border-neutral-700/80 rounded-2xl p-1 shadow-2xl flex items-center gap-1 flex-wrap justify-center">
+              <button
+                type="button"
+                onClick={() => setPlaceCategoryFilter('all')}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  placeCategoryFilter === 'all'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                }`}
+              >
+                <span>🌐 All</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlaceCategoryFilter('mons')}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  placeCategoryFilter === 'mons'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                }`}
+              >
+                <span>🌋 Volcanoes</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlaceCategoryFilter('crater')}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  placeCategoryFilter === 'crater'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                }`}
+              >
+                <span>☄️ Craters</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlaceCategoryFilter('chasma')}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  placeCategoryFilter === 'chasma'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                }`}
+              >
+                <span>🏜️ Canyons</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlaceCategoryFilter('planitia')}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  placeCategoryFilter === 'planitia'
+                    ? 'bg-amber-600 text-white shadow-md'
+                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                }`}
+              >
+                <span>🪐 Plains</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlaceCategoryFilter('mission')}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  placeCategoryFilter === 'mission'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                }`}
+              >
+                <span>🚀 Missions</span>
+              </button>
+
+              <div className="w-[1px] h-4 bg-neutral-700 mx-0.5" />
+
+              {/* Earth Scale Comparison Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsEarthComparisonOpen(true)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeEarthComparison
+                    ? 'bg-cyan-600 text-white shadow-lg animate-pulse ring-1 ring-cyan-400'
+                    : 'bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/80 text-cyan-200 hover:text-white'
+                }`}
+                title="Esri Explore Mars Feature: Compare scale of Mars landforms directly against Earth landmarks"
+              >
+                <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Earth Scale</span>
+                {activeEarthComparison && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                )}
+              </button>
+            </div>
+          </div>
 
           {/* Rotated Map Canvas Container with Smooth 4-Directional Animation */}
         <div
@@ -1970,6 +2414,30 @@ export function RealMarsMap() {
               aria-label="Reset View"
             >
               <RotateCcw className="w-4 h-4 text-neutral-400 shrink-0" />
+            </button>
+
+            {/* Missions Explorer Quick Trigger Button */}
+            <button
+              onClick={() => setIsMissionExplorerOpen(true)}
+              className="flex items-center justify-center p-2 text-cyan-400 hover:text-white hover:bg-cyan-950/50 rounded-lg transition-colors cursor-pointer border-t border-neutral-800/60"
+              title="Open Mars Missions Explorer (Rovers, Landers & Orbiters)"
+              aria-label="Open Missions Explorer"
+            >
+              <Radio className="w-4 h-4 text-cyan-400 shrink-0" />
+            </button>
+
+            {/* Mission & Rover Traverse Layers Control Panel Toggle */}
+            <button
+              onClick={() => setIsMissionLayersPanelOpen((prev) => !prev)}
+              className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer border-t border-neutral-800/60 ${
+                isMissionLayersPanelOpen
+                  ? 'text-orange-300 bg-orange-950/60'
+                  : 'text-orange-400 hover:text-white hover:bg-orange-950/40'
+              }`}
+              title="Toggle Mars Missions & Rover Traverse Layer Control Panel"
+              aria-label="Mission Layers Control"
+            >
+              <Layers className="w-4 h-4 shrink-0" />
             </button>
 
             {/* If Rotated, Show Quick Align True North (0°) Button */}
@@ -2190,22 +2658,53 @@ export function RealMarsMap() {
               <span>💧 Full Water, Gas, Weather & Safety Dossier</span>
             </button>
 
-            <div className="flex items-center gap-1.5 pt-0.5">
+            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+              <button
+                onClick={() => {
+                  setPlaceIdentifierFeature(selectedSite);
+                  setIsPlaceIdentifierOpen(true);
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-600/80 text-orange-200 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                title="Geological and IAU Nomenclature Place Dossier"
+              >
+                <MapPin className="w-3.5 h-3.5 text-orange-400" />
+                <span>Place Info</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const match = EARTH_MARS_COMPARISONS.find(
+                    (c) => c.marsFeatureId === selectedSite.id || c.id === selectedSite.id
+                  );
+                  if (match) {
+                    setSelectedEarthComparisonId(match.id);
+                    setActiveEarthComparison(match);
+                  }
+                  setIsEarthComparisonOpen(true);
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-600/80 text-cyan-200 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                title="Compare Scale against Earth Features"
+              >
+                <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Earth Scale</span>
+              </button>
+
               <button
                 onClick={() => {
                   setCloseUpSearchTarget(selectedSite.name);
                   setIsCloseUpModalOpen(true);
                 }}
-                className="flex-1 py-2 px-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 shadow-md shadow-orange-950 transition-colors cursor-pointer min-h-[38px]"
+                className="py-1.5 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-neutral-700"
               >
-                <Camera className="w-3.5 h-3.5" />
-                <span>NASA Close-Up</span>
+                <Camera className="w-3.5 h-3.5 text-orange-400" />
+                <span>Photos</span>
               </button>
+
               <button
                 onClick={() => {
                   handleAddSiteToRoute(selectedSite);
                 }}
-                className="py-2 px-3 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border border-cyan-700/80 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer min-h-[38px]"
+                className="py-1.5 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer border border-neutral-700"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Route</span>
@@ -3097,9 +3596,22 @@ export function RealMarsMap() {
 
                   {/* Map Overlays Toggle */}
                   <div className="space-y-2">
-                    <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">
-                      Overlays & Grids
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">
+                        Overlays & Grids
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMissionLayersPanelOpen(true);
+                          setActiveTab(null);
+                        }}
+                        className="text-[10px] text-orange-400 hover:text-orange-300 font-semibold cursor-pointer underline flex items-center gap-1"
+                      >
+                        <Layers className="w-3 h-3" />
+                        <span>Advanced Mission Layers</span>
+                      </button>
+                    </div>
                     <div className="bg-neutral-900/80 p-3 rounded-xl border border-neutral-800 space-y-2.5">
                       <label className="flex items-center justify-between cursor-pointer">
                         <span className="text-neutral-200">Show Mission Landmarks</span>
@@ -3111,7 +3623,7 @@ export function RealMarsMap() {
                         />
                       </label>
                       <label className="flex items-center justify-between cursor-pointer">
-                        <span className="text-neutral-200">Perseverance Rover Traverse</span>
+                        <span className="text-neutral-200">Rover Traverse Paths</span>
                         <input
                           type="checkbox"
                           checked={showRoverTrack}
@@ -3820,6 +4332,90 @@ export function RealMarsMap() {
           setIsCompareModalOpen(true);
         }}
         onSelectLayer={(layer) => setActiveLayer(layer)}
+      />
+
+      {/* HISTORICAL NASA/ESA MISSIONS & ROVER TRAVERSES LAYER CONTROL PANEL */}
+      {isMissionLayersPanelOpen && (
+        <div className="absolute top-14 left-14 z-30 pointer-events-auto max-w-[92vw] sm:max-w-xs animate-in fade-in zoom-in-95 duration-200">
+          <MarsLayerControlPanel
+            isOpen={isMissionLayersPanelOpen}
+            onClose={() => setIsMissionLayersPanelOpen(false)}
+            options={missionLayerOptions}
+            onChangeOptions={(newOpts) => {
+              setMissionLayerOptions((prev) => ({ ...prev, ...newOpts }));
+              if (newOpts.showAllMissions !== undefined) {
+                setShowSites(newOpts.showAllMissions);
+              }
+              if (newOpts.showTraverseTracks !== undefined) {
+                setShowRoverTrack(newOpts.showTraverseTracks);
+              }
+            }}
+            onFlyToMission={(lat, lng, zoom, name) => {
+              mapInstanceRef.current?.flyTo([lat, lng], zoom || 7, { duration: 1.2 });
+              if (name) {
+                const matchingSite = FAMOUS_MARS_SITES.find(
+                  (s) =>
+                    s.name.toLowerCase().includes(name.toLowerCase()) ||
+                    name.toLowerCase().includes(s.name.toLowerCase())
+                );
+                if (matchingSite) {
+                  setSelectedSite(matchingSite);
+                }
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* Esri-style Earth vs Mars Physical Scale Comparison Modal */}
+      <EarthScaleComparisonModal
+        isOpen={isEarthComparisonOpen}
+        onClose={() => setIsEarthComparisonOpen(false)}
+        activeComparisonId={selectedEarthComparisonId}
+        onSelectComparison={(item) => {
+          setSelectedEarthComparisonId(item.id);
+          setActiveEarthComparison(item);
+        }}
+        onFlyToMartianFeature={(lat, lng, zoom = 5) => {
+          setViewMode('2d');
+          setTimeout(() => {
+            mapInstanceRef.current?.flyTo([lat, lng], zoom, { duration: 1.2 });
+          }, 50);
+        }}
+        onToggleMapOverlay={(item) => {
+          setActiveEarthComparison(item);
+        }}
+        isOverlayActiveOnMap={!!activeEarthComparison}
+      />
+
+      {/* Comprehensive Esri-style Mars Place Nomenclature & Scientific Identifier Modal */}
+      <MarsPlaceIdentifierModal
+        isOpen={isPlaceIdentifierOpen}
+        onClose={() => setIsPlaceIdentifierOpen(false)}
+        feature={placeIdentifierFeature}
+        onFlyTo={(lat, lng, zoom = 5) => {
+          setViewMode('2d');
+          setTimeout(() => {
+            mapInstanceRef.current?.flyTo([lat, lng], zoom, { duration: 1.2 });
+          }, 50);
+        }}
+        onOpenNASACloseUp={(featureName) => {
+          setCloseUpSearchTarget(featureName);
+          setIsCloseUpModalOpen(true);
+        }}
+        onOpenEarthComparison={(featId) => {
+          const match = EARTH_MARS_COMPARISONS.find(
+            (c) => c.marsFeatureId === featId || c.id === featId
+          );
+          if (match) {
+            setSelectedEarthComparisonId(match.id);
+            setActiveEarthComparison(match);
+          }
+          setIsEarthComparisonOpen(true);
+        }}
+        onAddToRoute={(feat) => {
+          handleAddSiteToRoute(feat as any);
+        }}
       />
 
     </div>

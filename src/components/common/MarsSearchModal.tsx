@@ -65,7 +65,7 @@ export function MarsSearchModal({
     MARS_MISSIONS_DATA.forEach((m) => {
       if (m.lat !== undefined && m.lng !== undefined) {
         items.push({
-          id: m.id,
+          id: `mission-${m.id}`,
           name: m.name,
           type: `${m.agency} ${m.type.toUpperCase()}`,
           category: 'Mission',
@@ -80,7 +80,7 @@ export function MarsSearchModal({
     // Human Candidate Sites
     HUMAN_CANDIDATE_SITES.forEach((h) => {
       items.push({
-        id: h.id,
+        id: `human-${h.id}`,
         name: h.name,
         type: 'Human Candidate Exploration Zone',
         category: 'Human Site',
@@ -100,7 +100,7 @@ export function MarsSearchModal({
       else if (f.type.includes('Planitia') || f.type.includes('Plain') || f.type.includes('Terra')) cat = 'Plain';
 
       items.push({
-        id: f.id,
+        id: `feature-${f.id}`,
         name: f.name,
         type: f.type,
         category: cat,

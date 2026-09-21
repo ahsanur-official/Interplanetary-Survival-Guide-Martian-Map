@@ -200,6 +200,41 @@ export function MissionExplorerDrawer({
             <span>Active Only</span>
           </label>
         </div>
+
+        {/* Famous Historical & Active Missions Quick Jump */}
+        <div className="pt-1">
+          <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block mb-1.5">
+            Key Mars Missions Quick-Jump:
+          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { id: 'perseverance', label: 'Perseverance' },
+              { id: 'curiosity', label: 'Curiosity' },
+              { id: 'opportunity', label: 'Opportunity' },
+              { id: 'spirit', label: 'Spirit' },
+              { id: 'zhurong', label: 'Zhurong' },
+              { id: 'viking1', label: 'Viking 1' },
+              { id: 'insight', label: 'InSight' },
+            ].map((m) => {
+              const mission = MARS_MISSIONS_DATA.find((item) => item.id === m.id);
+              if (!mission) return null;
+              const isSelected = activeMission?.id === mission.id;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => handleSelectMission(mission)}
+                  className={`text-[11px] px-2 py-0.5 rounded-md border transition cursor-pointer font-medium ${
+                    isSelected
+                      ? 'bg-orange-600/90 text-white border-orange-500 shadow-sm'
+                      : 'bg-neutral-900/80 text-neutral-300 border-neutral-800 hover:text-white hover:border-neutral-700'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Drawer Content: Split List & Detail */}
