@@ -42,6 +42,8 @@ import {
   ShieldAlert,
   Bot,
   CloudRain,
+  Filter,
+  ChevronUp,
 } from 'lucide-react';
 import { MARS_MISSIONS_DATA } from '../../data/marsMissions';
 import { analyzeMarsLocationScience } from '../../engine/marsEnvironmentalAnalysis';
@@ -71,14 +73,24 @@ import { MarsScienceDossierModal } from './MarsScienceDossierModal';
 import { MissionExplorerDrawer } from '../mission/MissionExplorerDrawer';
 import { HumanMissionMode } from '../mission/HumanMissionMode';
 import { MarsSearchModal } from '../common/MarsSearchModal';
+import { MarsTopSearchBar } from './MarsTopSearchBar';
 import { MarsTimeline } from '../common/MarsTimeline';
 import { CompareSitesModal } from '../science/CompareSitesModal';
 import { DataSourcesModal } from '../provenance/DataSourcesModal';
 import { MarsBookmarksModal } from '../common/MarsBookmarksModal';
 import { MarsMeasurementTool, MeasurementPoint } from './MarsMeasurementTool';
+import { ElevationProfileModal } from '../science/ElevationProfileModal';
+import {
+  generateElevationTransect,
+  PRESET_MARS_TRANSECTS,
+  PresetTransect,
+  ElevationTransectProfile,
+  ElevationSamplePoint,
+} from '../../engine/marsMolaElevation';
 import { MarsPlatformTourModal } from '../common/MarsPlatformTourModal';
 import { MarsPresentationMode } from '../common/MarsPresentationMode';
 import { AskMarsWayModal } from '../common/AskMarsWayModal';
+import { MarsLiveVoiceModal } from '../voice/MarsLiveVoiceModal';
 import { marsSonification } from '../../engine/marsSonification';
 import {
   Ruler,
@@ -92,7 +104,17 @@ import {
   Presentation,
   Globe2,
   Scale,
+  TrendingUp,
 } from 'lucide-react';
+import { MarsDustStormLayerControl } from './MarsDustStormLayerControl';
+import {
+  getSeasonalDustSimulation,
+  getAtmosphericTelemetryAtCoord,
+  getTauColor,
+  DustStormCell,
+  AtmosphericPointTelemetry,
+  SeasonalDustState,
+} from '../../engine/marsAtmosphereDustModel';
 import { EarthScaleComparisonModal } from '../science/EarthScaleComparisonModal';
 import { MarsPlaceIdentifierModal } from './MarsPlaceIdentifierModal';
 import { EARTH_MARS_COMPARISONS, EarthComparisonItem } from '../../data/earthMarsComparisons';
@@ -180,8 +202,8 @@ export function RealMarsMap() {
     }
   }, [stageDiagonal]);
 
-  // Basemap & Surface Display (Defaults to NASA MOLA Topography Shaded Relief - Esri Explore Mars style)
-  const [activeLayer, setActiveLayer] = useState<'themis' | 'viking' | 'mola' | 'opm'>('mola');
+  // Basemap & Surface Display (Defaults to NASA Viking True Color / Natural Mosaic)
+  const [activeLayer, setActiveLayer] = useState<'themis' | 'viking' | 'mola' | 'opm'>('viking');
   const [surfaceFilter, setSurfaceFilter] = useState<'normal' | 'contrast' | 'sharp' | 'dark' | 'night'>('normal');
   const [showSites, setShowSites] = useState<boolean>(true);
   const [showRoverTrack, setShowRoverTrack] = useState<boolean>(true);
@@ -189,6 +211,8 @@ export function RealMarsMap() {
 
   // Esri-style Martian Nomenclature & Place Categorization State
   const [placeCategoryFilter, setPlaceCategoryFilter] = useState<'all' | 'mons' | 'crater' | 'chasma' | 'vallis' | 'planitia' | 'mission'>('all');
+  const [isCategoryBarExpanded, setIsCategoryBarExpanded] = useState<boolean>(false);
+  const [mapBoundsKey, setMapBoundsKey] = useState<number>(0);
   const [isEarthComparisonOpen, setIsEarthComparisonOpen] = useState<boolean>(false);
   const [selectedEarthComparisonId, setSelectedEarthComparisonId] = useState<string>('olympus_vs_everest');
   const [activeEarthComparison, setActiveEarthComparison] = useState<EarthComparisonItem | null>(null);
@@ -255,6 +279,7 @@ export function RealMarsMap() {
   const [isTourModalOpen, setIsTourModalOpen] = useState<boolean>(false);
   const [isPresentationModeOpen, setIsPresentationModeOpen] = useState<boolean>(false);
   const [isAskMarsWayOpen, setIsAskMarsWayOpen] = useState<boolean>(false);
+  const [isLiveVoiceOpen, setIsLiveVoiceOpen] = useState<boolean>(false);
 
   // GIS Distance & Area Measurement Tool State
   const [isMeasureToolOpen, setIsMeasureToolOpen] = useState<boolean>(false);
@@ -266,6 +291,51 @@ export function RealMarsMap() {
   const [measurePoints, setMeasurePoints] = useState<MeasurementPoint[]>([]);
   const [measureMode, setMeasureMode] = useState<'distance' | 'area'>('distance');
   const measureLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // MGS MOLA Elevation Profile Transect Tool State
+  const [isElevationProfileOpen, setIsElevationProfileOpen] = useState<boolean>(false);
+  const isElevationProfileOpenRef = useRef<boolean>(false);
+  useEffect(() => {
+    isElevationProfileOpenRef.current = isElevationProfileOpen;
+  }, [isElevationProfileOpen]);
+
+  const [isDrawingElevationLine, setIsDrawingElevationLine] = useState<boolean>(false);
+  const isDrawingElevationLineRef = useRef<boolean>(false);
+  useEffect(() => {
+    isDrawingElevationLineRef.current = isDrawingElevationLine;
+  }, [isDrawingElevationLine]);
+
+  const [elevationPoints, setElevationPoints] = useState<Array<{ lat: number; lng: number; name?: string }>>([]);
+  const elevationPointsRef = useRef<Array<{ lat: number; lng: number; name?: string }>>([]);
+  useEffect(() => {
+    elevationPointsRef.current = elevationPoints;
+  }, [elevationPoints]);
+
+  const [elevationProfile, setElevationProfile] = useState<ElevationTransectProfile | null>(null);
+  const [hoveredElevationSample, setHoveredElevationSample] = useState<ElevationSamplePoint | null>(null);
+  const elevationLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Dust Storm & Atmospheric Opacity Simulation Layer State
+  const [showDustStormOverlay, setShowDustStormOverlay] = useState<boolean>(false);
+  const showDustStormOverlayRef = useRef<boolean>(false);
+  useEffect(() => {
+    showDustStormOverlayRef.current = showDustStormOverlay;
+  }, [showDustStormOverlay]);
+
+  const [isDustStormPanelOpen, setIsDustStormPanelOpen] = useState<boolean>(false);
+  const [dustLayerOpacity, setDustLayerOpacity] = useState<number>(0.65);
+  const [dustSimulationState, setDustSimulationState] = useState<SeasonalDustState>(() =>
+    getSeasonalDustSimulation('realtime')
+  );
+  const dustSimulationStateRef = useRef<SeasonalDustState>(dustSimulationState);
+  useEffect(() => {
+    dustSimulationStateRef.current = dustSimulationState;
+  }, [dustSimulationState]);
+
+  const [showStormVortices, setShowStormVortices] = useState<boolean>(true);
+  const [showWindVectors, setShowWindVectors] = useState<boolean>(true);
+  const [inspectedAtmosphericPoint, setInspectedAtmosphericPoint] = useState<AtmosphericPointTelemetry | null>(null);
+  const dustStormLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Selected site
   const [selectedSite, setSelectedSite] = useState<MarsSite | null>(null);
@@ -385,7 +455,7 @@ export function RealMarsMap() {
       center: [18.38, 77.58],
       zoom: 3,
       minZoom: 1,
-      maxZoom: 9,
+      maxZoom: 20,
       maxBounds: [
         [-90, -180],
         [90, 180],
@@ -480,9 +550,10 @@ export function RealMarsMap() {
       };
     }
 
-    // Keep zoom state updated
-    map.on('zoomend', () => {
+    // Keep zoom state and bounds updated on map interaction
+    map.on('moveend zoomend dragend', () => {
       setCurrentZoom(map.getZoom());
+      setMapBoundsKey((prev) => prev + 1);
     });
 
     // Layer groups
@@ -493,6 +564,8 @@ export function RealMarsMap() {
     graticuleLayerRef.current = L.layerGroup().addTo(map);
     measureLayerRef.current = L.layerGroup().addTo(map);
     earthComparisonLayerRef.current = L.layerGroup().addTo(map);
+    elevationLayerRef.current = L.layerGroup().addTo(map);
+    dustStormLayerRef.current = L.layerGroup().addTo(map);
 
     // Mouse / Touch tracker
     const updateCoordinates = (lat: number, rawLng: number) => {
@@ -523,7 +596,43 @@ export function RealMarsMap() {
       const cleanLng = Number(lng.toFixed(4));
       const eastLng = Number(((cleanLng + 360) % 360).toFixed(4));
 
-      if (isMeasureToolOpenRef.current) {
+      if (isDrawingElevationLineRef.current) {
+        // Drawing Elevation Profile Line: drop Point A or Point B
+        const currentPoints = elevationPointsRef.current;
+        if (currentPoints.length === 0 || currentPoints.length >= 2) {
+          // Drop Point A
+          const ptA = {
+            lat,
+            lng: cleanLng,
+            name: `Point A (${lat >= 0 ? `${lat}°N` : `${Math.abs(lat)}°S`}, ${cleanLng >= 0 ? `${cleanLng}°E` : `${Math.abs(cleanLng)}°W`})`,
+          };
+          setElevationPoints([ptA]);
+          setElevationProfile(null);
+          marsSonification.sonifyLocation(lat * 100, 2);
+        } else {
+          // Drop Point B and calculate MOLA elevation transect
+          const ptA = currentPoints[0];
+          const ptB = {
+            lat,
+            lng: cleanLng,
+            name: `Point B (${lat >= 0 ? `${lat}°N` : `${Math.abs(lat)}°S`}, ${cleanLng >= 0 ? `${cleanLng}°E` : `${Math.abs(cleanLng)}°W`})`,
+          };
+          setElevationPoints([ptA, ptB]);
+          const profile = generateElevationTransect(
+            ptA.lat,
+            ptA.lng,
+            ptB.lat,
+            ptB.lng,
+            120,
+            ptA.name,
+            ptB.name
+          );
+          setElevationProfile(profile);
+          setIsElevationProfileOpen(true);
+          setIsDrawingElevationLine(false);
+          marsSonification.sonifyLocation(profile.maxElevationM, profile.maxSlopeDeg);
+        }
+      } else if (isMeasureToolOpenRef.current) {
         // Measurement tool active: drop measurement pin
         setMeasurePoints((prev) => [...prev, { lat, lng: cleanLng }]);
       } else if (isRoutePlanningActiveRef.current) {
@@ -562,6 +671,17 @@ export function RealMarsMap() {
           distToNearestKm: Math.round(minDistMeters / 1000),
           containingRegion: regionFound,
         });
+
+        // Sample real-time atmospheric opacity probe if dust storm layer is active
+        if (showDustStormOverlayRef.current) {
+          const atmoTelemetry = getAtmosphericTelemetryAtCoord(
+            lat,
+            cleanLng,
+            dustSimulationStateRef.current.currentLs,
+            dustSimulationStateRef.current.globalStormActive
+          );
+          setInspectedAtmosphericPoint(atmoTelemetry);
+        }
       }
     });
 
@@ -570,6 +690,8 @@ export function RealMarsMap() {
       mapInstanceRef.current = null;
       regionsLayerRef.current = null;
       measureLayerRef.current = null;
+      elevationLayerRef.current = null;
+      dustStormLayerRef.current = null;
     };
   }, []);
 
@@ -616,6 +738,389 @@ export function RealMarsMap() {
     }
   }, [isMeasureToolOpen, measurePoints, measureMode]);
 
+  // Render MGS MOLA Elevation Profile Transect on Map
+  useEffect(() => {
+    const layer = elevationLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+
+    if (!isElevationProfileOpen && elevationPoints.length === 0 && !isDrawingElevationLine) return;
+
+    // Render Point A
+    if (elevationPoints.length >= 1) {
+      const ptA = elevationPoints[0];
+      const markerHtmlA = `
+        <div class="flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500 border-2 border-white text-xs font-bold text-neutral-950 shadow-xl font-mono ring-2 ring-emerald-400/80 animate-bounce">
+          A
+        </div>
+      `;
+      const iconA = L.divIcon({
+        html: markerHtmlA,
+        className: 'elevation-pin-a',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+      L.marker([ptA.lat, ptA.lng], { icon: iconA })
+        .bindTooltip(`Point A (Start): ${ptA.name || `${ptA.lat}°N, ${ptA.lng}°E`}`, {
+          permanent: false,
+          direction: 'top',
+        })
+        .addTo(layer);
+    }
+
+    // Render Point B
+    if (elevationPoints.length >= 2) {
+      const ptB = elevationPoints[1];
+      const markerHtmlB = `
+        <div class="flex items-center justify-center w-7 h-7 rounded-full bg-rose-500 border-2 border-white text-xs font-bold text-neutral-950 shadow-xl font-mono ring-2 ring-rose-400/80 animate-bounce">
+          B
+        </div>
+      `;
+      const iconB = L.divIcon({
+        html: markerHtmlB,
+        className: 'elevation-pin-b',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+      L.marker([ptB.lat, ptB.lng], { icon: iconB })
+        .bindTooltip(`Point B (End): ${ptB.name || `${ptB.lat}°N, ${ptB.lng}°E`}`, {
+          permanent: false,
+          direction: 'top',
+        })
+        .addTo(layer);
+    }
+
+    // Render Geodesic Line between A and B
+    if (elevationProfile && elevationProfile.samples.length > 0) {
+      const sampleCoords: [number, number][] = elevationProfile.samples.map((s) => [s.lat, s.lng]);
+
+      // Outer dark halo for contrast against any Martian surface
+      L.polyline(sampleCoords, {
+        color: '#000000',
+        weight: 6,
+        opacity: 0.7,
+      }).addTo(layer);
+
+      // Inner glowing transect path
+      L.polyline(sampleCoords, {
+        color: '#38bdf8',
+        weight: 3.5,
+        dashArray: '8, 5',
+        opacity: 0.95,
+      }).addTo(layer);
+    } else if (elevationPoints.length >= 2) {
+      L.polyline(
+        [
+          [elevationPoints[0].lat, elevationPoints[0].lng],
+          [elevationPoints[1].lat, elevationPoints[1].lng],
+        ],
+        {
+          color: '#38bdf8',
+          weight: 3,
+          dashArray: '6, 4',
+          opacity: 0.9,
+        }
+      ).addTo(layer);
+    }
+
+    // Render Synchronized Hover Beacon on Map
+    if (hoveredElevationSample) {
+      const hoverMarkerHtml = `
+        <div class="relative flex items-center justify-center w-8 h-8">
+          <div class="absolute inset-0 rounded-full animate-ping opacity-80" style="background-color: ${hoveredElevationSample.difficultyColor};"></div>
+          <div class="w-4 h-4 rounded-full border-2 border-white shadow-2xl flex items-center justify-center" style="background-color: ${hoveredElevationSample.difficultyColor};">
+            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+          </div>
+        </div>
+      `;
+      const hoverIcon = L.divIcon({
+        html: hoverMarkerHtml,
+        className: 'hover-transect-pin',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+      const hoverMarker = L.marker([hoveredElevationSample.lat, hoveredElevationSample.lng], { icon: hoverIcon }).addTo(layer);
+      hoverMarker.bindTooltip(
+        `<div style="font-family: monospace; font-size: 11px; padding: 2px 4px;">
+          <div style="font-weight: bold; color: #ffffff;">Dist: ${hoveredElevationSample.distanceKm} km | Elev: ${hoveredElevationSample.elevationM > 0 ? `+${hoveredElevationSample.elevationM}` : hoveredElevationSample.elevationM}m</div>
+          <div style="color: ${hoveredElevationSample.difficultyColor};">Slope: ${hoveredElevationSample.slopeDeg}° (${hoveredElevationSample.difficultyLabel})</div>
+        </div>`,
+        { permanent: true, direction: 'top', offset: [0, -10] }
+      );
+    }
+  }, [isElevationProfileOpen, elevationPoints, elevationProfile, hoveredElevationSample, isDrawingElevationLine]);
+
+  // Handle Preset Elevation Transect Selection
+  const handleSelectElevationPreset = (preset: PresetTransect) => {
+    setElevationPoints([preset.start, preset.end]);
+    const prof = generateElevationTransect(
+      preset.start.lat,
+      preset.start.lng,
+      preset.end.lat,
+      preset.end.lng,
+      120,
+      preset.start.name,
+      preset.end.name
+    );
+    setElevationProfile(prof);
+    setIsElevationProfileOpen(true);
+    setIsDrawingElevationLine(false);
+
+    // Orient map to fit both endpoints
+    const map = mapInstanceRef.current;
+    if (map) {
+      map.fitBounds(
+        [
+          [preset.start.lat, preset.start.lng],
+          [preset.end.lat, preset.end.lng],
+        ],
+        { padding: [80, 80], maxZoom: 6 }
+      );
+    }
+    marsSonification.sonifyLocation(prof.maxElevationM, prof.maxSlopeDeg);
+  };
+
+  // Reverse Elevation Transect Points (A <-> B)
+  const handleReverseElevationPoints = () => {
+    if (elevationPoints.length < 2) return;
+    const ptA = elevationPoints[1];
+    const ptB = elevationPoints[0];
+    setElevationPoints([ptA, ptB]);
+    const prof = generateElevationTransect(
+      ptA.lat,
+      ptA.lng,
+      ptB.lat,
+      ptB.lng,
+      120,
+      ptA.name,
+      ptB.name
+    );
+    setElevationProfile(prof);
+  };
+
+  // Fly to active dust storm vortex
+  const handleFlyToStorm = (lat: number, lng: number, name: string) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.flyTo([lat, lng], 5, { duration: 1.5 });
+    const telemetry = getAtmosphericTelemetryAtCoord(
+      lat,
+      lng,
+      dustSimulationState.currentLs,
+      dustSimulationState.globalStormActive
+    );
+    setInspectedAtmosphericPoint(telemetry);
+    marsSonification.sonifyLocation(telemetry.elevationM, 15);
+  };
+
+  // Render Real-time Dust Storm & Atmospheric Opacity Simulation on Leaflet Map
+  useEffect(() => {
+    const layer = dustStormLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+
+    if (!showDustStormOverlay) return;
+
+    // 1. Regional and Global Optical Depth (Tau) Grid Cells
+    const samplingPoints: Array<{ lat: number; lng: number; radiusKm: number; label: string }> = [
+      // Major Basins & Lowlands (Deep atmospheric columns & storm nurseries)
+      { lat: -42.5, lng: 70.5, radiusKm: 1100, label: 'Hellas Planitia (Deep Vortex)' },
+      { lat: -49.7, lng: 316.0, radiusKm: 800, label: 'Argyre Planitia' },
+      { lat: 26.5, lng: 320.0, radiusKm: 850, label: 'Chryse Planitia' },
+      { lat: 12.9, lng: 87.0, radiusKm: 750, label: 'Isidis Planitia' },
+      { lat: 49.7, lng: 118.0, radiusKm: 900, label: 'Utopia Planitia' },
+      { lat: 4.5, lng: 135.6, radiusKm: 700, label: 'Elysium Planitia' },
+      { lat: 47.0, lng: 192.0, radiusKm: 800, label: 'Arcadia Planitia' },
+      { lat: 50.0, lng: 340.0, radiusKm: 850, label: 'Acidalia Planitia' },
+      { lat: 70.0, lng: 0.0, radiusKm: 1200, label: 'Vastitas Borealis' },
+      // Highland & Volcanic Regions
+      { lat: -27.0, lng: 270.0, radiusKm: 750, label: 'Solis Planum' },
+      { lat: -10.0, lng: 335.0, radiusKm: 750, label: 'Margaritifer Terra' },
+      { lat: 20.0, lng: 30.0, radiusKm: 850, label: 'Arabia Terra' },
+      { lat: -45.0, lng: 30.0, radiusKm: 850, label: 'Noachis Terra' },
+      { lat: 0.0, lng: 248.0, radiusKm: 950, label: 'Tharsis Montes' },
+      { lat: 18.6, lng: 226.2, radiusKm: 650, label: 'Olympus Mons' },
+      { lat: -14.0, lng: 300.0, radiusKm: 800, label: 'Valles Marineris' },
+      { lat: -78.0, lng: 0.0, radiusKm: 1100, label: 'Planum Australe (South Polar Margin)' },
+      { lat: 82.0, lng: 0.0, radiusKm: 900, label: 'Planum Boreum (North Polar Margin)' },
+      // Surface Rover In-situ stations
+      { lat: 18.38, lng: 77.58, radiusKm: 450, label: 'Jezero Crater (Perseverance MEDA Station)' },
+      { lat: -4.59, lng: 137.44, radiusKm: 450, label: 'Gale Crater (Curiosity REMS Station)' },
+    ];
+
+    // Regular global coordinate sampling
+    for (let gLat = -60; gLat <= 60; gLat += 30) {
+      for (let gLng = -160; gLng <= 160; gLng += 40) {
+        samplingPoints.push({
+          lat: gLat,
+          lng: gLng,
+          radiusKm: 750,
+          label: `Atmospheric Sector [${gLat >= 0 ? `${gLat}°N` : `${Math.abs(gLat)}°S`}, ${gLng >= 0 ? `${gLng}°E` : `${Math.abs(gLng)}°W`}]`,
+        });
+      }
+    }
+
+    samplingPoints.forEach((pt) => {
+      const telemetry = getAtmosphericTelemetryAtCoord(
+        pt.lat,
+        pt.lng,
+        dustSimulationState.currentLs,
+        dustSimulationState.globalStormActive
+      );
+
+      const color = getTauColor(telemetry.tau, dustLayerOpacity);
+      const fillOpacity = Math.min(0.88, Math.max(0.08, (telemetry.tau / 2.6) * dustLayerOpacity));
+
+      const circle = L.circle([pt.lat, pt.lng], {
+        radius: pt.radiusKm * 1000,
+        color: telemetry.tau > 1.2 ? telemetry.hazardColor : '#f97316',
+        weight: telemetry.tau > 1.5 ? 1.5 : 0.4,
+        opacity: Math.min(0.8, fillOpacity + 0.15),
+        fillColor: color,
+        fillOpacity: fillOpacity,
+        dashArray: telemetry.tau > 2.0 ? '4, 4' : undefined,
+      });
+
+      circle.bindTooltip(
+        `<div style="font-family: monospace; font-size: 11px; padding: 4px; line-height: 1.4;">
+          <div style="font-weight: bold; color: #ffffff;">${pt.label}</div>
+          <div style="color: ${telemetry.hazardColor}; font-weight: bold;">Optical Depth: τ ${telemetry.tau} (${telemetry.dustHazardLevel} Risk)</div>
+          <div style="color: #cbd5e1;">Visibility: ${telemetry.visibilityKm} km | Solar Flux: -${telemetry.solarAttenuationPercent}%</div>
+          <div style="color: #94a3b8; font-size: 10px;">Elev: ${telemetry.elevationM > 0 ? `+${telemetry.elevationM}` : telemetry.elevationM}m • Click for Full Probe</div>
+        </div>`,
+        { permanent: false, direction: 'top' }
+      );
+
+      circle.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        setInspectedAtmosphericPoint(telemetry);
+        setIsDustStormPanelOpen(true);
+      });
+
+      circle.addTo(layer);
+    });
+
+    // 2. Active Dust Storm Vortices & Cyclones
+    if (showStormVortices && dustSimulationState.activeStorms.length > 0) {
+      dustSimulationState.activeStorms.forEach((storm) => {
+        // Outer Expanding Dust Front
+        L.circle([storm.lat, storm.lng], {
+          radius: storm.radiusKm * 1000,
+          color: '#ef4444',
+          weight: 2,
+          dashArray: '6, 6',
+          fillColor: '#b91c1c',
+          fillOpacity: Math.min(0.65, 0.35 * dustLayerOpacity),
+        }).addTo(layer);
+
+        // Inner Cyclonic Core
+        L.circle([storm.lat, storm.lng], {
+          radius: storm.radiusKm * 380,
+          color: '#f97316',
+          weight: 1.5,
+          fillColor: '#ea580c',
+          fillOpacity: Math.min(0.85, 0.6 * dustLayerOpacity),
+        }).addTo(layer);
+
+        // Eye Center Rotating Badge
+        const stormBadgeHtml = `
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-950/95 border border-red-500 shadow-2xl text-white font-mono text-[10.5px] cursor-pointer hover:scale-105 transition-transform whitespace-nowrap">
+            <span class="inline-block animate-spin text-orange-400">🌪️</span>
+            <span class="font-bold text-red-200">${storm.name.split(' ')[0]} Vortex</span>
+            <span class="px-1.5 py-0.2 rounded bg-red-600 font-bold text-white text-[10px]">τ ${storm.peakTau}</span>
+          </div>
+        `;
+        const stormIcon = L.divIcon({
+          html: stormBadgeHtml,
+          className: 'storm-vortex-badge',
+          iconSize: [160, 28],
+          iconAnchor: [80, 14],
+        });
+
+        const stormMarker = L.marker([storm.lat, storm.lng], { icon: stormIcon }).addTo(layer);
+
+        stormMarker.bindTooltip(
+          `<div style="font-family: monospace; font-size: 11px; padding: 4px; max-width: 250px;">
+            <div style="font-weight: bold; color: #ef4444;">${storm.name}</div>
+            <div style="color: #fb923c; font-weight: bold;">Status: ${storm.status} (Peak τ ${storm.peakTau})</div>
+            <div style="color: #cbd5e1; font-size: 10px; margin-top: 2px;">Drift: ${storm.driftVelocityKmH} km/h • Radius: ~${storm.radiusKm} km</div>
+            <div style="color: #94a3b8; font-size: 10px; margin-top: 3px;">${storm.description}</div>
+          </div>`,
+          { permanent: false, direction: 'top' }
+        );
+
+        stormMarker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          const tel = getAtmosphericTelemetryAtCoord(
+            storm.lat,
+            storm.lng,
+            dustSimulationState.currentLs,
+            dustSimulationState.globalStormActive
+          );
+          setInspectedAtmosphericPoint(tel);
+          setIsDustStormPanelOpen(true);
+        });
+      });
+    }
+
+    // 3. Seasonal Wind Vector Streamlines
+    if (showWindVectors) {
+      const windVectors: Array<{ from: [number, number]; to: [number, number]; label: string }> = [
+        { from: [40, 60], to: [-30, 70], label: 'Northerly Lowland Outflow to Hellas Basin' },
+        { from: [30, 310], to: [-40, 316], label: 'Acidalia-Chryse Outflow Streamline' },
+        { from: [-65, 120], to: [-45, 80], label: 'South Polar Katabatic Circulation' },
+        { from: [-65, 300], to: [-45, 310], label: 'Argyre Catabatic Wind Vector' },
+        { from: [20, 100], to: [5, 85], label: 'Isidis-Syrtis Thermal Slope Wind' },
+        { from: [0, 240], to: [-20, 260], label: 'Tharsis Downslope Thermal Wind' },
+      ];
+
+      windVectors.forEach((vec) => {
+        L.polyline([vec.from, vec.to], {
+          color: '#38bdf8',
+          weight: 2,
+          dashArray: '6, 6',
+          opacity: 0.65 * dustLayerOpacity,
+        })
+          .bindTooltip(`Seasonal Wind Drift: ${vec.label}`, { direction: 'center' })
+          .addTo(layer);
+      });
+    }
+
+    // 4. Probed Location Pin
+    if (inspectedAtmosphericPoint) {
+      const probeMarkerHtml = `
+        <div class="relative flex items-center justify-center w-8 h-8 pointer-events-none">
+          <div class="absolute inset-0 rounded-full animate-ping opacity-75" style="background-color: ${inspectedAtmosphericPoint.hazardColor};"></div>
+          <div class="w-5 h-5 rounded-full border-2 border-white shadow-2xl flex items-center justify-center font-mono font-bold text-[9px] text-white" style="background-color: ${inspectedAtmosphericPoint.hazardColor};">
+            τ
+          </div>
+        </div>
+      `;
+      const probeIcon = L.divIcon({
+        html: probeMarkerHtml,
+        className: 'probe-atmospheric-pin',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+      L.marker([inspectedAtmosphericPoint.lat, inspectedAtmosphericPoint.lng], { icon: probeIcon })
+        .bindTooltip(
+          `<div style="font-family: monospace; font-size: 11px;">
+            <strong>Atmospheric Probe: τ ${inspectedAtmosphericPoint.tau}</strong><br/>
+            ${inspectedAtmosphericPoint.dustHazardLevel} Risk (${inspectedAtmosphericPoint.visibilityKm} km visibility)
+          </div>`,
+          { permanent: true, direction: 'top', offset: [0, -10] }
+        )
+        .addTo(layer);
+    }
+  }, [
+    showDustStormOverlay,
+    dustLayerOpacity,
+    dustSimulationState,
+    showStormVortices,
+    showWindVectors,
+    inspectedAtmosphericPoint,
+  ]);
+
 
   // Update Basemap Layer
   useEffect(() => {
@@ -636,7 +1141,7 @@ export function RealMarsMap() {
         {
           minZoom: 1,
           maxNativeZoom: 8,
-          maxZoom: 10,
+          maxZoom: 20,
           attribution: 'NASA Odyssey THEMIS 100m Controlled Mosaic',
           noWrap: false,
           updateWhenIdle: false,
@@ -648,7 +1153,7 @@ export function RealMarsMap() {
         {
           minZoom: 1,
           maxNativeZoom: 7,
-          maxZoom: 10,
+          maxZoom: 20,
           attribution: 'NASA Mars Trek / Viking MDIM2.1',
           noWrap: false,
           updateWhenIdle: false,
@@ -660,7 +1165,7 @@ export function RealMarsMap() {
         {
           minZoom: 1,
           maxNativeZoom: 7,
-          maxZoom: 10,
+          maxZoom: 20,
           attribution: 'NASA MGS MOLA Elevation',
           noWrap: false,
           updateWhenIdle: false,
@@ -674,7 +1179,7 @@ export function RealMarsMap() {
           format: 'image/jpeg',
           attribution: 'USGS Astrogeology Mars MOLA',
           minZoom: 1,
-          maxZoom: 10,
+          maxZoom: 20,
         }
       );
     }
@@ -915,32 +1420,31 @@ export function RealMarsMap() {
   // Render Martian Nomenclature, Landmarks & Planetary Landing Sites
   useEffect(() => {
     const sitesGroup = sitesLayerRef.current;
+    const map = mapInstanceRef.current;
     if (!sitesGroup) return;
     sitesGroup.clearLayers();
 
     if (!showSites || !missionLayerOptions.showAllMissions) return;
 
-    // Major Global Landmarks shown at all zoom levels (Tier 1)
-    const TIER_1_IDS = new Set([
-      'olympus_mons',
-      'valles_marineris',
-      'hellas_planitia',
-      'curiosity',
-      'perseverance',
-      'elysium_mons',
-      'tharsis_montes',
-      'argyre_planitia',
-      'utopia_planitia',
-      'isidis_planitia',
-      'opportunity',
-      'spirit',
-      'viking1',
-      'viking2',
-      'pathfinder',
+    // Viewport bounds detection for zoom-in area visibility
+    const mapBounds = map ? map.getBounds() : null;
+    const bufferedBounds = mapBounds ? mapBounds.pad(0.12) : null;
+
+    // TIER 1: Prime iconic landmarks shown at global view (zoom <= 3, 1x zoom)
+    // Only top universally recognized landmarks are shown at 1x to ensure a clean, uncluttered view
+    const TIER_1_GLOBAL_IDS = new Set([
+      'olympus_mons',      // Olympus Mons (Tallest volcano in Solar System)
+      'valles_marineris',  // Valles Marineris (Grand Canyon of Mars)
+      'perseverance',      // Perseverance Rover (Jezero Crater)
+      'curiosity',         // Curiosity Rover (Gale Crater / Mount Sharp)
+      'hellas_planitia',   // Hellas Planitia (Deepest impact basin)
+      'elysium_mons',      // Elysium Mons
+      'opportunity',       // Opportunity Rover (Meridiani Planum)
+      'viking1',           // Viking 1 (First successful soft landing)
     ]);
 
-    // Prominent Regional Landmarks shown at zoom >= 4 (Tier 2)
-    const TIER_2_IDS = new Set([
+    // TIER 2: Major Regional Landmarks revealed when zooming to zoom >= 4 in the visible area
+    const TIER_2_REGIONAL_IDS = new Set([
       'ascraeus_mons',
       'pavonis_mons',
       'arsia_mons',
@@ -948,6 +1452,27 @@ export function RealMarsMap() {
       'hecates_tholus',
       'albor_tholus',
       'apollinaris_mons',
+      'korolev',
+      'schiaparelli_crater',
+      'huygens_crater',
+      'cassini_crater',
+      'galle_crater',
+      'spirit',
+      'phoenix',
+      'insight',
+      'pathfinder',
+      'zhurong',
+      'viking2',
+      'argyre_planitia',
+      'utopia_planitia',
+      'isidis_planitia',
+      'tharsis_montes',
+      'planum_boreum',
+      'planum_australe',
+    ]);
+
+    // TIER 3: Local Canyons, Craters & Vallis revealed when zooming to zoom >= 6 in the visible area
+    const TIER_3_LOCAL_IDS = new Set([
       'melas_chasma',
       'candor_chasma',
       'coprates_chasma',
@@ -957,16 +1482,9 @@ export function RealMarsMap() {
       'kasei_valles',
       'ares_vallis',
       'mawrth_vallis',
-      'korolev',
-      'schiaparelli_crater',
-      'huygens_crater',
-      'cassini_crater',
-      'galle_crater',
       'victoria_crater',
       'endeavour_crater',
-      'insight',
-      'phoenix',
-      'zhurong',
+      'gusev_crater',
       'beagle2',
       'mars3',
       'chryse_planitia',
@@ -975,11 +1493,31 @@ export function RealMarsMap() {
       'terra_sabaea',
       'arabia_terra',
       'noachis_terra',
-      'planum_boreum',
-      'planum_australe',
     ]);
 
-    FAMOUS_MARS_SITES.forEach((site) => {
+    // Screen-space collision prevention: ensure markers never overlap or hide each other
+    const placedScreenPoints: { x: number; y: number }[] = [];
+    const minCollisionDistPx = currentZoom <= 3 ? 55 : currentZoom <= 5 ? 42 : currentZoom <= 7 ? 32 : 20;
+
+    // Prioritize selected site and featured sites first
+    const sitesToProcess = [...FAMOUS_MARS_SITES].sort((a, b) => {
+      if (selectedSite?.id === a.id) return -1;
+      if (selectedSite?.id === b.id) return 1;
+      if (TIER_1_GLOBAL_IDS.has(a.id) && !TIER_1_GLOBAL_IDS.has(b.id)) return -1;
+      if (!TIER_1_GLOBAL_IDS.has(a.id) && TIER_1_GLOBAL_IDS.has(b.id)) return 1;
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+      return 0;
+    });
+
+    sitesToProcess.forEach((site) => {
+      const isSelected = selectedSite?.id === site.id;
+
+      // 1. Viewport Clipping: If not selected, only render features in the currently visible map area!
+      if (!isSelected && bufferedBounds && !bufferedBounds.contains([site.lat, site.lng])) {
+        return;
+      }
+
       // Check mission category filters
       const isMissionSite =
         site.type.includes('Rover') ||
@@ -1000,16 +1538,16 @@ export function RealMarsMap() {
             site.id.includes('mars2') ||
             site.id.includes('mars3') ||
             site.id.includes('beagle');
-          if (isHistoric) return;
+          if (isHistoric && !isSelected) return;
         }
 
-        if (!missionLayerOptions.showActiveRovers) {
+        if (!missionLayerOptions.showActiveRovers && !isSelected) {
           const isActive = site.id === 'perseverance' || site.id === 'curiosity';
           if (isActive) return;
         }
 
         // Agency filter
-        if (missionLayerOptions.agencyFilter !== 'all') {
+        if (missionLayerOptions.agencyFilter !== 'all' && !isSelected) {
           const matchedMission = MARS_MISSIONS_DATA.find(
             (m) => m.id === site.id || site.name.toLowerCase().includes(m.name.toLowerCase())
           );
@@ -1027,7 +1565,7 @@ export function RealMarsMap() {
         }
 
         // Type filter
-        if (missionLayerOptions.missionTypeFilter !== 'all') {
+        if (missionLayerOptions.missionTypeFilter !== 'all' && !isSelected) {
           if (missionLayerOptions.missionTypeFilter === 'rover' && !site.type.toLowerCase().includes('rover')) return;
           if (missionLayerOptions.missionTypeFilter === 'lander' && !site.type.toLowerCase().includes('lander')) return;
         }
@@ -1062,17 +1600,38 @@ export function RealMarsMap() {
         )
           return;
         if (placeCategoryFilter === 'mission' && !isMissionSite) return;
-      } else {
-        // LOD Zoom-Level Decluttering (when 'all' is selected)
-        if (currentZoom < 4 && !TIER_1_IDS.has(site.id) && selectedSite?.id !== site.id) {
-          return;
+      } else if (!isSelected) {
+        // Dynamic Zoom-Level LOD Decluttering:
+        // "1x a thakle import name show korbe but zoom in korle ek ek kore sob jaigar name show korbe mane emon hobe je je jaiga zoom in kortici setar name show korbe"
+        if (currentZoom <= 3) {
+          // At 1x / global view, show ONLY Tier 1 prime landmarks
+          if (!TIER_1_GLOBAL_IDS.has(site.id)) return;
+        } else if (currentZoom < 5) {
+          // At zoom 4: show Tier 1 + Tier 2 regional landmarks in the zoomed area
+          if (!TIER_1_GLOBAL_IDS.has(site.id) && !TIER_2_REGIONAL_IDS.has(site.id)) return;
+        } else if (currentZoom < 7) {
+          // At zoom 5-6: show Tier 1, 2, and Tier 3 local landmarks in the zoomed area
+          if (!TIER_1_GLOBAL_IDS.has(site.id) && !TIER_2_REGIONAL_IDS.has(site.id) && !TIER_3_LOCAL_IDS.has(site.id)) return;
         }
-        if (currentZoom < 5 && !TIER_1_IDS.has(site.id) && !TIER_2_IDS.has(site.id) && selectedSite?.id !== site.id) {
-          return;
+        // At zoom >= 7 (all the way up to 20x high zoom): show all detailed places in the zoomed area!
+      }
+
+      // Check collision in screen pixel space to ensure places don't overlap or hide each other
+      if (map && !isSelected) {
+        try {
+          const pt = map.latLngToContainerPoint([site.lat, site.lng]);
+          const isColliding = placedScreenPoints.some((p) => {
+            const dx = p.x - pt.x;
+            const dy = p.y - pt.y;
+            return Math.sqrt(dx * dx + dy * dy) < minCollisionDistPx;
+          });
+          if (isColliding) return;
+          placedScreenPoints.push({ x: pt.x, y: pt.y });
+        } catch {
+          // fallback if map point calculation is unavailable
         }
       }
 
-      const isSelected = selectedSite?.id === site.id;
       const isActiveRover = site.id === 'perseverance' || site.id === 'curiosity';
 
       // Determine Category Glyph, Color & Formatting
@@ -1186,7 +1745,7 @@ export function RealMarsMap() {
 
       sitesGroup.addLayer(marker);
     });
-  }, [showSites, selectedSite, missionLayerOptions, currentZoom, placeCategoryFilter]);
+  }, [showSites, selectedSite, missionLayerOptions, currentZoom, placeCategoryFilter, mapBoundsKey]);
 
   // Render Rover Historical Traverse Tracks (Perseverance, Curiosity, Opportunity, etc.)
   useEffect(() => {
@@ -1333,6 +1892,33 @@ export function RealMarsMap() {
     }
   };
 
+  // Fly to arbitrary lat/lng coordinates across both 2D Leaflet map & 3D Three.js Globe
+  const handleFlyToLocation = (lat: number, lng: number, zoomLevel = 6, name?: string, elevationM?: number) => {
+    const fullSite: MarsSite = {
+      id: `coord-${lat.toFixed(3)}-${lng.toFixed(3)}`,
+      name: name || 'Martian Surface Target',
+      lat,
+      lng,
+      planetocentricLng: (lng + 360) % 360,
+      elevation: elevationM ?? -2000,
+      elevationM: elevationM ?? -2000,
+      originName: name || 'Martian Surface Coordinates',
+      category: 'Planitia (Plain)',
+      type: 'Planitia (Plain)',
+      significance: name ? `Target: ${name}` : 'Martian surface coordinate',
+      description: `Latitude: ${lat.toFixed(2)}°, Longitude: ${((lng + 360) % 360).toFixed(2)}°E`,
+    };
+    setSelectedSite(fullSite);
+
+    const map = mapInstanceRef.current;
+    if (map) {
+      map.invalidateSize();
+      map.flyTo([lat, lng], zoomLevel, {
+        duration: 1.2,
+      });
+    }
+  };
+
   // Global reset view
   const handleResetView = () => {
     setBearing(0);
@@ -1430,20 +2016,20 @@ export function RealMarsMap() {
   return (
     <div className="relative w-full h-full flex flex-col bg-[#080b11] overflow-hidden select-none font-sans text-neutral-100">
       {/* Top Header Bar: Responsive, Clean & Sleek */}
-      <header className="z-25 bg-[#0c101a]/95 backdrop-blur-md border-b border-neutral-800/80 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-3 shadow-xl shrink-0">
+      <header className="z-25 bg-[#0c101a]/95 backdrop-blur-md border-b border-neutral-800/80 px-2 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-3 shadow-xl shrink-0">
         {/* Brand & Status */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <div className="w-7 h-7 sm:w-8 h-8 rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-950/60 shrink-0">
             <Globe className="w-4 h-4 sm:w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-1 sm:gap-1.5">
               <span className="font-bold text-white tracking-wide text-xs sm:text-sm">MARSWAY</span>
-              <span className="text-[8.5px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded bg-orange-950/80 text-orange-400 border border-orange-800 font-semibold whitespace-nowrap">
+              <span className="text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded bg-orange-950/80 text-orange-400 border border-orange-800 font-semibold whitespace-nowrap">
                 NASA GIS
               </span>
             </div>
-            <p className="text-[10px] text-neutral-400 hidden sm:block">
+            <p className="text-[10px] text-neutral-400 hidden md:block">
               Planetary Surface Imagery & Mission Traverse Explorer
             </p>
           </div>
@@ -1453,7 +2039,7 @@ export function RealMarsMap() {
         <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-neutral-900/90 border border-neutral-700/80 shadow-inner shrink-0">
           <button
             onClick={() => setViewMode('3d')}
-            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               viewMode === '3d'
                 ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md shadow-orange-950/60'
                 : 'text-neutral-400 hover:text-white'
@@ -1461,7 +2047,8 @@ export function RealMarsMap() {
             title="Interactive 3D Mars Planet Globe with Deep Space & Stars"
           >
             <Globe className="w-3.5 h-3.5 text-amber-300" />
-            <span>3D Globe</span>
+            <span className="hidden xs:inline">3D Globe</span>
+            <span className="xs:hidden">3D</span>
             <span className="text-[8.5px] px-1 py-0.2 rounded bg-orange-950/90 text-orange-300 border border-orange-700/80 font-mono hidden sm:inline">
               PRIMARY
             </span>
@@ -1471,7 +2058,7 @@ export function RealMarsMap() {
               setViewMode('2d');
               setTimeout(() => mapInstanceRef.current?.invalidateSize(), 60);
             }}
-            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               viewMode === '2d'
                 ? 'bg-neutral-800 text-white shadow border border-neutral-600'
                 : 'text-neutral-400 hover:text-white'
@@ -1479,29 +2066,17 @@ export function RealMarsMap() {
             title="Flat Mercator 2D Map with Elevation & Route Traverses"
           >
             <Layers className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Flat Map</span>
+            <span className="hidden xs:inline">Flat Map</span>
+            <span className="xs:hidden">2D</span>
           </button>
         </div>
 
-        {/* Desktop Search Bar (Hidden on mobile) */}
-        <div className="relative max-w-xs w-full hidden lg:block">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Search crater, rover, mountain..."
-            value={searchQuery}
-            onFocus={() => setIsSearchModalOpen(true)}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-neutral-900/90 border border-neutral-700/80 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 transition-colors cursor-pointer"
-          />
-        </div>
-
         {/* Quick Access Platform Actions Bar */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Universal Search Modal Button */}
           <button
             onClick={() => setIsSearchModalOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden sm:flex"
             title="Search all Martian craters, volcanoes, canyons, missions & landing sites"
           >
             <Search className="w-3.5 h-3.5 text-orange-400" />
@@ -1511,7 +2086,7 @@ export function RealMarsMap() {
           {/* Missions Explorer Button */}
           <button
             onClick={() => setIsMissionExplorerOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden md:flex"
             title="Browse NASA, ESA, CNSA Mars rovers, landers & orbiters"
           >
             <Radio className="w-3.5 h-3.5 text-cyan-400" />
@@ -1521,7 +2096,7 @@ export function RealMarsMap() {
           {/* Human Mission Mode Button */}
           <button
             onClick={() => setIsHumanMissionModeOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden lg:flex"
             title="Evaluate future human landing candidate zones & ISRU resources"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
@@ -1531,17 +2106,33 @@ export function RealMarsMap() {
           {/* Ask MarsWay AI Button */}
           <button
             onClick={() => setIsAskMarsWayOpen(true)}
-            className="px-2.5 py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900/90 border border-purple-700/80 text-xs text-purple-200 hover:text-white flex items-center gap-1.5 transition shadow shadow-purple-950/50"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900/90 border border-purple-700/80 text-xs text-purple-200 hover:text-white flex items-center gap-1.5 transition shadow shadow-purple-950/50"
             title="Ask MarsWay AI spatial assistant with live map actions"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-300" />
             <span className="hidden sm:inline font-bold">Ask AI</span>
           </button>
 
+          {/* Live Voice Comms (gemini-3.8-live) Button */}
+          <button
+            onClick={() => setIsLiveVoiceOpen(true)}
+            className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/70 text-xs text-white flex items-center gap-1.5 transition shadow shadow-purple-950/60 group"
+            title="Start real-time bi-directional voice conversation powered by gemini-3.8-live (Live API)"
+          >
+            <Radio className="w-3.5 h-3.5 text-purple-300 group-hover:animate-pulse" />
+            <span className="font-bold flex items-center gap-1">
+              <span className="hidden xs:inline">Live Voice</span>
+              <span className="xs:hidden">Voice</span>
+              <span className="hidden xl:inline text-[9px] px-1 py-0.2 rounded bg-purple-950 text-purple-300 font-mono border border-purple-600/40">
+                3.8-Live
+              </span>
+            </span>
+          </button>
+
           {/* Guided Tour & Presentation Button */}
           <button
             onClick={() => setIsTourModalOpen(true)}
-            className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-300 hover:text-white flex items-center gap-1 transition hidden lg:flex"
+            className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-300 hover:text-white items-center gap-1 transition hidden lg:flex"
             title="Open Platform Tour & Presentation"
           >
             <Presentation className="w-3.5 h-3.5 text-amber-400" />
@@ -1868,6 +2459,30 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
+                      setIsHamburgerOpen(false);
+                      if (elevationProfile) {
+                        setIsElevationProfileOpen(true);
+                      } else {
+                        setIsDrawingElevationLine(true);
+                      }
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-orange-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-950/80 text-orange-400 border border-orange-800/60 group-hover:scale-105 transition-transform">
+                        <TrendingUp className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">MGS MOLA Elevation Profile</span>
+                        <span className="text-[10px] text-neutral-400">Draw line to analyze topography, slopes & rover traversability</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
                       setIsBookmarksModalOpen(true);
                       setIsHamburgerOpen(false);
                     }}
@@ -1920,6 +2535,59 @@ export function RealMarsMap() {
                       <div>
                         <span className="font-bold text-white text-xs block">Data Sources & Provenance</span>
                         <span className="text-[10px] text-neutral-400">NASA PDS, USGS, MOLA, THEMIS, Mars Trek specs</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </div>
+
+              {/* PLANETARY AI & REAL-TIME VOICE COMMS */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">
+                  Planetary AI & Real-Time Comms
+                </span>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLiveVoiceOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-gradient-to-r from-purple-950/90 to-indigo-950/90 hover:from-purple-900/90 hover:to-indigo-900/90 border border-purple-600/70 hover:border-purple-400 flex items-center justify-between text-left transition-all cursor-pointer group shadow-lg shadow-purple-950/40"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-900/90 text-purple-300 border border-purple-500/50 group-hover:scale-105 transition-transform">
+                        <Radio className="w-4 h-4 text-purple-300 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-xs block">Live Voice Comms</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-900 text-purple-300 border border-purple-500/40 font-mono">
+                            gemini-3.8-live
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-neutral-300">Ultra-low latency audio stream & live map action control</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-purple-400 group-hover:text-white transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAskMarsWayOpen(true);
+                      setIsHamburgerOpen(false);
+                    }}
+                    className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-purple-900/40 hover:border-purple-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/60 group-hover:scale-105 transition-transform">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-xs block">Ask MarsWay AI Spatial Assistant</span>
+                        <span className="text-[10px] text-neutral-400">Natural language chat, scientific telemetry & automated flight</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
@@ -2201,7 +2869,19 @@ export function RealMarsMap() {
               }}
               telemetry={ephemeris}
               initialSelectedSite={selectedSite}
+              activeLayer={activeLayer}
+              onLayerChange={(layerId) => handleSelectLayer(layerId as any)}
             />
+
+            {/* TOP MARS SEARCH BAR IN 3D GLOBE MODE */}
+            <div className="absolute top-12 sm:top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto w-[calc(100%-24px)] sm:w-[380px] md:w-[460px] max-w-[94vw]">
+              <MarsTopSearchBar
+                placeholder="Search craters, volcanoes, canyons, rovers..."
+                onFlyTo={(target) => {
+                  handleFlyToLocation(target.lat, target.lng, target.zoom ?? 6, target.name, target.elevationM);
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -2211,9 +2891,19 @@ export function RealMarsMap() {
             viewMode === '2d' ? 'z-10 opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'
           }`}
         >
+          {/* SEARCH INPUT BAR AT THE TOP OF THE MAP */}
+          <div className="absolute top-2.5 sm:top-3 left-1/2 -translate-x-1/2 z-35 pointer-events-auto w-[calc(100%-20px)] sm:w-[420px] md:w-[480px] max-w-[94vw]">
+            <MarsTopSearchBar
+              placeholder="Search craters, volcanoes, canyons, rovers..."
+              onFlyTo={(target) => {
+                handleFlyToLocation(target.lat, target.lng, target.zoom ?? 6, target.name, target.elevationM);
+              }}
+            />
+          </div>
+
           {/* Arrived Surface Location Notification Banner */}
           {arrivedSurfaceBanner && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300 max-w-sm sm:max-w-md w-full px-3">
+            <div className="absolute top-24 sm:top-24 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300 max-w-sm sm:max-w-md w-full px-3">
               <div className="bg-[#090d16]/95 backdrop-blur-xl border border-emerald-500/80 rounded-2xl px-3.5 py-2.5 shadow-2xl flex items-center justify-between gap-3 text-white">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-xl bg-emerald-950/80 border border-emerald-500/80 flex items-center justify-center shrink-0">
@@ -2258,96 +2948,299 @@ export function RealMarsMap() {
             </div>
           )}
 
-          {/* Esri Explore Mars-style Place Nomenclature Category Filter & Earth Scale Bar */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-full px-2">
-            <div className="bg-[#090d16]/90 backdrop-blur-xl border border-neutral-700/80 rounded-2xl p-1 shadow-2xl flex items-center gap-1 flex-wrap justify-center">
-              <button
-                type="button"
-                onClick={() => setPlaceCategoryFilter('all')}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  placeCategoryFilter === 'all'
-                    ? 'bg-orange-600 text-white shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                }`}
-              >
-                <span>🌐 All</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlaceCategoryFilter('mons')}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  placeCategoryFilter === 'mons'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                }`}
-              >
-                <span>🌋 Volcanoes</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlaceCategoryFilter('crater')}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  placeCategoryFilter === 'crater'
-                    ? 'bg-purple-600 text-white shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                }`}
-              >
-                <span>☄️ Craters</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlaceCategoryFilter('chasma')}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  placeCategoryFilter === 'chasma'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                }`}
-              >
-                <span>🏜️ Canyons</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlaceCategoryFilter('planitia')}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  placeCategoryFilter === 'planitia'
-                    ? 'bg-amber-600 text-white shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                }`}
-              >
-                <span>🪐 Plains</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPlaceCategoryFilter('mission')}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  placeCategoryFilter === 'mission'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                }`}
-              >
-                <span>🚀 Missions</span>
-              </button>
-
-              <div className="w-[1px] h-4 bg-neutral-700 mx-0.5" />
-
-              {/* Earth Scale Comparison Trigger */}
-              <button
-                type="button"
-                onClick={() => setIsEarthComparisonOpen(true)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeEarthComparison
-                    ? 'bg-cyan-600 text-white shadow-lg animate-pulse ring-1 ring-cyan-400'
-                    : 'bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/80 text-cyan-200 hover:text-white'
-                }`}
-                title="Esri Explore Mars Feature: Compare scale of Mars landforms directly against Earth landmarks"
-              >
-                <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Earth Scale</span>
-                {activeEarthComparison && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                )}
-              </button>
+          {/* MGS MOLA Interactive Line Drawing Instructions Banner */}
+          {isDrawingElevationLine && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto max-w-[92vw] sm:max-w-md w-full animate-in fade-in slide-in-from-top-3 duration-200">
+              <div className="bg-[#0b101d]/95 backdrop-blur-xl border border-orange-500/80 rounded-2xl p-3 shadow-2xl shadow-orange-950/40 flex items-center justify-between gap-3 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-orange-600/30 border border-orange-500/70 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-4 h-4 text-orange-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-orange-200 flex items-center gap-1.5">
+                      <span>MOLA Transect Tool</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/30 text-orange-300 font-mono">
+                        {elevationPoints.length === 0 ? 'Step 1 of 2' : 'Step 2 of 2'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-neutral-300">
+                      {elevationPoints.length === 0
+                        ? 'Click anywhere on Mars to drop Point A (Start)'
+                        : 'Point A set! Click on Mars to drop Point B (End)'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDrawingElevationLine(false);
+                    setElevationPoints([]);
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white text-xs font-mono transition-colors cursor-pointer shrink-0 border border-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* Esri Explore Mars-style Place Nomenclature Category Filter & Earth Scale Bar */}
+          <div className="absolute top-14 sm:top-14 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-[96vw] px-1 sm:px-2 transition-all duration-300 opacity-100 translate-y-0">
+            {!isCategoryBarExpanded ? (
+              // Sleek, compact pill - uncluttered, zero obstruction
+              <div className="bg-[#090d16]/90 backdrop-blur-xl border border-neutral-700/80 rounded-full px-2.5 py-1 shadow-2xl flex items-center gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryBarExpanded(true)}
+                  className="flex items-center gap-1.5 px-2 py-0.5 text-neutral-300 hover:text-white rounded-full transition-colors cursor-pointer"
+                  title="Filter Martian places by category"
+                >
+                  <Filter className="w-3.5 h-3.5 text-orange-400" />
+                  <span className="font-semibold text-[11px] sm:text-xs">
+                    {placeCategoryFilter === 'all'
+                      ? 'Categories'
+                      : placeCategoryFilter === 'mons'
+                      ? '🌋 Volcanoes'
+                      : placeCategoryFilter === 'crater'
+                      ? '☄️ Craters'
+                      : placeCategoryFilter === 'chasma'
+                      ? '🏜️ Canyons'
+                      : placeCategoryFilter === 'planitia'
+                      ? '🪐 Plains'
+                      : '🚀 Missions'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-neutral-400" />
+                </button>
+
+                {placeCategoryFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setPlaceCategoryFilter('all')}
+                    className="p-1 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    title="Reset to All categories"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+
+                <div className="w-[1px] h-3.5 bg-neutral-700/80 mx-0.5" />
+
+                <button
+                  type="button"
+                  onClick={() => setIsEarthComparisonOpen(true)}
+                  className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    activeEarthComparison
+                      ? 'bg-cyan-600 text-white shadow-md'
+                      : 'text-cyan-300 hover:text-white hover:bg-cyan-950/60'
+                  }`}
+                  title="Compare scale of Mars landforms directly against Earth landmarks"
+                >
+                  <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="hidden sm:inline">Earth Scale</span>
+                </button>
+
+                <div className="w-[1px] h-3.5 bg-neutral-700/80 mx-0.5" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isElevationProfileOpen) {
+                      setIsElevationProfileOpen(false);
+                    } else if (elevationProfile) {
+                      setIsElevationProfileOpen(true);
+                    } else {
+                      setIsDrawingElevationLine(true);
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    isElevationProfileOpen || isDrawingElevationLine
+                      ? 'bg-orange-600 text-white shadow-md ring-1 ring-orange-400'
+                      : 'text-orange-300 hover:text-white hover:bg-orange-950/60'
+                  }`}
+                  title="Draw line between two points to analyze MGS MOLA elevation & terrain steepness"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                  <span className="hidden sm:inline">Elevation Profile</span>
+                </button>
+
+                <div className="w-[1px] h-3.5 bg-neutral-700/80 mx-0.5" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextVal = !showDustStormOverlay;
+                    setShowDustStormOverlay(nextVal);
+                    setIsDustStormPanelOpen(true);
+                    setMissionLayerOptions((prev) => ({ ...prev, showDustStormOverlay: nextVal }));
+                  }}
+                  className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    showDustStormOverlay
+                      ? 'bg-amber-500 text-black shadow-md font-bold'
+                      : 'text-amber-300 hover:text-white hover:bg-amber-950/60'
+                  }`}
+                  title="Toggle Dust Storm & Atmosphere Opacity Simulation Overlay"
+                >
+                  <Wind className={`w-3.5 h-3.5 ${showDustStormOverlay ? 'animate-pulse text-black' : 'text-amber-400'}`} />
+                  <span className="hidden sm:inline">Dust Storm</span>
+                </button>
+              </div>
+            ) : (
+              // Expanded single-row horizontal pill with smooth scrolling & minimize button
+              <div className="bg-[#090d16]/95 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl p-1 shadow-2xl flex items-center gap-1 flex-nowrap overflow-x-auto no-scrollbar max-w-[94vw] sm:max-w-max">
+                <button
+                  type="button"
+                  onClick={() => setPlaceCategoryFilter('all')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    placeCategoryFilter === 'all'
+                      ? 'bg-orange-600 text-white shadow-md'
+                      : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                  }`}
+                >
+                  <span>🌐 All</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlaceCategoryFilter('mons')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    placeCategoryFilter === 'mons'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                  }`}
+                >
+                  <span>🌋 Volcanoes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlaceCategoryFilter('crater')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    placeCategoryFilter === 'crater'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                  }`}
+                >
+                  <span>☄️ Craters</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlaceCategoryFilter('chasma')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    placeCategoryFilter === 'chasma'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                  }`}
+                >
+                  <span>🏜️ Canyons</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlaceCategoryFilter('planitia')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    placeCategoryFilter === 'planitia'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                  }`}
+                >
+                  <span>🪐 Plains</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlaceCategoryFilter('mission')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    placeCategoryFilter === 'mission'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                  }`}
+                >
+                  <span>🚀 Missions</span>
+                </button>
+
+                <div className="w-[1px] h-4 bg-neutral-700 mx-0.5 shrink-0" />
+
+                {/* Earth Scale Comparison Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setIsEarthComparisonOpen(true)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    activeEarthComparison
+                      ? 'bg-cyan-600 text-white shadow-lg animate-pulse ring-1 ring-cyan-400'
+                      : 'bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/80 text-cyan-200 hover:text-white'
+                  }`}
+                  title="Compare scale of Mars landforms directly against Earth landmarks"
+                >
+                  <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Earth Scale</span>
+                  {activeEarthComparison && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  )}
+                </button>
+
+                <div className="w-[1px] h-4 bg-neutral-700 mx-0.5 shrink-0" />
+
+                {/* MGS MOLA Elevation Profile Transect Trigger */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isElevationProfileOpen) {
+                      setIsElevationProfileOpen(false);
+                    } else if (elevationProfile) {
+                      setIsElevationProfileOpen(true);
+                    } else {
+                      setIsDrawingElevationLine(true);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    isElevationProfileOpen || isDrawingElevationLine
+                      ? 'bg-orange-600 text-white shadow-lg ring-1 ring-orange-400'
+                      : 'bg-orange-950/80 hover:bg-orange-900 border border-orange-700/80 text-orange-200 hover:text-white'
+                  }`}
+                  title="Draw line between two points to analyze MGS MOLA elevation & terrain steepness"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Elevation Profile</span>
+                  {(isElevationProfileOpen || isDrawingElevationLine) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  )}
+                </button>
+
+                <div className="w-[1px] h-4 bg-neutral-700 mx-0.5 shrink-0" />
+
+                {/* Dust Storm / Atmosphere Overlay Trigger */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextVal = !showDustStormOverlay;
+                    setShowDustStormOverlay(nextVal);
+                    setIsDustStormPanelOpen(true);
+                    setMissionLayerOptions((prev) => ({ ...prev, showDustStormOverlay: nextVal }));
+                  }}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    showDustStormOverlay
+                      ? 'bg-amber-500 text-black shadow-lg ring-1 ring-amber-300'
+                      : 'bg-amber-950/80 hover:bg-amber-900 border border-amber-700/80 text-amber-200 hover:text-white'
+                  }`}
+                  title="Toggle Dust Storm & Atmosphere Opacity Simulation Overlay"
+                >
+                  <Wind className="w-3.5 h-3.5" />
+                  <span>Dust Storm</span>
+                  {showDustStormOverlay && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                  )}
+                </button>
+
+                <div className="w-[1px] h-4 bg-neutral-700 mx-0.5 shrink-0" />
+
+                {/* Minimize Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryBarExpanded(false)}
+                  className="p-1 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer shrink-0"
+                  title="Collapse Category Filters"
+                  aria-label="Collapse"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Rotated Map Canvas Container with Smooth 4-Directional Animation */}
@@ -2374,20 +3267,20 @@ export function RealMarsMap() {
         </div>
 
         {/* PROMINENT ZOOM CONTROLS WITH CLEAR VISIBLE TEXT */}
-        <div className="absolute top-3 left-3 z-20 flex flex-col gap-2 pointer-events-auto">
+        <div className="absolute top-24 sm:top-3 left-2.5 sm:left-3 z-20 flex flex-col gap-2 pointer-events-auto transition-all duration-300 opacity-100">
           <div className="bg-[#0c101a]/95 backdrop-blur-md border border-neutral-700/90 rounded-xl p-1 sm:p-1.5 flex flex-col gap-1 shadow-2xl">
             {/* Live Zoom Scale Indicator */}
             <div className="px-1.5 sm:px-2 py-0.5 text-[8.5px] sm:text-[9px] text-neutral-400 font-mono flex items-center justify-between border-b border-neutral-800/60 pb-1">
               <span className="hidden sm:inline">SCALE</span>
-              <span className="text-orange-400 font-bold">{currentZoom}x / 10x</span>
+              <span className="text-orange-400 font-bold">{currentZoom}x / 20x</span>
             </div>
 
             {/* Zoom In Button (Icon Only) */}
             <button
               onClick={() => mapInstanceRef.current?.zoomIn()}
-              disabled={currentZoom >= 10}
+              disabled={currentZoom >= 20}
               className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
-              title="Zoom In to Mars Surface (Max 10x)"
+              title="Zoom In to Mars Surface (Max 20x High Resolution)"
               aria-label="Zoom In"
             >
               <ZoomIn className="w-4 h-4 text-orange-400 shrink-0" />
@@ -2466,7 +3359,7 @@ export function RealMarsMap() {
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/80'
               }`}
             >
-              Natural Color
+              True Color (Viking)
             </button>
             <button
               onClick={() => handleSelectLayer('themis')}
@@ -2521,7 +3414,7 @@ export function RealMarsMap() {
         </div>
 
         {/* CRISP DARK-THEMED COMPASS WIDGET (Top Right Corner) */}
-        <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+        <div className="absolute top-24 sm:top-3 right-2.5 sm:right-3 z-20 pointer-events-auto transition-all duration-300 opacity-100">
           <MarsCompassWidget
             bearing={bearing}
             onRotate={handleSetBearing}
@@ -2532,13 +3425,13 @@ export function RealMarsMap() {
         </div>
 
         {/* CRISP DARK-THEMED MARS SCALE BAR (Bottom Left Corner) */}
-        <div className="absolute bottom-24 sm:bottom-4 left-3 sm:left-4 z-20 pointer-events-auto">
+        <div className="absolute bottom-20 sm:bottom-4 left-2.5 sm:left-4 z-20 pointer-events-auto transition-all duration-300 opacity-100">
           <MarsScaleBar map={mapInstance} />
         </div>
 
         {/* High-Zoom Notification & In-Situ Close-Up Quick Action Banner */}
         {currentZoom >= 7 && (
-          <div className="absolute top-16 sm:top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto bg-[#0a101f]/95 backdrop-blur-md border border-orange-500/70 text-white px-3 sm:px-4 py-1.5 rounded-full shadow-2xl flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-2 text-xs max-w-[92vw]">
+          <div className="absolute top-24 sm:top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto bg-[#0a101f]/95 backdrop-blur-md border border-orange-500/70 text-white px-3 sm:px-4 py-1.5 rounded-full shadow-2xl flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-2 text-xs max-w-[92vw] transition-all duration-300 opacity-100 translate-y-0">
             <div className="flex items-center gap-1.5 text-orange-400 font-semibold text-[11px] truncate">
               <Satellite className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <span className="hidden sm:inline">Orbital basemap max detail (~100m/px)</span>
@@ -2586,7 +3479,7 @@ export function RealMarsMap() {
 
         {/* FLOATING SELECTED SITE CARD (Mobile & Desktop Place Card) */}
         {selectedSite && !inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-orange-500/70 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2 animate-in slide-in-from-bottom-3 duration-200 max-h-[75vh] overflow-y-auto">
+          <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-orange-500/70 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2 animate-in slide-in-from-bottom-3 duration-200 max-h-[60vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -2715,7 +3608,7 @@ export function RealMarsMap() {
 
         {/* INSPECTED POINT CARD (Exploration Mode - Does NOT create routes) */}
         {inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-16 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/90 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-80 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[75vh] overflow-y-auto">
+          <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/90 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-80 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[60vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-1.5 text-orange-400 font-bold">
                 <Crosshair className="w-4 h-4" />
@@ -3446,9 +4339,9 @@ export function RealMarsMap() {
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold block text-xs">NASA Viking MDIM 2.1 (Natural Color)</span>
+                            <span className="font-bold block text-xs">NASA Viking MDIM 2.1 (True Color)</span>
                             <span className="px-1.5 py-0.2 rounded bg-amber-900/60 border border-amber-700/50 text-[9px] font-mono text-amber-300 font-bold">
-                              Natural Color • Default
+                              True Color • Primary Default
                             </span>
                           </div>
                           <span className="text-[10px] text-neutral-400 leading-normal">
@@ -3638,6 +4531,23 @@ export function RealMarsMap() {
                           checked={showGraticule}
                           onChange={(e) => setShowGraticule(e.target.checked)}
                           className="accent-orange-500 rounded w-4 h-4"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between cursor-pointer pt-1 border-t border-neutral-800/60">
+                        <div className="flex items-center gap-1.5">
+                          <Wind className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-neutral-200">Dust Storm & Atmosphere</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={showDustStormOverlay}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setShowDustStormOverlay(val);
+                            if (val) setIsDustStormPanelOpen(true);
+                            setMissionLayerOptions((prev) => ({ ...prev, showDustStormOverlay: val }));
+                          }}
+                          className="accent-amber-500 rounded w-4 h-4 cursor-pointer"
                         />
                       </label>
                     </div>
@@ -4033,7 +4943,7 @@ export function RealMarsMap() {
 
         {/* Live Coordinate Status Bar (Bottom Center) - Only visible when not inspecting a point or site to prevent mobile overlap */}
         {!inspectedPoint && !selectedSite && !isRoutePlanningActive && (
-          <div className="absolute bottom-16 sm:bottom-3 left-1/2 -translate-x-1/2 z-20 bg-[#0c101a]/90 backdrop-blur-md border border-neutral-800/80 px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs text-neutral-300 shadow-xl flex items-center gap-2.5 sm:gap-4 pointer-events-auto whitespace-nowrap">
+          <div className="absolute bottom-16 sm:bottom-3 left-1/2 -translate-x-1/2 z-20 bg-[#0c101a]/90 backdrop-blur-md border border-neutral-800/80 px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs text-neutral-300 shadow-xl flex items-center gap-2.5 sm:gap-4 pointer-events-auto whitespace-nowrap transition-all duration-300 opacity-100 translate-y-0">
             <div className="flex items-center gap-1.5">
               <Crosshair className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <span>
@@ -4058,10 +4968,10 @@ export function RealMarsMap() {
       </div>
 
       {/* DEDICATED MOBILE BOTTOM NAVBAR: 100% Desktop Feature Parity on Touch Devices */}
-      <nav className="md:hidden z-30 bg-[#0c101a]/98 backdrop-blur-xl border-t border-neutral-800/80 px-1 pt-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-2xl shrink-0">
+      <nav className="md:hidden z-30 bg-[#0c101a]/98 backdrop-blur-xl border-t border-neutral-800/80 px-1.5 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-between sm:justify-around overflow-x-auto no-scrollbar scroll-smooth gap-1 shadow-2xl shrink-0">
         <button
           onClick={() => setActiveTab(activeTab === 'sites' ? null : 'sites')}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
             activeTab === 'sites' ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
@@ -4073,7 +4983,7 @@ export function RealMarsMap() {
 
         <button
           onClick={() => setIsMissionExplorerOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
             isMissionExplorerOpen ? 'text-cyan-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
@@ -4085,7 +4995,7 @@ export function RealMarsMap() {
 
         <button
           onClick={() => setIsHumanMissionModeOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
             isHumanMissionModeOpen ? 'text-blue-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
@@ -4097,7 +5007,7 @@ export function RealMarsMap() {
 
         <button
           onClick={() => setIsMeasureToolOpen(!isMeasureToolOpen)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
             isMeasureToolOpen ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
@@ -4108,8 +5018,29 @@ export function RealMarsMap() {
         </button>
 
         <button
+          onClick={() => {
+            if (isElevationProfileOpen) {
+              setIsElevationProfileOpen(false);
+            } else if (elevationProfile) {
+              setIsElevationProfileOpen(true);
+            } else {
+              setIsDrawingElevationLine(true);
+            }
+          }}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
+            isElevationProfileOpen || isDrawingElevationLine ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
+          }`}
+          title="MGS MOLA Elevation Transect"
+        >
+          <div className={`p-1 rounded-lg ${isElevationProfileOpen || isDrawingElevationLine ? 'bg-orange-950/80' : ''}`}>
+            <TrendingUp className="w-4 h-4" />
+          </div>
+          <span className="text-[9.5px] mt-0.5 tracking-tight">Elevation</span>
+        </button>
+
+        <button
           onClick={() => setIsAskMarsWayOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 ${
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
             isAskMarsWayOpen ? 'text-purple-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
@@ -4120,8 +5051,21 @@ export function RealMarsMap() {
         </button>
 
         <button
+          onClick={() => setIsLiveVoiceOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
+            isLiveVoiceOpen ? 'text-purple-300 font-bold' : 'text-purple-300 hover:text-purple-100'
+          }`}
+          title="Live Voice Comms with gemini-3.8-live"
+        >
+          <div className={`p-1 rounded-lg ${isLiveVoiceOpen ? 'bg-purple-900/90' : 'bg-purple-950/60'}`}>
+            <Radio className="w-4 h-4 text-purple-300 animate-pulse" />
+          </div>
+          <span className="text-[9.5px] mt-0.5 tracking-tight font-semibold">Voice</span>
+        </button>
+
+        <button
           onClick={() => setIsHamburgerOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[48px] min-h-[44px] active:scale-95 text-neutral-400 hover:text-white"
+          className="flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 text-neutral-400 hover:text-white"
         >
           <div className="p-1 rounded-lg">
             <Menu className="w-4 h-4" />
@@ -4205,7 +5149,7 @@ export function RealMarsMap() {
         isOpen={isHumanMissionModeOpen}
         onClose={() => setIsHumanMissionModeOpen(false)}
         onFlyToLocation={(lat, lng, zoom, name) => {
-          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+          handleFlyToLocation(lat, lng, zoom ?? 6, name);
         }}
       />
 
@@ -4215,9 +5159,7 @@ export function RealMarsMap() {
         onClose={() => setIsSearchModalOpen(false)}
         onSelectResult={(result) => {
           setIsSearchModalOpen(false);
-          mapInstanceRef.current?.flyTo([result.lat, result.lng], result.zoom ?? 6, {
-            duration: 1.2,
-          });
+          handleFlyToLocation(result.lat, result.lng, result.zoom ?? 6, result.name, result.elevationM);
           if (result.elevationM !== undefined) {
             marsSonification.sonifyLocation(result.elevationM, 2);
           }
@@ -4229,7 +5171,7 @@ export function RealMarsMap() {
         isOpen={isTimelineOpen}
         onClose={() => setIsTimelineOpen(false)}
         onFlyToLocation={(lat, lng, zoom, name) => {
-          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+          handleFlyToLocation(lat, lng, zoom ?? 6, name);
         }}
         onSelectMissionById={(missionId) => {
           setSelectedMissionId(missionId);
@@ -4244,7 +5186,7 @@ export function RealMarsMap() {
         initialSite1Id={compareSite1Id}
         initialSite2Id={compareSite2Id}
         onFlyToLocation={(lat, lng, zoom, name) => {
-          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+          handleFlyToLocation(lat, lng, zoom ?? 6, name);
         }}
       />
 
@@ -4269,7 +5211,7 @@ export function RealMarsMap() {
             : null
         }
         onFlyToLocation={(lat, lng, zoom, name) => {
-          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+          handleFlyToLocation(lat, lng, zoom ?? 6, name);
         }}
       />
 
@@ -4282,6 +5224,43 @@ export function RealMarsMap() {
         onUndo={() => setMeasurePoints((prev) => prev.slice(0, -1))}
         measurementMode={measureMode}
         onChangeMode={(mode) => setMeasureMode(mode)}
+        onOpenElevationProfile={() => {
+          if (measurePoints.length >= 2) {
+            const ptA = measurePoints[0];
+            const ptB = measurePoints[measurePoints.length - 1];
+            const nameA = `Measure Pt 1 (${ptA.lat.toFixed(2)}°, ${ptA.lng.toFixed(2)}°)`;
+            const nameB = `Measure Pt ${measurePoints.length} (${ptB.lat.toFixed(2)}°, ${ptB.lng.toFixed(2)}°)`;
+            setElevationPoints([
+              { lat: ptA.lat, lng: ptA.lng, name: nameA },
+              { lat: ptB.lat, lng: ptB.lng, name: nameB },
+            ]);
+            const prof = generateElevationTransect(ptA.lat, ptA.lng, ptB.lat, ptB.lng, 120, nameA, nameB);
+            setElevationProfile(prof);
+            setIsElevationProfileOpen(true);
+            setIsMeasureToolOpen(false);
+          }
+        }}
+      />
+
+      {/* MGS MOLA ELEVATION PROFILE & TERRAIN STEEPNESS MODAL */}
+      <ElevationProfileModal
+        isOpen={isElevationProfileOpen}
+        onClose={() => {
+          setIsElevationProfileOpen(false);
+          setHoveredElevationSample(null);
+        }}
+        profile={elevationProfile}
+        onReversePoints={handleReverseElevationPoints}
+        onSelectPreset={handleSelectElevationPreset}
+        onHoverSamplePoint={(sample) => setHoveredElevationSample(sample)}
+        onFlyToCoord={(lat, lng, name) => handleFlyToLocation(lat, lng, 6, name)}
+        onStartDrawing={() => {
+          setIsElevationProfileOpen(false);
+          setElevationPoints([]);
+          setElevationProfile(null);
+          setIsDrawingElevationLine(true);
+        }}
+        isDrawingActive={isDrawingElevationLine}
       />
 
       {/* ONBOARDING & PLATFORM TOUR MODAL */}
@@ -4304,7 +5283,7 @@ export function RealMarsMap() {
         onClose={() => setIsPresentationModeOpen(false)}
         onSelectLayer={(layer) => setActiveLayer(layer)}
         onFlyToLocation={(lat, lng, zoom, name) => {
-          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+          handleFlyToLocation(lat, lng, zoom ?? 6, name);
         }}
       />
 
@@ -4319,7 +5298,7 @@ export function RealMarsMap() {
           activeLayer,
         }}
         onFlyToLocation={(lat, lng, zoom, name) => {
-          mapInstanceRef.current?.flyTo([lat, lng], zoom ?? 6, { duration: 1.2 });
+          handleFlyToLocation(lat, lng, zoom ?? 6, name);
         }}
         onOpenMissions={(missionId) => {
           setSelectedMissionId(missionId);
@@ -4332,11 +5311,31 @@ export function RealMarsMap() {
           setIsCompareModalOpen(true);
         }}
         onSelectLayer={(layer) => setActiveLayer(layer)}
+        onOpenLiveVoice={() => setIsLiveVoiceOpen(true)}
+      />
+
+      {/* GEMINI LIVE VOICE COMMS (gemini-3.8-live) */}
+      <MarsLiveVoiceModal
+        isOpen={isLiveVoiceOpen}
+        onClose={() => setIsLiveVoiceOpen(false)}
+        currentLat={cursorPos?.lat ?? 18.38}
+        currentLng={cursorPos?.lng ?? 77.58}
+        currentZoom={currentZoom}
+        onFlyToLocation={(lat, lng, targetZoom, name) => {
+          handleFlyToLocation(lat, lng, targetZoom ?? 6, name);
+        }}
+        onSelectMission={(missionId) => {
+          setSelectedMissionId(missionId);
+          setIsMissionExplorerOpen(true);
+        }}
+        onToggleLayer={(layerId) => {
+          setActiveLayer(layerId as any);
+        }}
       />
 
       {/* HISTORICAL NASA/ESA MISSIONS & ROVER TRAVERSES LAYER CONTROL PANEL */}
       {isMissionLayersPanelOpen && (
-        <div className="absolute top-14 left-14 z-30 pointer-events-auto max-w-[92vw] sm:max-w-xs animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute top-14 sm:top-14 left-2 sm:left-14 z-30 pointer-events-auto max-w-[96vw] sm:max-w-xs animate-in fade-in zoom-in-95 duration-200">
           <MarsLayerControlPanel
             isOpen={isMissionLayersPanelOpen}
             onClose={() => setIsMissionLayersPanelOpen(false)}
@@ -4348,6 +5347,12 @@ export function RealMarsMap() {
               }
               if (newOpts.showTraverseTracks !== undefined) {
                 setShowRoverTrack(newOpts.showTraverseTracks);
+              }
+              if (newOpts.showDustStormOverlay !== undefined) {
+                setShowDustStormOverlay(newOpts.showDustStormOverlay);
+                if (newOpts.showDustStormOverlay) {
+                  setIsDustStormPanelOpen(true);
+                }
               }
             }}
             onFlyToMission={(lat, lng, zoom, name) => {
@@ -4417,6 +5422,58 @@ export function RealMarsMap() {
           handleAddSiteToRoute(feat as any);
         }}
       />
+
+      {/* REAL-TIME DUST STORM & ATMOSPHERIC OPACITY SIMULATION CONTROL PANEL */}
+      {isDustStormPanelOpen && (
+        <div className="absolute top-14 sm:top-14 right-2 sm:right-14 z-30 pointer-events-auto max-w-[96vw] sm:max-w-md max-h-[calc(100vh-120px)] animate-in fade-in zoom-in-95 duration-200">
+          <MarsDustStormLayerControl
+            isOpen={isDustStormPanelOpen}
+            onClose={() => setIsDustStormPanelOpen(false)}
+            isEnabled={showDustStormOverlay}
+            onToggleEnabled={(enabled) => {
+              setShowDustStormOverlay(enabled);
+              setMissionLayerOptions((prev) => ({ ...prev, showDustStormOverlay: enabled }));
+            }}
+            layerOpacity={dustLayerOpacity}
+            onChangeOpacity={setDustLayerOpacity}
+            simulationState={dustSimulationState}
+            onChangeScenario={(scenario, customLs) => {
+              const updated = getSeasonalDustSimulation(scenario, customLs);
+              setDustSimulationState(updated);
+            }}
+            showStormVortices={showStormVortices}
+            onToggleStormVortices={setShowStormVortices}
+            showWindVectors={showWindVectors}
+            onToggleWindVectors={setShowWindVectors}
+            onFlyToStorm={handleFlyToStorm}
+            inspectedPoint={inspectedAtmosphericPoint}
+            onClearInspectedPoint={() => setInspectedAtmosphericPoint(null)}
+          />
+        </div>
+      )}
+
+      {/* Floating HUD Indicator when Dust Storm Overlay is Active but Panel is Closed */}
+      {showDustStormOverlay && !isDustStormPanelOpen && (
+        <div className="absolute top-14 right-2 sm:right-4 z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
+          <button
+            type="button"
+            onClick={() => setIsDustStormPanelOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/95 border border-amber-500/80 shadow-2xl text-white text-xs font-mono transition-all hover:scale-105 cursor-pointer backdrop-blur-md group"
+            title="Open Dust Storm & Atmosphere Simulation Controls"
+          >
+            <div className="relative flex items-center justify-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping opacity-75" />
+              <Wind className="w-3.5 h-3.5 text-amber-400 absolute" />
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Dust Overlay Active</span>
+              <span className="text-[11px] text-neutral-300 font-sans">
+                {dustSimulationState.globalStormActive ? 'Global Dust Storm' : `Season Ls ${dustSimulationState.currentLs}°`} • τ {dustSimulationState.globalMeanTau}
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
 
     </div>
   );

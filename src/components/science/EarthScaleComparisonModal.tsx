@@ -68,26 +68,26 @@ export const EarthScaleComparisonModal: React.FC<EarthScaleComparisonModalProps>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0c101a] border border-cyan-500/50 rounded-2xl shadow-2xl shadow-cyan-950/40 flex flex-col overflow-hidden text-neutral-200">
         {/* Modal Header */}
-        <div className="px-5 py-4 bg-gradient-to-r from-neutral-900 via-neutral-900 to-cyan-950/40 border-b border-neutral-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-cyan-950 border border-cyan-700/60 text-cyan-400">
-              <Globe2 className="w-5 h-5" />
+        <div className="px-3.5 sm:px-5 py-3 sm:py-4 bg-gradient-to-r from-neutral-900 via-neutral-900 to-cyan-950/40 border-b border-neutral-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-cyan-950 border border-cyan-700/60 text-cyan-400 shrink-0">
+              <Globe2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/60">
-                  Esri Inspired Feature
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold bg-cyan-950/80 px-1.5 sm:px-2 py-0.5 rounded border border-cyan-800/60">
+                  Esri Inspired
                 </span>
-                <span className="text-[10px] text-neutral-400">GCS Mars 2000 Spatial Scale</span>
+                <span className="text-[9px] sm:text-[10px] text-neutral-400 truncate hidden xs:inline">GCS Mars 2000 Scale</span>
               </div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h2 className="text-sm sm:text-lg font-bold text-white tracking-tight truncate">
                 Earth vs. Mars Scale Comparison
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer shrink-0 ml-2"
             title="Close Scale Comparison"
           >
             <X className="w-5 h-5" />

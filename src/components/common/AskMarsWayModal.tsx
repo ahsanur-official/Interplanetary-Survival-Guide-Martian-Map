@@ -11,6 +11,7 @@ import {
   ArrowRightLeft,
   Loader2,
   HelpCircle,
+  Radio,
 } from 'lucide-react';
 import { ALL_MARS_FEATURES } from '../../data/marsNomenclature';
 import { MARS_MISSIONS_DATA } from '../../data/marsMissions';
@@ -24,6 +25,7 @@ interface AskMarsWayModalProps {
   onOpenHumanMode?: () => void;
   onOpenCompare?: (site1Id?: string, site2Id?: string) => void;
   onSelectLayer?: (layerId: 'viking' | 'mola' | 'themis' | 'opm') => void;
+  onOpenLiveVoice?: () => void;
   currentContext?: {
     lat?: number;
     lng?: number;
@@ -61,6 +63,7 @@ export function AskMarsWayModal({
   onOpenHumanMode,
   onOpenCompare,
   onSelectLayer,
+  onOpenLiveVoice,
   currentContext,
 }: AskMarsWayModalProps) {
   const [inputQuery, setInputQuery] = useState('');
@@ -316,12 +319,31 @@ export function AskMarsWayModal({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenLiveVoice && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenLiveVoice();
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-900 to-indigo-900 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/70 text-purple-200 hover:text-white text-xs flex items-center gap-1.5 transition font-mono shadow shadow-purple-950/40 group"
+                title="Switch to real-time voice conversation powered by gemini-3.8-live"
+              >
+                <Radio className="w-3.5 h-3.5 text-purple-400 group-hover:animate-pulse" />
+                <span className="font-semibold">Live Voice</span>
+                <span className="hidden sm:inline text-[9px] px-1 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-700/50">
+                  gemini-3.8-live
+                </span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Message Log */}

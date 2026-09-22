@@ -1,6 +1,6 @@
 {
   "name": "MarsWay — Explore Mars. Understand Missions. Plan the Future.",
   "description": "An interactive Mars exploration and mission intelligence platform combining planetary maps, NASA mission data, scientific layers, rover exploration, terrain analysis, and future human mission planning.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

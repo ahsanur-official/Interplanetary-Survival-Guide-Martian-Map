@@ -1,5 +1,5 @@
 import { MapLayerConfig } from '../../types/mars';
-import { Layers, Mountain, Activity, AlertTriangle, Disc, Radio, Eye, Droplets, MapPin } from 'lucide-react';
+import { Layers, Mountain, Activity, AlertTriangle, Disc, Radio, Eye, Droplets, MapPin, Wind } from 'lucide-react';
 
 interface MapLayerControlsProps {
   layers: MapLayerConfig;
@@ -20,6 +20,13 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       icon: Mountain,
       source: 'MGS MOLA & HRSC',
       color: 'text-amber-400',
+    },
+    {
+      key: 'dustStormOverlay',
+      label: 'Dust Storm & Atmosphere',
+      icon: Wind,
+      source: 'MGS TES & MRO Opacity',
+      color: 'text-orange-400',
     },
     {
       key: 'slopeHeatmap',

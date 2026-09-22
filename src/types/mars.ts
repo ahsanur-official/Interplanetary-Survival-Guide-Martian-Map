@@ -116,6 +116,7 @@ export interface MapLayerConfig {
   roverObservations: boolean;
   scienceTargets: boolean;
   resourceLocations: boolean;
+  dustStormOverlay?: boolean;
   candidateRoutes: boolean;
   waypoints: boolean;
 }

@@ -13,6 +13,7 @@ import {
   Check,
   Compass,
   X,
+  Wind,
 } from 'lucide-react';
 import { MARS_MISSIONS_DATA, MarsMission } from '../../data/marsMissions';
 
@@ -21,6 +22,7 @@ export interface MissionLayerOptions {
   showHistoricLandings: boolean;
   showActiveRovers: boolean;
   showTraverseTracks: boolean;
+  showDustStormOverlay?: boolean;
   enabledTraverseMissionIds: string[]; // e.g. ['perseverance', 'curiosity', 'opportunity']
   agencyFilter: 'all' | 'nasa' | 'international';
   missionTypeFilter: 'all' | 'rover' | 'lander';
@@ -98,8 +100,7 @@ export const MarsLayerControlPanel: React.FC<MarsLayerControlPanelProps> = ({
 
   return (
     <div
-      className={`bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/80 rounded-2xl shadow-2xl text-neutral-200 overflow-hidden transition-all duration-300 pointer-events-auto ${className}`}
-      style={{ minWidth: isExpanded ? '280px' : 'auto', maxWidth: '320px' }}
+      className={`bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/80 rounded-2xl shadow-2xl text-neutral-200 overflow-hidden transition-all duration-300 pointer-events-auto w-full max-w-[calc(100vw-20px)] sm:max-w-xs ${className}`}
       id="mars-mission-layer-control-panel"
     >
       {/* Panel Header */}
@@ -199,6 +200,28 @@ export const MarsLayerControlPanel: React.FC<MarsLayerControlPanelProps> = ({
                 }`}
               >
                 {layerOptions.showTraverseTracks ? 'Visible' : 'Hidden'}
+              </button>
+            </div>
+
+            {/* 3. Dust Storm & Atmospheric Opacity Simulation */}
+            <div className="p-2 rounded-xl bg-neutral-900/90 border border-neutral-800 flex items-center justify-between hover:border-neutral-700 transition">
+              <div className="flex items-center gap-2 min-w-0 pr-1">
+                <Wind className={`w-3.5 h-3.5 shrink-0 ${layerOptions.showDustStormOverlay ? 'text-amber-400 animate-pulse' : 'text-neutral-500'}`} />
+                <div className="min-w-0">
+                  <div className="font-semibold text-white truncate text-[11px]">Dust Storm / Atmosphere</div>
+                  <div className="text-[9px] text-neutral-400 truncate">MGS/MRO Opacity (Tau) Simulation</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onChangeOptions({ showDustStormOverlay: !layerOptions.showDustStormOverlay })}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer shrink-0 ${
+                  layerOptions.showDustStormOverlay
+                    ? 'bg-amber-500 text-black font-bold shadow-sm'
+                    : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                }`}
+              >
+                {layerOptions.showDustStormOverlay ? 'Visible' : 'Hidden'}
               </button>
             </div>
           </div>

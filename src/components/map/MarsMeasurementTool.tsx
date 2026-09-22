@@ -7,6 +7,7 @@ import {
   Undo,
   CheckCircle2,
   Compass,
+  TrendingUp,
 } from 'lucide-react';
 import {
   calculateMarsDistanceKm,
@@ -27,6 +28,7 @@ interface MarsMeasurementToolProps {
   onUndo: () => void;
   measurementMode: 'distance' | 'area';
   onChangeMode: (mode: 'distance' | 'area') => void;
+  onOpenElevationProfile?: () => void;
 }
 
 export function MarsMeasurementTool({
@@ -37,6 +39,7 @@ export function MarsMeasurementTool({
   onUndo,
   measurementMode,
   onChangeMode,
+  onOpenElevationProfile,
 }: MarsMeasurementToolProps) {
   if (!isOpen) return null;
 
@@ -60,7 +63,7 @@ export function MarsMeasurementTool({
   }, [points]);
 
   return (
-    <div className="fixed top-20 right-4 sm:right-6 w-80 bg-[#0c1017]/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-2xl z-40 text-neutral-200 overflow-hidden font-mono text-xs">
+    <div className="fixed top-14 sm:top-20 left-2 right-2 sm:left-auto sm:right-6 w-auto sm:w-80 max-w-[calc(100vw-16px)] bg-[#0c1017]/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-2xl z-40 text-neutral-200 overflow-hidden font-mono text-xs">
       {/* Header */}
       <div className="p-3 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/80">
         <div className="flex items-center gap-2">
@@ -152,6 +155,16 @@ export function MarsMeasurementTool({
             </button>
           </div>
         </div>
+
+        {onOpenElevationProfile && points.length >= 2 && (
+          <button
+            onClick={onOpenElevationProfile}
+            className="w-full py-1.5 px-3 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold flex items-center justify-center gap-1.5 transition text-xs shadow-md mt-2"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>View MOLA Elevation Profile</span>
+          </button>
+        )}
       </div>
 
       {/* Guidance */}
