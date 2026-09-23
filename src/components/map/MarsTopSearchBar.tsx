@@ -31,6 +31,7 @@ interface MarsTopSearchBarProps {
   onFlyTo: (target: SearchTargetResult) => void;
   className?: string;
   placeholder?: string;
+  compact?: boolean;
 }
 
 type FeatureCategory = 'All' | 'Crater' | 'Volcano' | 'Canyon' | 'Plain' | 'Mission';
@@ -124,6 +125,7 @@ export const MarsTopSearchBar: React.FC<MarsTopSearchBarProps> = ({
   onFlyTo,
   className = '',
   placeholder = 'Search craters, volcanoes, canyons, missions...',
+  compact = false,
 }) => {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -256,15 +258,19 @@ export const MarsTopSearchBar: React.FC<MarsTopSearchBarProps> = ({
     }).slice(0, 10);
   }, [allItems, query, categoryFilter]);
 
-  // Handle clicking outside to close dropdown
+  // Handle clicking outside to close dropdown (supporting both mouse and touch)
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handlePointerDownOutside = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handlePointerDownOutside);
+    document.addEventListener('touchstart', handlePointerDownOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDownOutside);
+      document.removeEventListener('touchstart', handlePointerDownOutside);
+    };
   }, []);
 
   // Reset selected index when results change
@@ -404,14 +410,16 @@ export const MarsTopSearchBar: React.FC<MarsTopSearchBarProps> = ({
     <div ref={containerRef} className={`relative w-full ${className}`}>
       {/* Top Search Bar Input Box */}
       <div
-        className={`relative flex items-center bg-[#090d16]/95 backdrop-blur-xl border rounded-2xl shadow-2xl transition-all duration-200 ${
+        className={`relative flex items-center bg-[#070b14]/85 backdrop-blur-2xl border transition-all duration-300 ${
+          compact ? 'rounded-full py-0.5 shadow-lg shadow-black/50' : 'rounded-full py-1 shadow-2xl shadow-black/70'
+        } ${
           isOpen
-            ? 'border-orange-500/90 ring-2 ring-orange-500/20 bg-[#0c111e]'
-            : 'border-neutral-700/80 hover:border-neutral-600'
+            ? 'border-orange-500/80 ring-2 ring-orange-500/20 bg-[#090f1d]/95'
+            : 'border-white/10 hover:border-white/20'
         }`}
       >
-        <div className="pl-3 sm:pl-3.5 pr-2 py-2 flex items-center text-orange-400 shrink-0 pointer-events-none">
-          <Search className="w-4 h-4" />
+        <div className={`${compact ? 'pl-3 pr-1.5 py-1' : 'pl-4 pr-2 py-1.5'} flex items-center text-orange-400/90 shrink-0 pointer-events-none`}>
+          <Search className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
         </div>
 
         <input
@@ -425,7 +433,9 @@ export const MarsTopSearchBar: React.FC<MarsTopSearchBarProps> = ({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full py-2 sm:py-2.5 pr-8 bg-transparent text-white placeholder-neutral-400 text-xs sm:text-sm font-medium focus:outline-none min-w-0"
+          className={`w-full ${
+            compact ? 'py-1 sm:py-1.5 pr-6 text-[11px] sm:text-xs' : 'py-1.5 sm:py-2 pr-8 text-xs sm:text-sm'
+          } bg-transparent text-neutral-100 placeholder-neutral-400/70 font-medium focus:outline-none min-w-0 tracking-tight`}
         />
 
         {query ? (
@@ -435,24 +445,28 @@ export const MarsTopSearchBar: React.FC<MarsTopSearchBarProps> = ({
               setQuery('');
               inputRef.current?.focus();
             }}
-            className="p-1.5 mr-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer shrink-0"
+            className="p-1 mr-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer shrink-0"
             title="Clear search"
           >
             <X className="w-3.5 h-3.5" />
           </button>
-        ) : (
+        ) : !compact ? (
           <div className="mr-2.5 hidden sm:flex items-center gap-1 text-[10px] font-mono text-neutral-500 bg-neutral-800/60 px-1.5 py-0.5 rounded border border-neutral-700/50 shrink-0">
             <span>Fly To</span>
             <Navigation className="w-2.5 h-2.5 text-orange-400" />
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Autocomplete Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#090d16]/98 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col">
-          {/* Quick Category Filter Chips */}
-          <div className="p-2 border-b border-neutral-800/80 bg-[#0c101c] flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
+        <div className={`absolute top-full mt-2 bg-[#080d19]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col ${
+          compact
+            ? 'left-1/2 -translate-x-1/2 w-[92vw] sm:w-[380px] md:w-[440px] max-w-[460px]'
+            : 'left-0 right-0'
+        }`}>
+          {/* Quick Category Filter Controls */}
+          <div className="p-2 border-b border-white/5 bg-[#0a1122]/90 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
             {(['All', 'Crater', 'Volcano', 'Canyon', 'Plain', 'Mission'] as FeatureCategory[]).map(
               (cat) => {
                 const isSelected = categoryFilter === cat;
@@ -461,15 +475,15 @@ export const MarsTopSearchBar: React.FC<MarsTopSearchBarProps> = ({
                     key={cat}
                     type="button"
                     onClick={() => setCategoryFilter(cat)}
-                    className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-colors shrink-0 cursor-pointer flex items-center gap-1 ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1 ${
                       isSelected
-                        ? 'bg-orange-600 text-white shadow'
-                        : 'text-neutral-400 hover:text-white hover:bg-neutral-800/80'
+                        ? 'bg-orange-500 text-white font-semibold shadow-md shadow-orange-950/50'
+                        : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
                     }`}
                   >
                     <span>
                       {cat === 'All'
-                        ? '🌐 All'
+                        ? 'All'
                         : cat === 'Crater'
                         ? '☄️ Craters'
                         : cat === 'Volcano'

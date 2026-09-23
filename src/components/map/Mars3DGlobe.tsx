@@ -35,6 +35,7 @@ import {
   Globe2,
   Moon,
   Grid,
+  TrendingUp,
 } from 'lucide-react';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
@@ -43,6 +44,7 @@ import {
   createProceduralMicroTerrainBumpMap,
 } from '../../engine/marsTextureGenerator';
 import { MarsOrbitalTelemetry } from '../../engine/nasaMarsService';
+import { MarsTopSearchBar, SearchTargetResult } from './MarsTopSearchBar';
 import {
   analyzeMarsLocationScience,
   MarsLocationScienceData,
@@ -109,10 +111,12 @@ interface Mars3DGlobeProps {
   onOpenNASACloseUp: (featureName: string) => void;
   onOpenEarthComparison?: (comparisonId?: string) => void;
   onOpenPlaceIdentifier?: (feature: MarsFeature) => void;
+  onOpenElevationProfile?: (feature?: MarsFeature) => void;
   telemetry?: MarsOrbitalTelemetry | null;
   initialSelectedSite?: MarsFeature | null;
   activeLayer?: string;
   onLayerChange?: (layerId: string) => void;
+  onFlyTo?: (target: SearchTargetResult) => void;
 }
 
 export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
@@ -120,10 +124,12 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   onOpenNASACloseUp,
   onOpenEarthComparison,
   onOpenPlaceIdentifier,
+  onOpenElevationProfile,
   telemetry,
   initialSelectedSite,
   activeLayer,
   onLayerChange,
+  onFlyTo,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1784,18 +1790,16 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       {/* TOP STREAMLINED MISSION HUD (Fully responsive on Mobile, Tablet & Desktop) */}
       <div className="flex absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 z-20 pointer-events-none items-center justify-between gap-1.5 sm:gap-2">
         {/* Left: Planet Title & Real-Time Auto Day/Night Telemetry */}
-        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
-          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-neutral-700/80 rounded-2xl px-2 sm:px-3.5 py-1 sm:py-2 shadow-2xl flex items-center gap-1.5 sm:gap-3">
-            <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 pointer-events-auto shrink-0">
+          <div className="bg-[#070b14]/85 backdrop-blur-2xl border border-white/10 rounded-2xl px-2.5 sm:px-3.5 py-1 sm:py-1.5 shadow-2xl shadow-black/80 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <span className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-orange-500 animate-pulse shadow-sm shadow-orange-500/50" />
               <div>
                 <h1 className="text-[10px] sm:text-xs font-black text-white tracking-wider uppercase font-mono">
                   Mars 3D
                 </h1>
-                <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
+                <div className="hidden lg:flex items-center gap-1 text-[9.5px] text-neutral-400 font-mono">
                   <span>R: 3,389.5 km</span>
-                  <span>•</span>
-                  <span className="text-orange-400 font-bold">{activeTextureSource.split(' ')[1] || 'Viking'}</span>
                 </div>
               </div>
             </div>
@@ -1810,7 +1814,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                   setShowSolControlBar(!showSolControlBar);
                 }
               }}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-neutral-200 transition-colors cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 transition-all cursor-pointer active:scale-95"
               title="Click to open 24-Hour Sol Diurnal Time Scrubber & Celestial Rates"
             >
               <Clock className="w-3.5 h-3.5 text-orange-400 animate-spin-slow shrink-0" />
@@ -1822,50 +1826,44 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             </button>
 
             {/* Live Auto Day / Night Solar Indicator */}
-            <div className="hidden lg:flex items-center gap-2 border-l border-neutral-800 pl-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-lg bg-neutral-900/90 border border-neutral-800 text-neutral-200">
+            <div className="hidden xl:flex items-center gap-2 border-l border-white/10 pl-2.5">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-mono px-2 py-0.5 rounded-lg bg-black/40 border border-white/5 text-neutral-200">
                 <span className={focalTelemetry.isDaySide ? 'text-amber-300 font-bold' : 'text-indigo-300 font-bold'}>
                   {getSolDayPhase(solSeconds).icon} {getSolDayPhase(solSeconds).label}
                 </span>
-                <span className="text-[10px] text-neutral-400 font-mono">
+                <span className="text-[9.5px] text-neutral-400 font-mono">
                   ({focalTelemetry.solarElevationDeg >= 0 ? `+${focalTelemetry.solarElevationDeg}°` : `${focalTelemetry.solarElevationDeg}°`})
                 </span>
               </div>
             </div>
-
-            {/* Scientific Celestial Movement Rates Telemetry (Desktop) */}
-            <div className="hidden xl:flex items-center gap-3 border-l border-neutral-800 pl-3 text-[10px] font-mono">
-              <div title="Mars Orbital Velocity around the Sun: ~24.1 km/s (86,760 km/h or 53,910 mph)">
-                <span className="text-neutral-500">Orbit ☉: </span>
-                <span className="text-amber-400 font-bold">24.1 km/s</span>
-              </div>
-              <div title="Mars Equatorial Rotation Speed: ~868 km/h (539 mph), Sol period: 24h 37m">
-                <span className="text-neutral-500">Rotation ⟳: </span>
-                <span className="text-orange-400 font-bold">868 km/h</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => flyToMoon('phobos')}
-                className="hover:text-cyan-300 transition-colors cursor-pointer flex items-center gap-1"
-                title="Phobos Orbit: ~2.14 km/s (7,700 km/h), period 7h 39m, retrograde (rises West ➔ sets East)"
-              >
-                <span className="text-neutral-500">Phobos: </span>
-                <span className="text-cyan-400 font-bold">2.14 km/s</span>
-              </button>
-            </div>
           </div>
         </div>
 
+        {/* Center: Compact Mars Search Bar - perfectly placed in the middle */}
+        <div className="pointer-events-auto flex-1 max-w-[260px] sm:max-w-[320px] md:max-w-[380px] mx-1 sm:mx-2 min-w-0">
+          <MarsTopSearchBar
+            compact
+            placeholder="Search Mars..."
+            onFlyTo={(target) => {
+              if (onFlyTo) {
+                onFlyTo(target);
+              } else {
+                flyToLocation(target.lat, target.lng, 115);
+              }
+            }}
+          />
+        </div>
+
         {/* Right: Sleek Action Icons */}
-        <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto">
+        <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto shrink-0">
           {/* Toggle 24-Hour Scrubber Bar Button (Desktop) */}
           <button
             type="button"
             onClick={() => setShowSolControlBar(!showSolControlBar)}
-            className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border shadow-xl transition-all cursor-pointer text-xs font-mono font-bold ${
+            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border shadow-xl transition-all cursor-pointer text-xs font-mono font-bold ${
               showSolControlBar
-                ? 'bg-orange-950/90 border-orange-700 text-orange-300'
-                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+                ? 'bg-orange-950/80 border-orange-500/60 text-orange-300'
+                : 'bg-[#070b14]/85 border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
             }`}
             title="Toggle 24-Hour Sol Diurnal Controller Bar"
           >
@@ -1877,38 +1875,38 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           <button
             type="button"
             onClick={() => setLightingMode(lightingMode === 'survey' ? 'sunlit' : 'survey')}
-            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+            className={`p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
               lightingMode === 'survey'
-                ? 'bg-amber-950/90 border-amber-700 text-amber-300'
-                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+                ? 'bg-amber-950/80 border-amber-600/60 text-amber-300'
+                : 'bg-[#070b14]/85 border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
             }`}
             title={lightingMode === 'survey' ? 'Lighting: Full Survey Daylight (Cartographic mode). Click for Sunlit Terminator.' : 'Lighting: Realistic Sunlit Terminator. Click for Full Survey Daylight.'}
           >
             {lightingMode === 'survey' ? <Sun className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-neutral-300" />}
           </button>
 
-          {/* Graticule & Feature Outlines Toggle */}
+          {/* Graticule & Feature Outlines Toggle (Tablet/Desktop) */}
           <button
             type="button"
             onClick={() => setShowGraticule(!showGraticule)}
-            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+            className={`hidden sm:flex p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
               showGraticule
-                ? 'bg-blue-950/90 border-blue-700 text-blue-300'
-                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+                ? 'bg-blue-950/80 border-blue-600/60 text-blue-300'
+                : 'bg-[#070b14]/85 border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
             }`}
             title={showGraticule ? 'Hide Coordinate Graticule & Crater Outlines' : 'Show Coordinate Graticule & Crater Outlines'}
           >
             <Grid className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
           </button>
 
-          {/* Moons Toggle */}
+          {/* Moons Toggle (Tablet/Desktop) */}
           <button
             type="button"
             onClick={() => setShowMoons(!showMoons)}
-            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+            className={`hidden sm:flex p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
               showMoons
-                ? 'bg-cyan-950/90 border-cyan-700 text-cyan-300'
-                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+                ? 'bg-cyan-950/80 border-cyan-600/60 text-cyan-300'
+                : 'bg-[#070b14]/85 border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
             }`}
             title={showMoons ? 'Hide Moons (Phobos & Deimos)' : 'Show Moons (Phobos & Deimos)'}
           >
@@ -1919,10 +1917,10 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           <button
             type="button"
             onClick={() => setShowMarkers(!showMarkers)}
-            className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+            className={`p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
               showMarkers
-                ? 'bg-orange-950/90 border-orange-700 text-orange-300'
-                : 'bg-[#090d16]/90 border-neutral-700 text-neutral-400 hover:text-white'
+                ? 'bg-orange-950/80 border-orange-600/60 text-orange-300'
+                : 'bg-[#070b14]/85 border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
             }`}
             title={showMarkers ? 'Hide Surface Pins' : 'Show Surface Pins'}
           >
@@ -1934,11 +1932,24 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             <button
               type="button"
               onClick={() => onOpenEarthComparison()}
-              className="px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-cyan-950/90 border border-cyan-700/80 text-cyan-300 hover:text-white hover:bg-cyan-900 shadow-xl transition-all cursor-pointer active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+              className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-cyan-950/70 border border-cyan-500/50 text-cyan-300 hover:text-white hover:bg-cyan-900/80 shadow-xl transition-all cursor-pointer active:scale-95 items-center gap-1.5 text-xs font-semibold"
               title="Earth vs. Mars Physical Scale Comparison"
             >
-              <Globe2 className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-cyan-400" />
-              <span className="hidden sm:inline">Earth Scale</span>
+              <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Earth Scale</span>
+            </button>
+          )}
+
+          {/* MGS MOLA Elevation Profile Transect Tool Trigger */}
+          {onOpenElevationProfile && (
+            <button
+              type="button"
+              onClick={() => onOpenElevationProfile(selectedSite || undefined)}
+              className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-orange-950/70 border border-orange-500/50 text-orange-300 hover:text-white hover:bg-orange-900/80 shadow-xl transition-all cursor-pointer active:scale-95 items-center gap-1.5 text-xs font-semibold"
+              title="MGS MOLA Elevation Profile (Terrain transect analysis between 2 points)"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+              <span>Elevation Profile</span>
             </button>
           )}
 
@@ -1983,11 +1994,11 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             )}
           </div>
 
-          {/* Switch to 2D Mercator Flat Map */}
+          {/* Switch to 2D Mercator Flat Map (Desktop - Top header has 3D/2D switch for mobile) */}
           <button
             type="button"
             onClick={() => onSwitchToFlatMap(selectedSite || undefined)}
-            className="flex items-center gap-1 sm:gap-1.5 bg-[#090d16]/90 hover:bg-neutral-800 border border-neutral-700 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-xl text-xs font-semibold text-neutral-300 hover:text-white cursor-pointer transition-all active:scale-95"
+            className="hidden md:flex items-center gap-1 sm:gap-1.5 bg-[#090d16]/90 hover:bg-neutral-800 border border-neutral-700 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-xl text-xs font-semibold text-neutral-300 hover:text-white cursor-pointer transition-all active:scale-95"
             title="Switch to High-Resolution 2D Mercator Map"
           >
             <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -2269,64 +2280,64 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       )}
 
       {/* RIGHT CONTROLS: ZOOM, ALTITUDE PRESETS & ROTATION PACE (Responsive on Mobile & Desktop) */}
-      <div className="flex absolute right-2 sm:right-3 top-16 sm:top-20 z-25 flex-col gap-1.5 sm:gap-2 pointer-events-auto">
-        {/* Zoom In / Out / Reset Stack (Icon Only) */}
+      <div className="flex absolute right-2 sm:right-3 top-14 sm:top-20 z-25 flex-col gap-1.5 sm:gap-2 pointer-events-auto">
+        {/* Zoom In / Out / Reset Stack (Icon Only - Ultra-clean & compact) */}
         <div className="flex flex-col bg-[#090d16]/95 backdrop-blur-xl border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-xs font-mono">
           <button
             type="button"
             onClick={handleZoomIn}
-            className="p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer border-b border-neutral-800/80 flex items-center justify-center active:scale-95"
+            className="p-2 sm:p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer border-b border-neutral-800/80 flex items-center justify-center active:scale-95"
             title="Zoom In (Progressive to Surface)"
             aria-label="Zoom In"
           >
-            <ZoomIn className="w-4 h-4 text-orange-400 shrink-0" />
+            <ZoomIn className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-orange-400 shrink-0" />
           </button>
           <button
             type="button"
             onClick={handleZoomOut}
-            className="p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer border-b border-neutral-800/80 flex items-center justify-center active:scale-95"
+            className="p-2 sm:p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer border-b border-neutral-800/80 flex items-center justify-center active:scale-95"
             title="Zoom Out to Deep Space"
             aria-label="Zoom Out"
           >
-            <ZoomOut className="w-4 h-4 text-orange-400 shrink-0" />
+            <ZoomOut className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-orange-400 shrink-0" />
           </button>
           <button
             type="button"
             onClick={handleResetToSpace}
-            className="p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer flex items-center justify-center active:scale-95"
+            className="p-2 sm:p-2.5 text-neutral-200 hover:text-white hover:bg-neutral-800/90 transition-colors cursor-pointer flex items-center justify-center active:scale-95"
             title="Reset to Deep Space Mars View"
             aria-label="Reset View"
           >
-            <RotateCcw className="w-4 h-4 text-cyan-400 shrink-0" />
+            <RotateCcw className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-cyan-400 shrink-0" />
           </button>
         </div>
 
-        {/* Mobile-only altitude cycler pill */}
+        {/* Mobile-only compact altitude cycler pill */}
         <button
           type="button"
           onClick={handleCycleAltitudeMobile}
-          className="sm:hidden p-2 rounded-2xl bg-[#090d16]/95 border border-neutral-700/80 text-cyan-300 flex flex-col items-center justify-center shadow-2xl active:scale-95 cursor-pointer text-[8.5px] font-mono font-bold"
+          className="sm:hidden p-1.5 rounded-xl bg-[#090d16]/95 border border-neutral-700/80 text-cyan-300 flex flex-col items-center justify-center shadow-xl active:scale-95 cursor-pointer text-[8px] font-mono font-bold"
           title="Cycle Altitude: Close -> Region -> Orbit -> Deep Space"
         >
-          <Crosshair className="w-4 h-4 text-cyan-400 mb-0.5" />
-          <span>{cameraDist < 125 ? 'Close' : cameraDist < 185 ? 'Region' : cameraDist < 320 ? 'Orbit' : 'Space'}</span>
+          <Crosshair className="w-3.5 h-3.5 text-cyan-400 mb-0.5" />
+          <span>{cameraDist < 125 ? 'Close' : cameraDist < 185 ? 'Reg' : cameraDist < 320 ? 'Orb' : 'Spc'}</span>
         </button>
 
         {/* Mobile Quick Play / Pause Planetary Rotation Toggle */}
         <button
           type="button"
           onClick={() => setRotationSpeedMode(rotationSpeedMode === 'paused' ? 'realtime' : 'paused')}
-          className="sm:hidden p-2 rounded-2xl bg-[#090d16]/95 border border-neutral-700/80 text-emerald-300 flex flex-col items-center justify-center shadow-2xl active:scale-95 cursor-pointer text-[8.5px] font-mono font-bold"
+          className="sm:hidden p-1.5 rounded-xl bg-[#090d16]/95 border border-neutral-700/80 text-emerald-300 flex flex-col items-center justify-center shadow-xl active:scale-95 cursor-pointer text-[8px] font-mono font-bold"
           title={rotationSpeedMode === 'paused' ? 'Start Planetary Rotation' : 'Pause Planetary Rotation'}
         >
           {rotationSpeedMode !== 'paused' ? (
             <>
-              <Pause className="w-4 h-4 text-emerald-400 mb-0.5" />
+              <Pause className="w-3.5 h-3.5 text-emerald-400 mb-0.5" />
               <span>1x</span>
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 text-emerald-400 mb-0.5" />
+              <Play className="w-3.5 h-3.5 text-emerald-400 mb-0.5" />
               <span>Play</span>
             </>
           )}
@@ -2389,8 +2400,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           </button>
         </div>
 
-        {/* Mars Rotation & Moons Orbit Speed Controller */}
-        <div className="flex flex-col bg-[#090d16]/95 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
+        {/* Mars Rotation & Moons Orbit Speed Controller (Desktop & Tablet) */}
+        <div className="hidden sm:flex flex-col bg-[#090d16]/95 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
           <div className="px-2 py-1 bg-neutral-900/90 text-neutral-400 font-bold border-b border-neutral-800 text-[8px] text-center uppercase tracking-wider flex items-center justify-between gap-1">
             <span>Rotation</span>
             {rotationSpeedMode !== 'paused' && (
@@ -2479,8 +2490,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           </button>
         </div>
 
-        {/* Quick Moons Tracking Selector */}
-        <div className="flex flex-col bg-[#090d16]/95 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
+        {/* Quick Moons Tracking Selector (Desktop & Tablet) */}
+        <div className="hidden sm:flex flex-col bg-[#090d16]/95 border border-neutral-700/80 rounded-2xl overflow-hidden shadow-2xl text-[9.5px] font-mono">
           <div className="px-2 py-1 bg-neutral-900/90 text-neutral-400 font-bold border-b border-neutral-800 text-[8px] text-center uppercase tracking-wider">
             Moons
           </div>
@@ -2623,8 +2634,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
       {/* BOTTOM INSPECTION CARD (Single unified card for surface point, rover, or landmark) */}
       {(inspectedCoord || selectedSite) && (
-        <div className="absolute bottom-16 sm:bottom-4 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-md z-20 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-4 shadow-2xl text-neutral-200 max-h-[75vh] overflow-y-auto">
+        <div className="absolute bottom-16 sm:bottom-4 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-md z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-neutral-200 max-h-[58vh] sm:max-h-[75vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-start justify-between gap-2 border-b border-neutral-800 pb-2.5">
               <div className="min-w-0">
@@ -2763,6 +2774,18 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 </button>
               )}
 
+              {onOpenElevationProfile && (
+                <button
+                  type="button"
+                  onClick={() => onOpenElevationProfile(selectedSite || undefined)}
+                  className="py-1.5 px-2.5 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-700/80 text-orange-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  title="Analyze MOLA Elevation Profile from this location"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Profile</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => onSwitchToFlatMap(selectedSite || undefined)}
@@ -2777,39 +2800,41 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
         </div>
       )}
 
-      {/* QUICK SATELLITES FLY DOCK (Phobos & Deimos Moons) */}
-      <div className="absolute bottom-16 sm:bottom-16 md:bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto flex items-center gap-1.5 bg-[#090d16]/90 backdrop-blur-md border border-neutral-800/90 px-3 py-1 sm:py-1.5 rounded-full shadow-2xl max-w-[95vw] overflow-x-auto no-scrollbar">
-        <span className="text-[9.5px] sm:text-[10px] font-mono text-neutral-400 uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
-          <Orbit className="w-3 h-3 text-cyan-400" />
-          <span>Quick Fly:</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => flyToMoon('phobos')}
-          className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 ${
-            selectedMoon === 'phobos'
-              ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 font-bold shadow-sm shadow-cyan-500/30'
-              : 'text-cyan-300 hover:text-cyan-100 hover:bg-cyan-950/80 border border-cyan-800/60'
-          }`}
-          title="Fly camera directly to Phobos (Inner Satellite)"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span>Phobos</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => flyToMoon('deimos')}
-          className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 ${
-            selectedMoon === 'deimos'
-              ? 'bg-amber-500/20 text-amber-200 border border-amber-400 font-bold shadow-sm shadow-amber-500/30'
-              : 'text-amber-300 hover:text-amber-100 hover:bg-amber-950/80 border border-amber-800/60'
-          }`}
-          title="Fly camera directly to Deimos (Outer Satellite)"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          <span>Deimos</span>
-        </button>
-      </div>
+      {/* QUICK SATELLITES FLY DOCK (Phobos & Deimos Moons) - Tablet & Desktop only to keep mobile uncluttered */}
+      {!inspectedCoord && !selectedSite && (
+        <div className="hidden md:flex absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto items-center gap-1.5 bg-[#090d16]/90 backdrop-blur-md border border-neutral-800/90 px-3 py-1 sm:py-1.5 rounded-full shadow-2xl max-w-[95vw] overflow-x-auto no-scrollbar">
+          <span className="text-[9.5px] sm:text-[10px] font-mono text-neutral-400 uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
+            <Orbit className="w-3 h-3 text-cyan-400" />
+            <span>Quick Fly:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => flyToMoon('phobos')}
+            className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 ${
+              selectedMoon === 'phobos'
+                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 font-bold shadow-sm shadow-cyan-500/30'
+                : 'text-cyan-300 hover:text-cyan-100 hover:bg-cyan-950/80 border border-cyan-800/60'
+            }`}
+            title="Fly camera directly to Phobos (Inner Satellite)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span>Phobos</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => flyToMoon('deimos')}
+            className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 ${
+              selectedMoon === 'deimos'
+                ? 'bg-amber-500/20 text-amber-200 border border-amber-400 font-bold shadow-sm shadow-amber-500/30'
+                : 'text-amber-300 hover:text-amber-100 hover:bg-amber-950/80 border border-amber-800/60'
+            }`}
+            title="Fly camera directly to Deimos (Outer Satellite)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <span>Deimos</span>
+          </button>
+        </div>
+      )}
 
       {/* MOBILE 24-HOUR SOL DIURNAL DRAWER / BOTTOM SHEET */}
       {isTimeDrawerOpen && (
@@ -2845,7 +2870,11 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               <button
                 type="button"
                 onClick={() => setIsTimeDrawerOpen(false)}
-                className="p-2 rounded-xl bg-neutral-800 text-neutral-300 hover:text-white"
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  setIsTimeDrawerOpen(false);
+                }}
+                className="p-2 rounded-xl bg-neutral-800 text-neutral-300 hover:text-white cursor-pointer active:scale-95"
               >
                 <X className="w-4 h-4" />
               </button>

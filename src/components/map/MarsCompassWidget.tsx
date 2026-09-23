@@ -55,9 +55,13 @@ export const MarsCompassWidget: React.FC<MarsCompassWidgetProps> = ({
     onRotate(next);
   };
 
-  // Clicking the compass dial advances 90° clockwise, or if already rotated and clicking center, resets
+  // Clicking the compass dial: if rotated away from 0°, resets immediately to True North; if already 0°, advances 90°
   const handleDialClick = (e: React.MouseEvent) => {
-    handleRotateStep(90, e);
+    if (normalizedBearing !== 0) {
+      handleResetToNorth(e);
+    } else {
+      handleRotateStep(90, e);
+    }
   };
 
   return (
@@ -82,7 +86,7 @@ export const MarsCompassWidget: React.FC<MarsCompassWidgetProps> = ({
         <div className="relative flex items-center justify-center">
           <button
             onClick={handleDialClick}
-            title={`Current: ${normalizedBearing}° ${cardinal.code} (${cardinal.name}) • Click to rotate 90° • Center button resets to North`}
+            title={normalizedBearing !== 0 ? `Bearing: ${normalizedBearing}° ${cardinal.code} (${cardinal.name}) • Click to reset True North (0°)` : `Bearing: 0° N (North Up) • Click to rotate 90°`}
             className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-neutral-900 to-[#070a12] border-2 border-neutral-600/90 hover:border-orange-500 shadow-xl transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50 active:scale-95"
             aria-label={`Mars Compass: ${cardinal.name}`}
           >

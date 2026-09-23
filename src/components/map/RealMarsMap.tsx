@@ -2015,31 +2015,31 @@ export function RealMarsMap() {
 
   return (
     <div className="relative w-full h-full flex flex-col bg-[#080b11] overflow-hidden select-none font-sans text-neutral-100">
-      {/* Top Header Bar: Responsive, Clean & Sleek */}
-      <header className="z-25 bg-[#0c101a]/95 backdrop-blur-md border-b border-neutral-800/80 px-2 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-3 shadow-xl shrink-0">
+      {/* Top Header Bar: Responsive, Clean & Sleek Aerospace HUD */}
+      <header className="z-25 bg-[#070b14]/85 backdrop-blur-2xl border-b border-white/[0.08] px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 shadow-2xl shadow-black/80 shrink-0">
         {/* Brand & Status */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          <div className="w-7 h-7 sm:w-8 h-8 rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-950/60 shrink-0">
-            <Globe className="w-4 h-4 sm:w-5 h-5 text-white" />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-orange-600 via-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-950/60 ring-1 ring-white/20 shrink-0">
+            <Globe className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-white drop-shadow" />
           </div>
           <div>
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <span className="font-bold text-white tracking-wide text-xs sm:text-sm">MARSWAY</span>
-              <span className="text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded bg-orange-950/80 text-orange-400 border border-orange-800 font-semibold whitespace-nowrap">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold text-white tracking-wider text-xs sm:text-sm font-sans">MARSWAY</span>
+              <span className="text-[9px] font-mono tracking-wider px-1.5 py-0.5 rounded-md bg-orange-950/80 text-orange-400 border border-orange-700/60 font-semibold whitespace-nowrap">
                 NASA GIS
               </span>
             </div>
-            <p className="text-[10px] text-neutral-400 hidden md:block">
-              Planetary Surface Imagery & Mission Traverse Explorer
+            <p className="text-[10px] text-neutral-400 font-medium tracking-tight hidden md:block">
+              High-Resolution Surface & Mission Reconnaissance
             </p>
           </div>
         </div>
 
         {/* Primary View Mode Switcher: 3D Planet Globe vs 2D Flat Map */}
-        <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-neutral-900/90 border border-neutral-700/80 shadow-inner shrink-0">
+        <div className="flex items-center p-1 rounded-xl bg-black/40 border border-white/10 shadow-inner shrink-0">
           <button
             onClick={() => setViewMode('3d')}
-            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
               viewMode === '3d'
                 ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md shadow-orange-950/60'
                 : 'text-neutral-400 hover:text-white'
@@ -2049,18 +2049,15 @@ export function RealMarsMap() {
             <Globe className="w-3.5 h-3.5 text-amber-300" />
             <span className="hidden xs:inline">3D Globe</span>
             <span className="xs:hidden">3D</span>
-            <span className="text-[8.5px] px-1 py-0.2 rounded bg-orange-950/90 text-orange-300 border border-orange-700/80 font-mono hidden sm:inline">
-              PRIMARY
-            </span>
           </button>
           <button
             onClick={() => {
               setViewMode('2d');
               setTimeout(() => mapInstanceRef.current?.invalidateSize(), 60);
             }}
-            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
               viewMode === '2d'
-                ? 'bg-neutral-800 text-white shadow border border-neutral-600'
+                ? 'bg-white/10 text-white shadow border border-white/15'
                 : 'text-neutral-400 hover:text-white'
             }`}
             title="Flat Mercator 2D Map with Elevation & Route Traverses"
@@ -2071,68 +2068,65 @@ export function RealMarsMap() {
           </button>
         </div>
 
-        {/* Quick Access Platform Actions Bar */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        {/* Quick Access Platform Actions Bar (Cleaned on Mobile - accessible via Bottom Bar & Menu) */}
+        <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Universal Search Modal Button */}
           <button
             onClick={() => setIsSearchModalOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden sm:flex"
+            className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow flex cursor-pointer"
             title="Search all Martian craters, volcanoes, canyons, missions & landing sites"
           >
             <Search className="w-3.5 h-3.5 text-orange-400" />
-            <span className="hidden xl:inline">Search</span>
+            <span className="hidden xl:inline font-medium">Search</span>
           </button>
 
           {/* Missions Explorer Button */}
           <button
             onClick={() => setIsMissionExplorerOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden md:flex"
+            className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow flex cursor-pointer"
             title="Browse NASA, ESA, CNSA Mars rovers, landers & orbiters"
           >
             <Radio className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline font-semibold">Missions</span>
+            <span className="hidden sm:inline font-medium">Missions</span>
           </button>
 
           {/* Human Mission Mode Button */}
           <button
             onClick={() => setIsHumanMissionModeOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden lg:flex"
+            className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition shadow hidden lg:flex cursor-pointer"
             title="Evaluate future human landing candidate zones & ISRU resources"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden md:inline font-semibold">Human Base</span>
+            <span className="hidden md:inline font-medium">Base Planning</span>
           </button>
 
           {/* Ask MarsWay AI Button */}
           <button
             onClick={() => setIsAskMarsWayOpen(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900/90 border border-purple-700/80 text-xs text-purple-200 hover:text-white flex items-center gap-1.5 transition shadow shadow-purple-950/50"
+            className="px-2.5 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900/80 border border-purple-600/50 text-xs text-purple-200 hover:text-white flex items-center gap-1.5 transition shadow-lg shadow-purple-950/50 cursor-pointer active:scale-95"
             title="Ask MarsWay AI spatial assistant with live map actions"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-300" />
-            <span className="hidden sm:inline font-bold">Ask AI</span>
+            <span className="font-semibold">Ask AI</span>
           </button>
 
-          {/* Live Voice Comms (gemini-3.8-live) Button */}
+          {/* Live Voice Comms Button */}
           <button
             onClick={() => setIsLiveVoiceOpen(true)}
-            className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/70 text-xs text-white flex items-center gap-1.5 transition shadow shadow-purple-950/60 group"
-            title="Start real-time bi-directional voice conversation powered by gemini-3.8-live (Live API)"
+            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-900/80 via-indigo-900/80 to-purple-900/80 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/60 text-xs text-white flex items-center gap-1.5 transition shadow-lg shadow-purple-950/60 group cursor-pointer active:scale-95"
+            title="Start real-time bi-directional voice conversation powered by gemini-3.8-live"
           >
             <Radio className="w-3.5 h-3.5 text-purple-300 group-hover:animate-pulse" />
-            <span className="font-bold flex items-center gap-1">
-              <span className="hidden xs:inline">Live Voice</span>
-              <span className="xs:hidden">Voice</span>
-              <span className="hidden xl:inline text-[9px] px-1 py-0.2 rounded bg-purple-950 text-purple-300 font-mono border border-purple-600/40">
-                3.8-Live
-              </span>
+            <span className="font-semibold">Voice</span>
+            <span className="hidden xl:inline text-[9px] px-1 py-0.2 rounded bg-purple-950/90 text-purple-300 font-mono border border-purple-600/40">
+              Live
             </span>
           </button>
 
           {/* Guided Tour & Presentation Button */}
           <button
             onClick={() => setIsTourModalOpen(true)}
-            className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700/80 text-xs text-neutral-300 hover:text-white items-center gap-1 transition hidden lg:flex"
+            className="p-1.5 sm:px-2 sm:py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-300 hover:text-white items-center gap-1 transition hidden lg:flex cursor-pointer"
             title="Open Platform Tour & Presentation"
           >
             <Presentation className="w-3.5 h-3.5 text-amber-400" />
@@ -2144,7 +2138,7 @@ export function RealMarsMap() {
           {routeWaypoints.length > 0 && (
             <button
               onClick={() => setActiveTab('route')}
-              className="px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-800/80 text-cyan-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-700/70 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-950/40"
             >
               <Navigation className="w-3.5 h-3.5 text-cyan-400" />
               <span>{routeWaypoints.length} pts</span>
@@ -2155,15 +2149,15 @@ export function RealMarsMap() {
             id="mars-global-hamburger-button"
             type="button"
             onClick={() => setIsHamburgerOpen(!isHamburgerOpen)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-lg ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-xl ${
               isHamburgerOpen
                 ? 'bg-orange-600 text-white border-orange-400 shadow-orange-950/60'
-                : 'bg-neutral-900/95 text-neutral-200 border-neutral-700/80 hover:bg-neutral-800 hover:text-white'
+                : 'bg-white/[0.06] text-neutral-200 border-white/10 hover:bg-white/[0.12] hover:text-white'
             }`}
             title="Open Mars Mission & Navigation Suite"
           >
             <Menu className="w-4 h-4 text-orange-400" />
-            <span className="hidden sm:inline tracking-wide">Menu</span>
+            <span className="hidden sm:inline tracking-wide font-medium">Menu</span>
           </button>
         </div>
       </header>
@@ -2867,21 +2861,35 @@ export function RealMarsMap() {
                 setPlaceIdentifierFeature(feature);
                 setIsPlaceIdentifierOpen(true);
               }}
+              onOpenElevationProfile={(feature) => {
+                setViewMode('2d');
+                if (feature) {
+                  // Set Point A at feature and ask user to click Point B, or open with preset/ready state
+                  const ptA = {
+                    lat: feature.lat,
+                    lng: feature.lng,
+                    name: `Point A (${feature.name})`,
+                  };
+                  setElevationPoints([ptA]);
+                  setElevationProfile(null);
+                  setIsDrawingElevationLine(true);
+                  setTimeout(() => {
+                    mapInstanceRef.current?.setView([feature.lat, feature.lng], 6, { animate: true });
+                  }, 80);
+                } else if (elevationProfile) {
+                  setIsElevationProfileOpen(true);
+                } else {
+                  setIsDrawingElevationLine(true);
+                }
+              }}
               telemetry={ephemeris}
               initialSelectedSite={selectedSite}
               activeLayer={activeLayer}
               onLayerChange={(layerId) => handleSelectLayer(layerId as any)}
+              onFlyTo={(target) => {
+                handleFlyToLocation(target.lat, target.lng, target.zoom ?? 6, target.name, target.elevationM);
+              }}
             />
-
-            {/* TOP MARS SEARCH BAR IN 3D GLOBE MODE */}
-            <div className="absolute top-12 sm:top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto w-[calc(100%-24px)] sm:w-[380px] md:w-[460px] max-w-[94vw]">
-              <MarsTopSearchBar
-                placeholder="Search craters, volcanoes, canyons, rovers..."
-                onFlyTo={(target) => {
-                  handleFlyToLocation(target.lat, target.lng, target.zoom ?? 6, target.name, target.elevationM);
-                }}
-              />
-            </div>
           </div>
         )}
 
@@ -2987,12 +2995,12 @@ export function RealMarsMap() {
           {/* Esri Explore Mars-style Place Nomenclature Category Filter & Earth Scale Bar */}
           <div className="absolute top-14 sm:top-14 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-[96vw] px-1 sm:px-2 transition-all duration-300 opacity-100 translate-y-0">
             {!isCategoryBarExpanded ? (
-              // Sleek, compact pill - uncluttered, zero obstruction
-              <div className="bg-[#090d16]/90 backdrop-blur-xl border border-neutral-700/80 rounded-full px-2.5 py-1 shadow-2xl flex items-center gap-1.5 text-xs">
+              // Sleek aerospace glass bar - uncluttered, zero obstruction
+              <div className="bg-[#070b14]/85 backdrop-blur-2xl border border-white/10 rounded-full px-3 py-1 shadow-2xl shadow-black/80 flex items-center gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setIsCategoryBarExpanded(true)}
-                  className="flex items-center gap-1.5 px-2 py-0.5 text-neutral-300 hover:text-white rounded-full transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-neutral-300 hover:text-white rounded-full hover:bg-white/5 transition-all cursor-pointer"
                   title="Filter Martian places by category"
                 >
                   <Filter className="w-3.5 h-3.5 text-orange-400" />
@@ -3016,19 +3024,19 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => setPlaceCategoryFilter('all')}
-                    className="p-1 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    className="p-1 rounded-full hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer"
                     title="Reset to All categories"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 )}
 
-                <div className="w-[1px] h-3.5 bg-neutral-700/80 mx-0.5" />
+                <div className="w-[1px] h-3.5 bg-white/10 mx-0.5" />
 
                 <button
                   type="button"
                   onClick={() => setIsEarthComparisonOpen(true)}
-                  className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeEarthComparison
                       ? 'bg-cyan-600 text-white shadow-md'
                       : 'text-cyan-300 hover:text-white hover:bg-cyan-950/60'
@@ -3039,7 +3047,7 @@ export function RealMarsMap() {
                   <span className="hidden sm:inline">Earth Scale</span>
                 </button>
 
-                <div className="w-[1px] h-3.5 bg-neutral-700/80 mx-0.5" />
+                <div className="w-[1px] h-3.5 bg-white/10 mx-0.5" />
 
                 <button
                   type="button"
@@ -3052,9 +3060,9 @@ export function RealMarsMap() {
                       setIsDrawingElevationLine(true);
                     }
                   }}
-                  className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isElevationProfileOpen || isDrawingElevationLine
-                      ? 'bg-orange-600 text-white shadow-md ring-1 ring-orange-400'
+                      ? 'bg-orange-500 text-white shadow-md ring-1 ring-orange-400/50'
                       : 'text-orange-300 hover:text-white hover:bg-orange-950/60'
                   }`}
                   title="Draw line between two points to analyze MGS MOLA elevation & terrain steepness"
@@ -3063,7 +3071,7 @@ export function RealMarsMap() {
                   <span className="hidden sm:inline">Elevation Profile</span>
                 </button>
 
-                <div className="w-[1px] h-3.5 bg-neutral-700/80 mx-0.5" />
+                <div className="w-[1px] h-3.5 bg-white/10 mx-0.5" />
 
                 <button
                   type="button"
@@ -3073,7 +3081,7 @@ export function RealMarsMap() {
                     setIsDustStormPanelOpen(true);
                     setMissionLayerOptions((prev) => ({ ...prev, showDustStormOverlay: nextVal }));
                   }}
-                  className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     showDustStormOverlay
                       ? 'bg-amber-500 text-black shadow-md font-bold'
                       : 'text-amber-300 hover:text-white hover:bg-amber-950/60'
@@ -3267,11 +3275,11 @@ export function RealMarsMap() {
         </div>
 
         {/* PROMINENT ZOOM CONTROLS WITH CLEAR VISIBLE TEXT */}
-        <div className="absolute top-24 sm:top-3 left-2.5 sm:left-3 z-20 flex flex-col gap-2 pointer-events-auto transition-all duration-300 opacity-100">
-          <div className="bg-[#0c101a]/95 backdrop-blur-md border border-neutral-700/90 rounded-xl p-1 sm:p-1.5 flex flex-col gap-1 shadow-2xl">
+        <div className="absolute top-24 sm:top-4 left-3 sm:left-4 z-20 flex flex-col gap-2 pointer-events-auto transition-all duration-300 opacity-100">
+          <div className="bg-[#070b14]/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-1 sm:p-1.5 flex flex-col gap-1 shadow-2xl shadow-black/80">
             {/* Live Zoom Scale Indicator */}
-            <div className="px-1.5 sm:px-2 py-0.5 text-[8.5px] sm:text-[9px] text-neutral-400 font-mono flex items-center justify-between border-b border-neutral-800/60 pb-1">
-              <span className="hidden sm:inline">SCALE</span>
+            <div className="px-2 py-0.5 text-[9px] text-neutral-400 font-mono flex items-center justify-between border-b border-white/5 pb-1">
+              <span className="hidden sm:inline text-neutral-500">ZOOM</span>
               <span className="text-orange-400 font-bold">{currentZoom}x / 20x</span>
             </div>
 
@@ -3279,7 +3287,7 @@ export function RealMarsMap() {
             <button
               onClick={() => mapInstanceRef.current?.zoomIn()}
               disabled={currentZoom >= 20}
-              className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
+              className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl transition-all cursor-pointer active:scale-95"
               title="Zoom In to Mars Surface (Max 20x High Resolution)"
               aria-label="Zoom In"
             >
@@ -3290,19 +3298,19 @@ export function RealMarsMap() {
             <button
               onClick={() => mapInstanceRef.current?.zoomOut()}
               disabled={currentZoom <= 2}
-              className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-neutral-800/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
+              className="flex items-center justify-center p-2 text-neutral-200 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl transition-all cursor-pointer active:scale-95"
               title="Zoom Out from Mars Surface"
               aria-label="Zoom Out"
             >
               <ZoomOut className="w-4 h-4 text-orange-400 shrink-0" />
             </button>
 
-            <div className="h-[1px] bg-neutral-800/80 my-0.5" />
+            <div className="h-[1px] bg-white/10 my-0.5" />
 
             {/* Reset View Button (Icon Only) */}
             <button
               onClick={handleResetView}
-              className="flex items-center justify-center p-2 text-neutral-300 hover:text-orange-400 hover:bg-neutral-800/90 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center justify-center p-2 text-neutral-300 hover:text-orange-400 hover:bg-white/10 rounded-xl transition-all cursor-pointer active:scale-95"
               title="Reset to Full Global Mars View & True North"
               aria-label="Reset View"
             >
@@ -3312,7 +3320,7 @@ export function RealMarsMap() {
             {/* Missions Explorer Quick Trigger Button */}
             <button
               onClick={() => setIsMissionExplorerOpen(true)}
-              className="flex items-center justify-center p-2 text-cyan-400 hover:text-white hover:bg-cyan-950/50 rounded-lg transition-colors cursor-pointer border-t border-neutral-800/60"
+              className="flex items-center justify-center p-2 text-cyan-400 hover:text-white hover:bg-cyan-950/60 rounded-xl transition-all cursor-pointer border-t border-white/5 active:scale-95"
               title="Open Mars Missions Explorer (Rovers, Landers & Orbiters)"
               aria-label="Open Missions Explorer"
             >
@@ -3322,10 +3330,10 @@ export function RealMarsMap() {
             {/* Mission & Rover Traverse Layers Control Panel Toggle */}
             <button
               onClick={() => setIsMissionLayersPanelOpen((prev) => !prev)}
-              className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer border-t border-neutral-800/60 ${
+              className={`flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer border-t border-white/5 active:scale-95 ${
                 isMissionLayersPanelOpen
-                  ? 'text-orange-300 bg-orange-950/60'
-                  : 'text-orange-400 hover:text-white hover:bg-orange-950/40'
+                  ? 'text-orange-300 bg-orange-950/80 border-orange-700/60'
+                  : 'text-orange-400 hover:text-white hover:bg-white/10'
               }`}
               title="Toggle Mars Missions & Rover Traverse Layer Control Panel"
               aria-label="Mission Layers Control"
@@ -3333,11 +3341,33 @@ export function RealMarsMap() {
               <Layers className="w-4 h-4 shrink-0" />
             </button>
 
+            {/* MGS MOLA Elevation Profile Quick Action Button */}
+            <button
+              onClick={() => {
+                if (isElevationProfileOpen) {
+                  setIsElevationProfileOpen(false);
+                } else if (elevationProfile) {
+                  setIsElevationProfileOpen(true);
+                } else {
+                  setIsDrawingElevationLine(true);
+                }
+              }}
+              className={`flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer border-t border-white/5 active:scale-95 ${
+                isElevationProfileOpen || isDrawingElevationLine
+                  ? 'text-white bg-orange-500 shadow-md shadow-orange-950/60'
+                  : 'text-orange-400 hover:text-white hover:bg-white/10'
+              }`}
+              title="MGS MOLA Elevation Profile (Click 2 points on Mars to graph terrain cross-section)"
+              aria-label="Elevation Profile"
+            >
+              <TrendingUp className="w-4 h-4 shrink-0" />
+            </button>
+
             {/* If Rotated, Show Quick Align True North (0°) Button */}
             {bearing !== 0 && (
               <button
                 onClick={handleResetOrientation}
-                className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 p-2 sm:px-2.5 sm:py-1.5 text-amber-300 hover:text-white bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/80 rounded-lg font-bold text-xs transition-colors cursor-pointer animate-in fade-in duration-200"
+                className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 p-2 sm:px-2.5 sm:py-1.5 text-amber-300 hover:text-white bg-amber-950/60 hover:bg-amber-900/70 border border-amber-600/70 rounded-xl font-bold text-xs transition-all cursor-pointer animate-in fade-in duration-200"
                 title="Reset orientation to True North (0°)"
               >
                 <Compass className="w-4 h-4 text-amber-400 shrink-0" />
@@ -3347,26 +3377,26 @@ export function RealMarsMap() {
           </div>
 
           {/* Quick Basemap Switcher (Desktop and Tablet) */}
-          <div className="hidden sm:flex bg-[#0c101a]/95 backdrop-blur-md border border-neutral-800 rounded-xl p-2 shadow-2xl flex-col gap-1 text-[11px]">
-            <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider px-1">
+          <div className="hidden sm:flex bg-[#070b14]/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 shadow-2xl shadow-black/80 flex-col gap-1 text-[11px]">
+            <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider px-1 mb-0.5">
               Basemap
             </span>
             <button
               onClick={() => handleSelectLayer('viking')}
-              className={`px-2 py-1 rounded text-left font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-xl text-left font-medium transition-all cursor-pointer ${
                 activeLayer === 'viking'
-                  ? 'bg-orange-600 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800/80'
+                  ? 'bg-orange-500 text-white font-semibold shadow-md shadow-orange-950/60'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              True Color (Viking)
+              Viking Color (True)
             </button>
             <button
               onClick={() => handleSelectLayer('themis')}
-              className={`px-2 py-1 rounded text-left font-medium transition-colors cursor-pointer flex items-center justify-between ${
+              className={`px-2.5 py-1.5 rounded-xl text-left font-medium transition-all cursor-pointer flex items-center justify-between ${
                 activeLayer === 'themis'
-                  ? 'bg-orange-600 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800/80'
+                  ? 'bg-orange-500 text-white font-semibold shadow-md shadow-orange-950/60'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
             >
               <span>THEMIS 100m IR</span>
@@ -3374,36 +3404,36 @@ export function RealMarsMap() {
             </button>
             <button
               onClick={() => handleSelectLayer('mola')}
-              className={`px-2 py-1 rounded text-left font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-xl text-left font-medium transition-all cursor-pointer ${
                 activeLayer === 'mola'
-                  ? 'bg-orange-600 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800/80'
+                  ? 'bg-orange-500 text-white font-semibold shadow-md shadow-orange-950/60'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
             >
               MOLA Topography
             </button>
             <button
               onClick={() => handleSelectLayer('opm')}
-              className={`px-2 py-1 rounded text-left font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-xl text-left font-medium transition-all cursor-pointer ${
                 activeLayer === 'opm'
-                  ? 'bg-orange-600 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800/80'
+                  ? 'bg-orange-500 text-white font-semibold shadow-md shadow-orange-950/60'
+                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
             >
               OpenPlanetary
             </button>
 
-            <div className="border-t border-neutral-800 my-0.5" />
+            <div className="border-t border-white/10 my-0.5" />
             <div className="flex items-center justify-between px-1 pt-0.5">
               <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">
                 Surface Tone
               </span>
               <button
                 onClick={() => setSurfaceFilter((prev) => (prev === 'dark' ? 'normal' : 'dark'))}
-                className={`px-1.5 py-0.5 rounded text-[9px] font-bold cursor-pointer transition-colors ${
+                className={`px-2 py-0.5 rounded-lg text-[9px] font-semibold cursor-pointer transition-all ${
                   surfaceFilter === 'dark'
-                    ? 'bg-amber-500 text-black shadow-sm'
-                    : 'bg-neutral-800 text-neutral-300 hover:text-white'
+                    ? 'bg-amber-500 text-black shadow-sm font-bold'
+                    : 'bg-white/10 text-neutral-300 hover:text-white'
                 }`}
                 title="Toggle Dark Surface filter"
               >
@@ -3479,31 +3509,31 @@ export function RealMarsMap() {
 
         {/* FLOATING SELECTED SITE CARD (Mobile & Desktop Place Card) */}
         {selectedSite && !inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-orange-500/70 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2 animate-in slide-in-from-bottom-3 duration-200 max-h-[60vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
+          <div className="absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#070b14]/90 backdrop-blur-2xl border border-white/10 p-3.5 sm:p-4 rounded-3xl shadow-2xl shadow-black/90 max-w-sm w-[94%] sm:w-88 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[52vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-orange-950 text-orange-300 border border-orange-800">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/30">
                     {selectedSite.category || selectedSite.type}
                   </span>
                   <span className="text-[10px] text-neutral-400 font-mono">
                     {selectedSite.elevation > 0 ? `+${selectedSite.elevation}` : selectedSite.elevation}m elev
                   </span>
                 </div>
-                <h3 className="text-white font-bold text-sm tracking-tight truncate mt-0.5">
+                <h3 className="text-white font-bold text-base tracking-tight truncate mt-1">
                   {selectedSite.name}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedSite(null)}
-                className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer shrink-0"
+                className="text-neutral-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                 title="Dismiss"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-neutral-300 text-[11px] leading-relaxed line-clamp-2">
+            <p className="text-neutral-300 text-[11.5px] leading-relaxed line-clamp-2">
               {selectedSite.significance || selectedSite.description}
             </p>
 
@@ -3511,22 +3541,22 @@ export function RealMarsMap() {
             {(() => {
               const sc = analyzeMarsLocationScience(selectedSite.lat, selectedSite.lng, selectedSite.elevation);
               return (
-                <div className="bg-neutral-900/85 rounded-xl p-2 border border-neutral-800 space-y-1.5 text-[10.5px]">
+                <div className="bg-black/40 rounded-2xl p-2.5 border border-white/5 space-y-1.5 text-[10.5px]">
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-cyan-300 font-semibold">
+                    <span className="flex items-center gap-1.5 text-cyan-300 font-medium">
                       <Droplets className="w-3.5 h-3.5 text-cyan-400" />
                       <span>{sc.water.depthDisplay}</span>
                     </span>
-                    <span className="text-cyan-400 font-mono font-bold">{sc.water.probabilityChance}% Ice Chance</span>
+                    <span className="text-cyan-400 font-mono font-semibold">{sc.water.probabilityChance}% Ice Chance</span>
                   </div>
-                  <div className="flex items-center justify-between text-neutral-300 text-[10px]">
-                    <span className="flex items-center gap-1 text-orange-300">
+                  <div className="flex items-center justify-between text-neutral-400 text-[10px]">
+                    <span className="flex items-center gap-1.5 text-orange-300">
                       <Wind className="w-3 h-3 text-orange-400" />
                       CO₂ 95.3% • N₂ 2.6%
                     </span>
-                    <span className="flex items-center gap-1 text-rose-300 font-bold">
+                    <span className="flex items-center gap-1.5 text-rose-300 font-semibold">
                       <ShieldAlert className="w-3 h-3 text-rose-400" />
-                      Suit Required
+                      EVA Suit Req.
                     </span>
                   </div>
                 </div>
@@ -3545,10 +3575,10 @@ export function RealMarsMap() {
                 });
                 setIsScienceDossierOpen(true);
               }}
-              className="w-full py-1.5 px-2.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900/80 border border-cyan-700/80 text-cyan-200 font-bold text-center text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="w-full py-2 px-3 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-200 font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-cyan-950/30"
             >
               <Droplets className="w-3.5 h-3.5 text-cyan-400" />
-              <span>💧 Full Water, Gas, Weather & Safety Dossier</span>
+              <span>Full Water, Gas & Planetary Dossier</span>
             </button>
 
             <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
@@ -3557,7 +3587,7 @@ export function RealMarsMap() {
                   setPlaceIdentifierFeature(selectedSite);
                   setIsPlaceIdentifierOpen(true);
                 }}
-                className="flex-1 py-1.5 px-2 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-600/80 text-orange-200 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 hover:text-white font-semibold text-center text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 title="Geological and IAU Nomenclature Place Dossier"
               >
                 <MapPin className="w-3.5 h-3.5 text-orange-400" />
@@ -3575,11 +3605,30 @@ export function RealMarsMap() {
                   }
                   setIsEarthComparisonOpen(true);
                 }}
-                className="flex-1 py-1.5 px-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-600/80 text-cyan-200 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 hover:text-white font-semibold text-center text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 title="Compare Scale against Earth Features"
               >
                 <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Earth Scale</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const ptA = {
+                    lat: selectedSite.lat,
+                    lng: selectedSite.lng,
+                    name: `Point A (${selectedSite.name})`,
+                  };
+                  setElevationPoints([ptA]);
+                  setElevationProfile(null);
+                  setIsDrawingElevationLine(true);
+                  setSelectedSite(null);
+                }}
+                className="py-1.5 px-2.5 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-600/40 text-orange-200 hover:text-white font-semibold text-center text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                title="Start MGS MOLA elevation transect starting from this site"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                <span>Profile</span>
               </button>
 
               <button
@@ -3608,28 +3657,28 @@ export function RealMarsMap() {
 
         {/* INSPECTED POINT CARD (Exploration Mode - Does NOT create routes) */}
         {inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0c101a]/95 backdrop-blur-xl border border-neutral-700/90 p-3 sm:p-3.5 rounded-2xl shadow-2xl max-w-sm w-[94%] sm:w-80 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[60vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
+          <div className="absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#070b14]/90 backdrop-blur-2xl border border-white/10 p-3.5 sm:p-4 rounded-3xl shadow-2xl shadow-black/90 max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[52vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-1.5 text-orange-400 font-bold">
-                <Crosshair className="w-4 h-4" />
-                <span>Inspected Mars Surface</span>
+              <div className="flex items-center gap-2 text-orange-400 font-semibold">
+                <Crosshair className="w-4 h-4 text-orange-400" />
+                <span className="text-white tracking-tight">Inspected Coordinates</span>
               </div>
               <button
                 onClick={() => setInspectedPoint(null)}
-                className="text-neutral-400 hover:text-white p-0.5 rounded cursor-pointer"
+                className="text-neutral-400 hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 bg-neutral-900/80 p-2 rounded-lg border border-neutral-800 font-mono text-[11px]">
+            <div className="grid grid-cols-2 gap-2 bg-black/40 p-2.5 rounded-2xl border border-white/5 font-mono text-[11px]">
               <div>
                 <span className="text-neutral-500 text-[9px] block">COORDINATES</span>
-                <span className="text-white font-bold">{inspectedPoint.lat}°, {inspectedPoint.lng}°</span>
+                <span className="text-white font-semibold">{inspectedPoint.lat}°, {inspectedPoint.lng}°</span>
               </div>
               <div>
                 <span className="text-neutral-500 text-[9px] block">EAST PLANETOCENTRIC</span>
-                <span className="text-amber-300 font-bold">{inspectedPoint.eastLng}°E</span>
+                <span className="text-amber-300 font-semibold">{inspectedPoint.eastLng}°E</span>
               </div>
             </div>
 
@@ -3753,10 +3802,28 @@ export function RealMarsMap() {
             <div className="flex gap-2 pt-0.5">
               <button
                 onClick={() => {
+                  const ptA = {
+                    lat: inspectedPoint.lat,
+                    lng: inspectedPoint.lng,
+                    name: inspectedPoint.nearestFeature ? `Point A (${inspectedPoint.nearestFeature.name})` : `Point A (${inspectedPoint.lat}°, ${inspectedPoint.lng}°)`,
+                  };
+                  setElevationPoints([ptA]);
+                  setElevationProfile(null);
+                  setIsDrawingElevationLine(true);
+                  setInspectedPoint(null);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-600/40 text-orange-200 hover:text-white font-semibold cursor-pointer transition-all text-xs flex items-center gap-1.5"
+                title="Start MGS MOLA elevation transect from this location"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={() => {
                   setCloseUpSearchTarget(inspectedPoint.nearestFeature?.name || `${inspectedPoint.lat}°, ${inspectedPoint.lng}°`);
                   setIsCloseUpModalOpen(true);
                 }}
-                className="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold cursor-pointer transition-colors text-xs flex items-center gap-1 shadow-md shadow-orange-950"
+                className="px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-semibold cursor-pointer transition-all text-xs flex items-center gap-1.5 shadow-md shadow-orange-950/50"
                 title="View real NASA in-situ close-up photos"
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -3774,7 +3841,7 @@ export function RealMarsMap() {
                   ]);
                   setInspectedPoint(null);
                 }}
-                className="flex-1 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-center cursor-pointer transition-colors text-xs shadow-md shadow-cyan-950"
+                className="flex-1 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-center cursor-pointer transition-all text-xs shadow-md shadow-cyan-950/50"
               >
                 + Traverse
               </button>
@@ -3788,7 +3855,7 @@ export function RealMarsMap() {
                     }
                     setInspectedPoint(null);
                   }}
-                  className="px-2.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold cursor-pointer transition-colors text-xs"
+                  className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-200 border border-white/10 font-semibold cursor-pointer transition-all text-xs"
                 >
                   Feature
                 </button>
@@ -4941,22 +5008,22 @@ export function RealMarsMap() {
           </div>
         )}
 
-        {/* Live Coordinate Status Bar (Bottom Center) - Only visible when not inspecting a point or site to prevent mobile overlap */}
+        {/* Live Coordinate Status Bar (Bottom Center - Tablet & Desktop only to keep mobile 100% clean) */}
         {!inspectedPoint && !selectedSite && !isRoutePlanningActive && (
-          <div className="absolute bottom-16 sm:bottom-3 left-1/2 -translate-x-1/2 z-20 bg-[#0c101a]/90 backdrop-blur-md border border-neutral-800/80 px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs text-neutral-300 shadow-xl flex items-center gap-2.5 sm:gap-4 pointer-events-auto whitespace-nowrap transition-all duration-300 opacity-100 translate-y-0">
+          <div className="hidden md:flex absolute bottom-3 left-1/2 -translate-x-1/2 z-20 bg-[#0c101a]/90 backdrop-blur-md border border-neutral-800/80 px-4 py-1.5 rounded-full text-xs text-neutral-300 shadow-xl items-center gap-4 pointer-events-auto whitespace-nowrap transition-all duration-300 opacity-100 translate-y-0">
             <div className="flex items-center gap-1.5">
               <Crosshair className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <span>
                 Lat: <strong className="text-white font-mono">{cursorPos ? `${cursorPos.lat}°` : '18.38°N'}</strong>
               </span>
             </div>
-            <div className="flex items-center gap-1.5 border-l border-neutral-800 pl-2.5 sm:pl-3">
+            <div className="flex items-center gap-1.5 border-l border-neutral-800 pl-3">
               <span>
                 Lng (E): <strong className="text-white font-mono">{cursorPos ? `${cursorPos.eastLng}°E` : '77.58°E'}</strong>
               </span>
             </div>
             {routeStats && (
-              <div className="hidden sm:flex items-center gap-1.5 border-l border-neutral-800 pl-3">
+              <div className="flex items-center gap-1.5 border-l border-neutral-800 pl-3">
                 <span>
                   Route: <strong className="text-cyan-300 font-mono">{routeStats.distanceKm} km</strong>
                 </span>
@@ -4967,110 +5034,70 @@ export function RealMarsMap() {
         </div>
       </div>
 
-      {/* DEDICATED MOBILE BOTTOM NAVBAR: 100% Desktop Feature Parity on Touch Devices */}
-      <nav className="md:hidden z-30 bg-[#0c101a]/98 backdrop-blur-xl border-t border-neutral-800/80 px-1.5 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-between sm:justify-around overflow-x-auto no-scrollbar scroll-smooth gap-1 shadow-2xl shrink-0">
+      {/* DEDICATED MOBILE BOTTOM NAVBAR: Clean 5-Tab Standard Layout (Uncluttered, Glassmorphic & Ergonomic) */}
+      <nav className="md:hidden z-30 bg-[#070b14]/90 backdrop-blur-2xl border-t border-white/[0.08] px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-1 shadow-2xl shadow-black shrink-0">
+        {/* Tab 1: Explore / Landmarks */}
         <button
           onClick={() => setActiveTab(activeTab === 'sites' ? null : 'sites')}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
+          className={`flex-1 flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer min-h-[48px] active:scale-95 ${
             activeTab === 'sites' ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${activeTab === 'sites' ? 'bg-orange-950/80' : ''}`}>
+          <div className={`p-1.5 rounded-xl transition-all ${activeTab === 'sites' ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/40 shadow-md shadow-orange-950/50' : ''}`}>
             <MapPin className="w-4 h-4" />
           </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Landmarks</span>
+          <span className="text-[10px] mt-1 tracking-tight font-medium">Explore</span>
         </button>
 
+        {/* Tab 2: Missions & Rovers */}
         <button
           onClick={() => setIsMissionExplorerOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
+          className={`flex-1 flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer min-h-[48px] active:scale-95 ${
             isMissionExplorerOpen ? 'text-cyan-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${isMissionExplorerOpen ? 'bg-cyan-950/80' : ''}`}>
+          <div className={`p-1.5 rounded-xl transition-all ${isMissionExplorerOpen ? 'bg-cyan-500/20 text-cyan-400 ring-1 ring-cyan-500/40 shadow-md shadow-cyan-950/50' : ''}`}>
             <Radio className="w-4 h-4" />
           </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Missions</span>
+          <span className="text-[10px] mt-1 tracking-tight font-medium">Missions</span>
         </button>
 
-        <button
-          onClick={() => setIsHumanMissionModeOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
-            isHumanMissionModeOpen ? 'text-blue-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <div className={`p-1 rounded-lg ${isHumanMissionModeOpen ? 'bg-blue-950/80' : ''}`}>
-            <ShieldAlert className="w-4 h-4" />
-          </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Human Base</span>
-        </button>
-
-        <button
-          onClick={() => setIsMeasureToolOpen(!isMeasureToolOpen)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
-            isMeasureToolOpen ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <div className={`p-1 rounded-lg ${isMeasureToolOpen ? 'bg-emerald-950/80' : ''}`}>
-            <Ruler className="w-4 h-4" />
-          </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Measure</span>
-        </button>
-
-        <button
-          onClick={() => {
-            if (isElevationProfileOpen) {
-              setIsElevationProfileOpen(false);
-            } else if (elevationProfile) {
-              setIsElevationProfileOpen(true);
-            } else {
-              setIsDrawingElevationLine(true);
-            }
-          }}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
-            isElevationProfileOpen || isDrawingElevationLine ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-          title="MGS MOLA Elevation Transect"
-        >
-          <div className={`p-1 rounded-lg ${isElevationProfileOpen || isDrawingElevationLine ? 'bg-orange-950/80' : ''}`}>
-            <TrendingUp className="w-4 h-4" />
-          </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Elevation</span>
-        </button>
-
+        {/* Tab 3: Ask AI (Centerpiece) */}
         <button
           onClick={() => setIsAskMarsWayOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
-            isAskMarsWayOpen ? 'text-purple-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
+          className={`flex-1 flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer min-h-[48px] active:scale-95 ${
+            isAskMarsWayOpen ? 'text-purple-300 font-bold' : 'text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <div className={`p-1 rounded-lg ${isAskMarsWayOpen ? 'bg-purple-950/80' : ''}`}>
+          <div className={`p-1.5 rounded-xl transition-all ${isAskMarsWayOpen ? 'bg-purple-600/30 text-purple-300 ring-1 ring-purple-500/50 shadow-md shadow-purple-950/50' : ''}`}>
             <Sparkles className="w-4 h-4" />
           </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Ask AI</span>
+          <span className="text-[10px] mt-1 tracking-tight font-medium">Ask AI</span>
         </button>
 
+        {/* Tab 4: Live Voice (gemini-3.8-live) */}
         <button
           onClick={() => setIsLiveVoiceOpen(true)}
-          className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 ${
-            isLiveVoiceOpen ? 'text-purple-300 font-bold' : 'text-purple-300 hover:text-purple-100'
+          className={`flex-1 flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer min-h-[48px] active:scale-95 ${
+            isLiveVoiceOpen ? 'text-purple-300 font-bold' : 'text-purple-300/80 hover:text-purple-200'
           }`}
           title="Live Voice Comms with gemini-3.8-live"
         >
-          <div className={`p-1 rounded-lg ${isLiveVoiceOpen ? 'bg-purple-900/90' : 'bg-purple-950/60'}`}>
+          <div className={`p-1.5 rounded-xl transition-all ${isLiveVoiceOpen ? 'bg-purple-900/90 ring-1 ring-purple-500/60 shadow-lg shadow-purple-950/60' : 'bg-purple-950/40'}`}>
             <Radio className="w-4 h-4 text-purple-300 animate-pulse" />
           </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight font-semibold">Voice</span>
+          <span className="text-[10px] mt-1 tracking-tight font-semibold">Voice</span>
         </button>
 
+        {/* Tab 5: Tools & Menu (Elevation, Measure, Weather, Layers, Human Base) */}
         <button
           onClick={() => setIsHamburgerOpen(true)}
-          className="flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 active:scale-95 text-neutral-400 hover:text-white"
+          className="flex-1 flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer min-h-[48px] active:scale-95 text-neutral-400 hover:text-white"
         >
-          <div className="p-1 rounded-lg">
+          <div className="p-1.5 rounded-xl">
             <Menu className="w-4 h-4" />
           </div>
-          <span className="text-[9.5px] mt-0.5 tracking-tight">Menu</span>
+          <span className="text-[10px] mt-1 tracking-tight font-medium">Menu</span>
         </button>
       </nav>
 
