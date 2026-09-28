@@ -150,8 +150,14 @@ export const PERSEVERANCE_TRAVERSE_TRACK = [
 ];
 
 export function RealMarsMap() {
-  // Primary View Mode: '3d' (Full 3D Mars Planet in Space with Stars) or '2d' (Flat Mercator Map)
-  const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
+  // Primary View Mode: '2d' (High-Def Surface Map & Rotating Compass) or '3d' (Full 3D Mars Planet in Space with Stars)
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>(() => {
+    try {
+      const saved = localStorage.getItem('marsway_preferred_view');
+      if (saved === '3d' || saved === '2d') return saved;
+    } catch {}
+    return '2d';
+  });
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -349,6 +355,13 @@ export function RealMarsMap() {
     lng: 77.58,
     eastLng: 77.58,
   });
+  const cursorPosRef = useRef<{ lat: number; lng: number; eastLng: number }>({
+    lat: 18.38,
+    lng: 77.58,
+    eastLng: 77.58,
+  });
+  const coordLatDisplayRef = useRef<HTMLElement | null>(null);
+  const coordLngDisplayRef = useRef<HTMLElement | null>(null);
 
   // Current zoom level tracker
   const [currentZoom, setCurrentZoom] = useState<number>(4);
@@ -464,8 +477,12 @@ export function RealMarsMap() {
       attributionControl: false,
       zoomControl: false,
       worldCopyJump: false,
+      preferCanvas: true,
+      wheelPxPerZoomLevel: 100,
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
       inertia: true,
-      inertiaDeceleration: 3200,
+      inertiaDeceleration: 3400,
       inertiaMaxSpeed: Infinity,
       zoomAnimation: true,
       fadeAnimation: true,
@@ -475,6 +492,13 @@ export function RealMarsMap() {
 
     mapInstanceRef.current = map;
     setMapInstance(map);
+
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
 
     // Override mouseEventToContainerPoint so coordinates and clicks are 100% accurate when rotated
     const origMouseEventToContainerPoint = map.mouseEventToContainerPoint.bind(map);
@@ -567,16 +591,39 @@ export function RealMarsMap() {
     elevationLayerRef.current = L.layerGroup().addTo(map);
     dustStormLayerRef.current = L.layerGroup().addTo(map);
 
-    // Mouse / Touch tracker
+    // Mouse / Touch tracker: Updates DOM refs directly without triggering React re-renders, enabling true 120fps smoothness
+    let lastCoordTime = 0;
     const updateCoordinates = (lat: number, rawLng: number) => {
       let lng = rawLng;
       lng = ((((lng + 180) % 360) + 360) % 360) - 180;
       const eastLng = (lng + 360) % 360;
-      setCursorPos({
-        lat: Number(lat.toFixed(4)),
-        lng: Number(lng.toFixed(4)),
-        eastLng: Number(eastLng.toFixed(4)),
-      });
+      const latVal = Number(lat.toFixed(4));
+      const lngVal = Number(lng.toFixed(4));
+      const eastLngVal = Number(eastLng.toFixed(4));
+
+      cursorPosRef.current = {
+        lat: latVal,
+        lng: lngVal,
+        eastLng: eastLngVal,
+      };
+
+      if (coordLatDisplayRef.current) {
+        coordLatDisplayRef.current.textContent = `${Math.abs(latVal).toFixed(2)}°${latVal >= 0 ? 'N' : 'S'}`;
+      }
+      if (coordLngDisplayRef.current) {
+        coordLngDisplayRef.current.textContent = `${eastLngVal.toFixed(2)}°E`;
+      }
+
+      // Sync state sparingly (every 250ms or when stationary) for components that listen to state
+      const now = performance.now();
+      if (now - lastCoordTime > 250) {
+        lastCoordTime = now;
+        setCursorPos({
+          lat: latVal,
+          lng: lngVal,
+          eastLng: eastLngVal,
+        });
+      }
     };
 
     map.on('mousemove', (e: L.LeafletMouseEvent) => {
@@ -647,6 +694,8 @@ export function RealMarsMap() {
         ]);
       } else {
         // Exploration mode: inspect location without adding any route waypoints!
+        setSelectedSite(null);
+        setSelectedRegion(null);
         let nearest: MarsFeature | undefined;
         let minDistMeters = Infinity;
         for (const f of ALL_MARS_FEATURES) {
@@ -1124,7 +1173,7 @@ export function RealMarsMap() {
 
   // Update Basemap Layer
   useEffect(() => {
-    const map = mapInstanceRef.current;
+    const map = mapInstance || mapInstanceRef.current;
     if (!map) return;
 
     map.eachLayer((layer) => {
@@ -1145,6 +1194,11 @@ export function RealMarsMap() {
           attribution: 'NASA Odyssey THEMIS 100m Controlled Mosaic',
           noWrap: false,
           updateWhenIdle: false,
+          updateWhenZooming: true,
+          updateInterval: 100,
+          keepBuffer: 2,
+          tileSize: 256,
+          crossOrigin: 'anonymous',
         }
       );
     } else if (activeLayer === 'viking') {
@@ -1157,6 +1211,11 @@ export function RealMarsMap() {
           attribution: 'NASA Mars Trek / Viking MDIM2.1',
           noWrap: false,
           updateWhenIdle: false,
+          updateWhenZooming: true,
+          updateInterval: 100,
+          keepBuffer: 2,
+          tileSize: 256,
+          crossOrigin: 'anonymous',
         }
       );
     } else if (activeLayer === 'mola') {
@@ -1169,23 +1228,34 @@ export function RealMarsMap() {
           attribution: 'NASA MGS MOLA Elevation',
           noWrap: false,
           updateWhenIdle: false,
+          updateWhenZooming: true,
+          updateInterval: 100,
+          keepBuffer: 2,
+          tileSize: 256,
+          crossOrigin: 'anonymous',
         }
       );
     } else {
-      newTileLayer = L.tileLayer.wms(
-        'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map',
+      newTileLayer = L.tileLayer(
+        'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
         {
-          layers: 'mola_color',
-          format: 'image/jpeg',
-          attribution: 'USGS Astrogeology Mars MOLA',
           minZoom: 1,
+          maxNativeZoom: 7,
           maxZoom: 20,
+          attribution: 'OpenPlanetary / NASA MGS MOLA',
+          noWrap: false,
+          updateWhenIdle: false,
+          updateWhenZooming: true,
+          updateInterval: 100,
+          keepBuffer: 2,
+          tileSize: 256,
+          crossOrigin: 'anonymous',
         }
       );
     }
 
     newTileLayer.addTo(map);
-  }, [activeLayer]);
+  }, [activeLayer, mapInstance]);
 
   // Update Graticule (Lat/Long Grid)
   useEffect(() => {
@@ -1283,6 +1353,8 @@ export function RealMarsMap() {
       polygon.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
         setSelectedRegion(region);
+        setSelectedSite(null);
+        setInspectedPoint(null);
         map.fitBounds(polygon.getBounds(), {
           padding: [50, 50],
           maxZoom: 7,
@@ -1738,14 +1810,15 @@ export function RealMarsMap() {
 
       marker.on('click', () => {
         setSelectedSite(site);
+        setInspectedPoint(null);
+        setSelectedRegion(null);
         setPlaceIdentifierFeature(site);
-        setIsPlaceIdentifierOpen(true);
         mapInstanceRef.current?.flyTo([site.lat, site.lng], Math.max(currentZoom, 5), { duration: 1.0 });
       });
 
       sitesGroup.addLayer(marker);
     });
-  }, [showSites, selectedSite, missionLayerOptions, currentZoom, placeCategoryFilter, mapBoundsKey]);
+  }, [showSites, selectedSite, missionLayerOptions, currentZoom, placeCategoryFilter, mapBoundsKey, mapInstance]);
 
   // Render Rover Historical Traverse Tracks (Perseverance, Curiosity, Opportunity, etc.)
   useEffect(() => {
@@ -1792,7 +1865,7 @@ export function RealMarsMap() {
         roverGroup.addLayer(wpMarker);
       });
     });
-  }, [showRoverTrack, missionLayerOptions]);
+  }, [showRoverTrack, missionLayerOptions, mapInstance]);
 
   // Render User Planned Route & Waypoints
   useEffect(() => {
@@ -1870,7 +1943,7 @@ export function RealMarsMap() {
       distanceKm: Number(km.toFixed(2)),
       estHours: Number(hours.toFixed(1)),
     });
-  }, [routeWaypoints]);
+  }, [routeWaypoints, mapInstance]);
 
   // Fly to site - AUTO-CLOSES MODAL to immediately show the target
   const handleFlyTo = (site: MarsSite | MarsFeature, zoomLevel = 6) => {
@@ -1893,27 +1966,80 @@ export function RealMarsMap() {
   };
 
   // Fly to arbitrary lat/lng coordinates across both 2D Leaflet map & 3D Three.js Globe
-  const handleFlyToLocation = (lat: number, lng: number, zoomLevel = 6, name?: string, elevationM?: number) => {
-    const fullSite: MarsSite = {
-      id: `coord-${lat.toFixed(3)}-${lng.toFixed(3)}`,
-      name: name || 'Martian Surface Target',
-      lat,
-      lng,
-      planetocentricLng: (lng + 360) % 360,
-      elevation: elevationM ?? -2000,
-      elevationM: elevationM ?? -2000,
-      originName: name || 'Martian Surface Coordinates',
-      category: 'Planitia (Plain)',
-      type: 'Planitia (Plain)',
-      significance: name ? `Target: ${name}` : 'Martian surface coordinate',
-      description: `Latitude: ${lat.toFixed(2)}°, Longitude: ${((lng + 360) % 360).toFixed(2)}°E`,
-    };
-    setSelectedSite(fullSite);
+  const handleFlyToLocation = (lat: number, rawLng: number, zoomLevel = 6, name?: string, elevationM?: number) => {
+    // 1. Normalize longitude into standard Leaflet GIS coordinate system [-180, 180]
+    let lng = ((((rawLng + 180) % 360) + 360) % 360) - 180;
+    let finalLat = lat;
+    let finalLng = lng;
+    let finalElevation = elevationM ?? -2000;
+    let finalCategory: MarsFeature['type'] = 'Planitia (Plain)';
+    let finalDesc = `Latitude: ${lat.toFixed(2)}°, Longitude: ${((lng + 360) % 360).toFixed(2)}°E`;
+    let finalName = name || 'Martian Surface Target';
+    let matchedSite: MarsSite | null = null;
+
+    // 2. Canonical feature matching: If an explicit landmark name was specified (from AI, search, or mission),
+    // look up authoritative coordinates from ALL_MARS_FEATURES database to guarantee 100% precision.
+    const GENERIC_LABELS = ['martian surface target', 'requested martian location', 'inspected location', 'point', 'surface target', 'target', 'mars location', 'unknown'];
+    if (name && !GENERIC_LABELS.includes(name.toLowerCase().trim())) {
+      const q = name.toLowerCase().trim();
+      const match = ALL_MARS_FEATURES.find((f) => {
+        const fName = f.name.toLowerCase();
+        if (fName === q || f.id.toLowerCase() === q) return true;
+        const strippedF = fName.replace(/\s*(crater|mons|planitia|basin|vallis|chasma|tholus|patera|terra)/gi, '').trim();
+        const strippedQ = q.replace(/\s*(crater|mons|planitia|basin|vallis|chasma|tholus|patera|terra)/gi, '').trim();
+        if (strippedF && strippedQ && strippedF === strippedQ) return true;
+        if (q.length >= 4 && (fName.startsWith(q + ' ') || fName.endsWith(' ' + q))) return true;
+        return false;
+      });
+      if (match) {
+        finalLat = match.lat;
+        finalLng = match.lng;
+        finalElevation = match.elevationM;
+        finalCategory = match.type;
+        finalDesc = match.description;
+        finalName = match.name;
+        matchedSite = {
+          id: match.id,
+          name: match.name,
+          lat: match.lat,
+          lng: match.lng,
+          planetocentricLng: match.planetocentricLng,
+          elevation: match.elevationM,
+          elevationM: match.elevationM,
+          category: match.type,
+          type: match.type,
+          significance: match.originName || match.description,
+          description: match.description,
+          originName: match.originName,
+        };
+      }
+    }
+
+    if (!matchedSite) {
+      matchedSite = {
+        id: `coord-${finalLat.toFixed(3)}-${finalLng.toFixed(3)}`,
+        name: finalName,
+        lat: finalLat,
+        lng: finalLng,
+        planetocentricLng: (finalLng + 360) % 360,
+        elevation: finalElevation,
+        elevationM: finalElevation,
+        originName: finalName,
+        category: finalCategory,
+        type: finalCategory,
+        significance: finalName ? `Target: ${finalName}` : 'Martian surface coordinate',
+        description: finalDesc,
+      };
+    }
+
+    setSelectedSite(matchedSite);
+    setInspectedPoint(null);
+    setSelectedRegion(null);
 
     const map = mapInstanceRef.current;
     if (map) {
       map.invalidateSize();
-      map.flyTo([lat, lng], zoomLevel, {
+      map.flyTo([finalLat, finalLng], zoomLevel, {
         duration: 1.2,
       });
     }
@@ -2909,9 +3035,25 @@ export function RealMarsMap() {
             />
           </div>
 
-          {/* Arrived Surface Location Notification Banner */}
-          {arrivedSurfaceBanner && (
-            <div className="absolute top-24 sm:top-24 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300 max-w-sm sm:max-w-md w-full px-3">
+          {/* UNIFIED TOP NOTIFICATION & ACTIVE MODE BANNER (Clean, Non-Colliding) */}
+          {isRoutePlanningActive ? (
+            <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-30 pointer-events-auto bg-[#0a1120]/95 backdrop-blur-md border border-cyan-400 text-white px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-2xl flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-top-2 max-w-[92vw]">
+              <div className="relative flex items-center justify-center shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-cyan-400"></div>
+                <div className="absolute w-5 h-5 rounded-full bg-cyan-400/40 animate-ping"></div>
+              </div>
+              <span className="text-[11px] sm:text-xs font-bold text-cyan-200 truncate">
+                Plotting Active ({routeWaypoints.length} WPs)
+              </span>
+              <button
+                onClick={() => setIsRoutePlanningActive(false)}
+                className="px-2.5 sm:px-3 py-1 rounded-full bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer shrink-0"
+              >
+                Finish
+              </button>
+            </div>
+          ) : arrivedSurfaceBanner ? (
+            <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-top-3 duration-300 max-w-sm sm:max-w-md w-full px-3">
               <div className="bg-[#090d16]/95 backdrop-blur-xl border border-emerald-500/80 rounded-2xl px-3.5 py-2.5 shadow-2xl flex items-center justify-between gap-3 text-white">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-xl bg-emerald-950/80 border border-emerald-500/80 flex items-center justify-center shrink-0">
@@ -2954,7 +3096,26 @@ export function RealMarsMap() {
                 </div>
               </div>
             </div>
-          )}
+          ) : currentZoom >= 7 ? (
+            <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0a101f]/95 backdrop-blur-md border border-orange-500/70 text-white px-3 sm:px-4 py-1.5 rounded-full shadow-2xl flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-2 text-xs max-w-[92vw] transition-all duration-300 opacity-100 translate-y-0">
+              <div className="flex items-center gap-1.5 text-orange-400 font-semibold text-[11px] truncate">
+                <Satellite className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                <span className="hidden sm:inline">Orbital basemap max detail (~100m/px)</span>
+                <span className="sm:hidden">Orbital max detail</span>
+              </div>
+              <span className="text-neutral-500 shrink-0">•</span>
+              <button
+                onClick={() => {
+                  setCloseUpSearchTarget(inspectedPoint?.nearestFeature?.name || selectedSite?.name || 'Jezero Crater');
+                  setIsCloseUpModalOpen(true);
+                }}
+                className="px-2.5 py-0.5 rounded-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] sm:text-[11px] flex items-center gap-1 transition-colors cursor-pointer shadow-md shadow-orange-950 shrink-0"
+              >
+                <Camera className="w-3 h-3" />
+                <span>NASA Close-Up</span>
+              </button>
+            </div>
+          ) : null}
 
           {/* MGS MOLA Interactive Line Drawing Instructions Banner */}
           {isDrawingElevationLine && (
@@ -3262,6 +3423,7 @@ export function RealMarsMap() {
             transform: bearing === 0 ? 'none' : `translate(-50%, -50%) rotate(${-bearing}deg)`,
             filter: getFilterStyle(),
             ['--map-bearing' as any]: `${bearing}deg`,
+            willChange: 'transform',
           }}
         >
           {/* Leaflet Map Canvas */}
@@ -3444,7 +3606,7 @@ export function RealMarsMap() {
         </div>
 
         {/* CRISP DARK-THEMED COMPASS WIDGET (Top Right Corner) */}
-        <div className="absolute top-24 sm:top-3 right-2.5 sm:right-3 z-20 pointer-events-auto transition-all duration-300 opacity-100">
+        <div className="absolute top-20 sm:top-3 right-2.5 sm:right-3 z-20 pointer-events-auto transition-all duration-300 opacity-100">
           <MarsCompassWidget
             bearing={bearing}
             onRotate={handleSetBearing}
@@ -3454,32 +3616,16 @@ export function RealMarsMap() {
           />
         </div>
 
-        {/* CRISP DARK-THEMED MARS SCALE BAR (Bottom Left Corner) */}
-        <div className="absolute bottom-20 sm:bottom-4 left-2.5 sm:left-4 z-20 pointer-events-auto transition-all duration-300 opacity-100">
+        {/* CRISP DARK-THEMED MARS SCALE BAR (Bottom Left - shifts gracefully when a card is open) */}
+        <div
+          className={`absolute z-20 pointer-events-auto transition-all duration-300 ${
+            selectedSite || inspectedPoint || selectedRegion
+              ? 'hidden sm:block sm:bottom-4 sm:left-[404px]'
+              : 'bottom-2 left-2 sm:bottom-4 sm:left-4'
+          }`}
+        >
           <MarsScaleBar map={mapInstance} />
         </div>
-
-        {/* High-Zoom Notification & In-Situ Close-Up Quick Action Banner */}
-        {currentZoom >= 7 && (
-          <div className="absolute top-24 sm:top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto bg-[#0a101f]/95 backdrop-blur-md border border-orange-500/70 text-white px-3 sm:px-4 py-1.5 rounded-full shadow-2xl flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-2 text-xs max-w-[92vw] transition-all duration-300 opacity-100 translate-y-0">
-            <div className="flex items-center gap-1.5 text-orange-400 font-semibold text-[11px] truncate">
-              <Satellite className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-              <span className="hidden sm:inline">Orbital basemap max detail (~100m/px)</span>
-              <span className="sm:hidden">Orbital max detail</span>
-            </div>
-            <span className="text-neutral-500 shrink-0">•</span>
-            <button
-              onClick={() => {
-                setCloseUpSearchTarget(inspectedPoint?.nearestFeature?.name || selectedSite?.name || 'Jezero Crater');
-                setIsCloseUpModalOpen(true);
-              }}
-              className="px-2.5 py-0.5 rounded-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] sm:text-[11px] flex items-center gap-1 transition-colors cursor-pointer shadow-md shadow-orange-950 shrink-0"
-            >
-              <Camera className="w-3 h-3" />
-              <span>NASA Close-Up</span>
-            </button>
-          </div>
-        )}
 
         {/* Center Target Reticle for Mobile Precise Waypoint Placement */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 md:hidden opacity-35">
@@ -3488,28 +3634,9 @@ export function RealMarsMap() {
           </div>
         </div>
 
-        {/* FLOATING ROUTE PLANNING ACTIVE BANNER (Clear Visual Feedback) */}
-        {isRoutePlanningActive && (
-          <div className="absolute top-16 sm:top-4 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#0a1120]/95 backdrop-blur-md border border-cyan-400 text-white px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-2xl flex items-center gap-2.5 sm:gap-3 animate-in fade-in slide-in-from-top-2 max-w-[92vw]">
-            <div className="relative flex items-center justify-center shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-cyan-400"></div>
-              <div className="absolute w-5 h-5 rounded-full bg-cyan-400/40 animate-ping"></div>
-            </div>
-            <span className="text-[11px] sm:text-xs font-bold text-cyan-200 truncate">
-              Plotting Active ({routeWaypoints.length} WPs)
-            </span>
-            <button
-              onClick={() => setIsRoutePlanningActive(false)}
-              className="px-2.5 sm:px-3 py-1 rounded-full bg-cyan-500 hover:bg-cyan-400 text-neutral-950 text-[10px] sm:text-[11px] font-bold transition-colors cursor-pointer shrink-0"
-            >
-              Finish
-            </button>
-          </div>
-        )}
-
         {/* FLOATING SELECTED SITE CARD (Mobile & Desktop Place Card) */}
         {selectedSite && !inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#070b14]/90 backdrop-blur-2xl border border-white/10 p-3.5 sm:p-4 rounded-3xl shadow-2xl shadow-black/90 max-w-sm w-[94%] sm:w-88 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[52vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
+          <div className="absolute bottom-2 left-2 right-2 sm:bottom-6 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-25 pointer-events-auto bg-[#070b14]/95 backdrop-blur-2xl border border-white/15 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/90 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto transition-all">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -3657,7 +3784,7 @@ export function RealMarsMap() {
 
         {/* INSPECTED POINT CARD (Exploration Mode - Does NOT create routes) */}
         {inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-25 pointer-events-auto bg-[#070b14]/90 backdrop-blur-2xl border border-white/10 p-3.5 sm:p-4 rounded-3xl shadow-2xl shadow-black/90 max-w-sm w-[94%] sm:w-84 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[52vh] sm:max-h-[75vh] overflow-y-auto transition-all opacity-100 translate-y-0">
+          <div className="absolute bottom-2 left-2 right-2 sm:bottom-6 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-25 pointer-events-auto bg-[#070b14]/95 backdrop-blur-2xl border border-white/15 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/90 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto transition-all">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2 text-orange-400 font-semibold">
                 <Crosshair className="w-4 h-4 text-orange-400" />
@@ -3866,7 +3993,7 @@ export function RealMarsMap() {
 
         {/* GOOGLE MAPS FLOATING PLACE / AREA DOSSIER CARD */}
         {selectedRegion && !activeTab && (
-          <div className="absolute bottom-12 left-3 right-3 sm:right-auto sm:w-[380px] max-h-[75vh] bg-[#0c101a]/96 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl shadow-2xl shadow-black/90 p-3.5 z-25 flex flex-col gap-2.5 animate-in slide-in-from-bottom-4 duration-200">
+          <div className="absolute bottom-2 left-2 right-2 sm:bottom-6 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] max-h-[46vh] sm:max-h-[72vh] bg-[#0c101a]/95 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/90 p-3.5 z-25 flex flex-col gap-2.5 animate-in slide-in-from-bottom-4 duration-200 overflow-y-auto">
             {/* Header with Google Red Area Outline Tag & Close Button */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -3989,14 +4116,14 @@ export function RealMarsMap() {
         {/* BEAUTIFUL MODAL BACKDROP OVERLAY */}
         {activeTab && (
           <div
-            className="fixed inset-0 bg-black/65 backdrop-blur-sm z-30 transition-opacity animate-in fade-in"
+            className="fixed inset-0 bg-black/65 backdrop-blur-sm z-40 transition-opacity animate-in fade-in"
             onClick={() => setActiveTab(null)}
           />
         )}
 
         {/* BEAUTIFULLY STYLED MODAL (With Auto-Close on Actions) */}
         {activeTab && (
-          <div className="fixed z-35 inset-x-2 bottom-16 top-14 sm:inset-auto sm:top-14 sm:right-6 sm:w-[420px] sm:max-h-[calc(100vh-5rem)] bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700/80 rounded-2xl shadow-2xl shadow-black/90 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="fixed z-45 inset-x-2 bottom-20 top-14 sm:inset-auto sm:top-14 sm:right-6 sm:w-[420px] sm:max-h-[calc(100vh-5rem)] bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700/80 rounded-2xl shadow-2xl shadow-black/90 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Top Accent Line */}
             <div
               className={`h-1 w-full ${
@@ -5009,17 +5136,17 @@ export function RealMarsMap() {
         )}
 
         {/* Live Coordinate Status Bar (Bottom Center - Tablet & Desktop only to keep mobile 100% clean) */}
-        {!inspectedPoint && !selectedSite && !isRoutePlanningActive && (
+        {!inspectedPoint && !selectedSite && !selectedRegion && !isRoutePlanningActive && (
           <div className="hidden md:flex absolute bottom-3 left-1/2 -translate-x-1/2 z-20 bg-[#0c101a]/90 backdrop-blur-md border border-neutral-800/80 px-4 py-1.5 rounded-full text-xs text-neutral-300 shadow-xl items-center gap-4 pointer-events-auto whitespace-nowrap transition-all duration-300 opacity-100 translate-y-0">
             <div className="flex items-center gap-1.5">
               <Crosshair className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <span>
-                Lat: <strong className="text-white font-mono">{cursorPos ? `${cursorPos.lat}°` : '18.38°N'}</strong>
+                Lat: <strong ref={coordLatDisplayRef} className="text-white font-mono">{cursorPos ? `${cursorPos.lat}°` : '18.38°N'}</strong>
               </span>
             </div>
             <div className="flex items-center gap-1.5 border-l border-neutral-800 pl-3">
               <span>
-                Lng (E): <strong className="text-white font-mono">{cursorPos ? `${cursorPos.eastLng}°E` : '77.58°E'}</strong>
+                Lng (E): <strong ref={coordLngDisplayRef} className="text-white font-mono">{cursorPos ? `${cursorPos.eastLng}°E` : '77.58°E'}</strong>
               </span>
             </div>
             {routeStats && (
@@ -5362,7 +5489,7 @@ export function RealMarsMap() {
 
       {/* HISTORICAL NASA/ESA MISSIONS & ROVER TRAVERSES LAYER CONTROL PANEL */}
       {isMissionLayersPanelOpen && (
-        <div className="absolute top-14 sm:top-14 left-2 sm:left-14 z-30 pointer-events-auto max-w-[96vw] sm:max-w-xs animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed sm:absolute top-16 sm:top-4 inset-x-2 sm:inset-x-auto sm:left-18 z-40 pointer-events-auto max-w-[96vw] sm:max-w-xs max-h-[calc(100vh-5rem)] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
           <MarsLayerControlPanel
             isOpen={isMissionLayersPanelOpen}
             onClose={() => setIsMissionLayersPanelOpen(false)}
@@ -5452,7 +5579,7 @@ export function RealMarsMap() {
 
       {/* REAL-TIME DUST STORM & ATMOSPHERIC OPACITY SIMULATION CONTROL PANEL */}
       {isDustStormPanelOpen && (
-        <div className="absolute top-14 sm:top-14 right-2 sm:right-14 z-30 pointer-events-auto max-w-[96vw] sm:max-w-md max-h-[calc(100vh-120px)] animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed sm:absolute top-16 sm:top-16 inset-x-2 sm:inset-x-auto sm:right-24 z-40 pointer-events-auto max-w-[96vw] sm:max-w-md max-h-[calc(100vh-120px)] animate-in fade-in zoom-in-95 duration-200">
           <MarsDustStormLayerControl
             isOpen={isDustStormPanelOpen}
             onClose={() => setIsDustStormPanelOpen(false)}
@@ -5481,7 +5608,7 @@ export function RealMarsMap() {
 
       {/* Floating HUD Indicator when Dust Storm Overlay is Active but Panel is Closed */}
       {showDustStormOverlay && !isDustStormPanelOpen && (
-        <div className="absolute top-14 right-2 sm:right-4 z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute top-36 sm:top-28 right-2.5 sm:right-3 z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
           <button
             type="button"
             onClick={() => setIsDustStormPanelOpen(true)}

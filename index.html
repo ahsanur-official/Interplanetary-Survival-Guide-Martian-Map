@@ -13,26 +13,41 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-      // Polyfill/safety shim: Ensure window.fetch has a setter so scripts assigning to fetch do not throw
+      // Polyfill/safety shim: Ensure window.fetch has both getter and setter bound to window
       (function() {
         try {
-          var _origFetch = window.fetch;
-          var _currentFetch = _origFetch;
-          try {
-            Object.defineProperty(window, 'fetch', {
-              get: function() { return _currentFetch; },
-              set: function(val) { _currentFetch = val; },
-              configurable: true,
-              enumerable: true
-            });
-          } catch (e1) {
-            if (typeof Window !== 'undefined' && Window.prototype) {
-              Object.defineProperty(Window.prototype, 'fetch', {
-                get: function() { return _currentFetch; },
-                set: function(val) { _currentFetch = val; },
-                configurable: true,
-                enumerable: true
-              });
+          if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+            var _origFetch = window.fetch;
+            var _currentFetch = _origFetch.bind(window);
+            var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+            if (!desc || !desc.set) {
+              try {
+                Object.defineProperty(window, 'fetch', {
+                  get: function() {
+                    return typeof _currentFetch === 'function' ? _currentFetch.bind(window) : _currentFetch;
+                  },
+                  set: function(val) {
+                    _currentFetch = typeof val === 'function' ? val.bind(window) : val;
+                  },
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e1) {
+                if (typeof Window !== 'undefined' && Window.prototype) {
+                  try {
+                    Object.defineProperty(Window.prototype, 'fetch', {
+                      get: function() {
+                        return typeof _currentFetch === 'function' ? _currentFetch.bind(window) : _currentFetch;
+                      },
+                      set: function(val) {
+                        _currentFetch = typeof val === 'function' ? val.bind(window) : val;
+                      },
+                      configurable: true,
+                      enumerable: true
+                    });
+                  } catch (e2) {}
+                }
+              }
             }
           }
         } catch (err) {

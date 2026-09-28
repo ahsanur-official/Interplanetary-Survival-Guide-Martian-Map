@@ -95,52 +95,67 @@ export function AskMarsWayModal({
   const generateLocalResponse = (query: string): ChatMessage => {
     const q = query.toLowerCase();
 
-    // 1. Olympus Mons
-    if (q.includes('olympus')) {
+    // 1. Olympus Mons (English & Bengali)
+    if (q.includes('olympus') || q.includes('অলিম্পাস') || q.includes('আগ্নেয়গিরি')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'Olympus Mons is the largest shield volcano in the Solar System, towering 21,229 meters above the Mars zero-elevation datum with a basal diameter of approximately 600 kilometers. Its caldera measures 80 km across.',
+        text: 'Olympus Mons (অলিম্পাস মনস) is the largest shield volcano in the Solar System, towering 21,229 meters above the Mars zero-elevation datum with a basal diameter of approximately 600 kilometers. Coordinates: 18.65°N, 133.8°W.',
         action: {
           type: 'fly_to',
           label: 'Fly to Olympus Mons',
-          payload: { lat: 18.65, lng: 226.2, zoom: 5, name: 'Olympus Mons Caldera' },
+          payload: { lat: 18.65, lng: -133.8, zoom: 5, name: 'Olympus Mons', elevationM: 21229 },
         },
         sources: ['MGS MOLA Laser Altimetry', 'USGS Astrogeology'],
       };
     }
 
-    // 2. Perseverance / Jezero
-    if (q.includes('perseverance') || q.includes('jezero') || q.includes('ingenuity')) {
+    // 2. Valles Marineris Grand Canyon (English & Bengali)
+    if (q.includes('valles') || q.includes('canyon') || q.includes('marineris') || q.includes('মেরিনারিস') || q.includes('ক্যানিয়ন')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'NASA Mars 2020 Perseverance and Ingenuity landed at Jezero Crater (18.38°N, 77.58°E) on February 18, 2021. The site features an ancient river delta that once emptied into a crater lake during the Noachian era ~3.7 billion years ago.',
+        text: 'Valles Marineris (ভ্যালিস মেরিনারিস) is the grand canyon of Mars, stretching over 4,000 kilometers along the Martian equator and plunging 7-10 km deep into the crust. Coordinates: 13.9°S, 59.2°W.',
+        action: {
+          type: 'fly_to',
+          label: 'Fly to Valles Marineris',
+          payload: { lat: -13.9, lng: -59.2, zoom: 5, name: 'Valles Marineris', elevationM: -7000 },
+        },
+        sources: ['MGS MOLA Laser Altimetry', 'Viking Orbiter / NASA'],
+      };
+    }
+
+    // 3. Perseverance / Jezero (English & Bengali)
+    if (q.includes('perseverance') || q.includes('jezero') || q.includes('ingenuity') || q.includes('জেজেরো') || q.includes('পারসিভিয়ারেন্স')) {
+      return {
+        id: Date.now().toString(),
+        role: 'assistant',
+        text: 'NASA Mars 2020 Perseverance and Ingenuity landed at Jezero Crater (জেজেরো ক্রেটার: 18.38°N, 77.58°E) on February 18, 2021, exploring an ancient river delta that fed into a crater paleolake.',
         action: {
           type: 'select_mission',
           label: 'Open Perseverance Mission & Traverse',
-          payload: { missionId: 'perseverance', lat: 18.38, lng: 77.58 },
+          payload: { missionId: 'perseverance', lat: 18.38, lng: 77.58, name: 'Perseverance Rover & Ingenuity Helicopter' },
         },
         sources: ['NASA Mars 2020 Mission Science Team', 'HiRISE / MRO'],
       };
     }
 
-    // 3. Curiosity / Gale
-    if (q.includes('curiosity') || q.includes('gale') || q.includes('sharp')) {
+    // 4. Curiosity / Gale (English & Bengali)
+    if (q.includes('curiosity') || q.includes('gale') || q.includes('sharp') || q.includes('গেল') || q.includes('কিউরিওসিটি')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'Curiosity landed at Gale Crater (-4.59°S, 137.44°E) on August 6, 2012. It has climbed over 400 vertical meters up Mount Sharp (Aeolis Mons), discovering ancient fresh-water lakebeds with neutral pH and preserved organic molecules.',
+        text: 'Curiosity rover landed at Gale Crater (গেল ক্রেটার: 4.59°S, 137.44°E) on August 6, 2012, exploring the 5.5 km high sedimentary layers of Mount Sharp (Aeolis Mons).',
         action: {
           type: 'select_mission',
           label: 'Open Curiosity Mission & Traverse',
-          payload: { missionId: 'curiosity', lat: -4.59, lng: 137.44 },
+          payload: { missionId: 'curiosity', lat: -4.59, lng: 137.44, name: 'Curiosity Rover (Bradbury Landing)' },
         },
         sources: ['NASA MSL Science Team / PDS Geosciences'],
       };
     }
 
-    // 4. Compare Jezero and Gale
+    // 5. Compare Jezero and Gale
     if (q.includes('compare')) {
       return {
         id: Date.now().toString(),
@@ -155,18 +170,48 @@ export function AskMarsWayModal({
       };
     }
 
-    // 5. Human Mission / Landing Sites
+    // 6. Human Mission / Landing Sites / Arcadia Planitia
     if (q.includes('human') || q.includes('landing zone') || q.includes('crew') || q.includes('base') || q.includes('arcadia')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'For human missions, NASA HLS2 identifies Arcadia Planitia (39.2°N, 189.7°E) as a leading candidate due to shallow subsurface water-ice (<1m depth) detected by SHARAD radar, smooth landing plains, and low elevation (-4,100m) for atmospheric braking.',
+        text: 'For human missions, NASA HLS2 identifies Arcadia Planitia (39.2°N, -170.3°W) as a leading candidate due to shallow subsurface water-ice (<1m depth) detected by SHARAD radar, smooth landing plains, and low elevation (-4,100m) for atmospheric braking.',
         action: {
           type: 'human_mode',
           label: 'Activate Human Mission Mode',
           payload: {},
         },
         sources: ['NASA HLS2 Study', 'MRO SHARAD / SWIM Project'],
+      };
+    }
+
+    // 7. Hellas Planitia
+    if (q.includes('hellas')) {
+      return {
+        id: Date.now().toString(),
+        role: 'assistant',
+        text: 'Hellas Planitia is the deepest impact basin on Mars and one of the largest craters in the Solar System, plunging down to 8,200 meters below the datum with an atmospheric pressure high enough (11.5 mbar) for liquid water to briefly exist.',
+        action: {
+          type: 'fly_to',
+          label: 'Fly to Hellas Basin',
+          payload: { lat: -42.7, lng: 70.0, zoom: 4, name: 'Hellas Planitia' },
+        },
+        sources: ['MGS MOLA Science Team'],
+      };
+    }
+
+    // 8. Elysium Mons
+    if (q.includes('elysium')) {
+      return {
+        id: Date.now().toString(),
+        role: 'assistant',
+        text: 'Elysium Mons is a massive shield volcano standing 14,100 meters above the datum in Elysium Planitia (25.02°N, 147.21°E), flanked by Hecates Tholus and Albor Tholus.',
+        action: {
+          type: 'fly_to',
+          label: 'Fly to Elysium Mons',
+          payload: { lat: 25.02, lng: 147.21, zoom: 5, name: 'Elysium Mons' },
+        },
+        sources: ['MGS MOLA Science Team'],
       };
     }
 
@@ -271,18 +316,54 @@ export function AskMarsWayModal({
 
   const handleExecuteAction = (action: NonNullable<ChatMessage['action']>) => {
     if (action.type === 'fly_to') {
-      marsSonification.sonifyLocation(action.payload.elevationM || 0, 2);
-      onFlyToLocation(
-        action.payload.lat,
-        action.payload.lng,
-        action.payload.zoom || 6,
-        action.payload.name
-      );
+      let lat = action.payload.lat;
+      let rawLng = action.payload.lng;
+      let name = action.payload.name || '';
+      let zoom = action.payload.zoom || 6;
+      let elevationM = action.payload.elevationM || 0;
+
+      // 1. Resolve canonical feature from authoritative ALL_MARS_FEATURES database with strict precision
+      const cleanName = name.toLowerCase().trim();
+      const STOPWORDS = ['crater', 'mountain', 'volcano', 'mons', 'plain', 'planitia', 'canyon', 'valley', 'vallis', 'target', 'location', 'point', 'martian', 'mars', 'surface', 'landing', 'site'];
+
+      const canonicalMatch = ALL_MARS_FEATURES.find((f) => {
+        if (action.payload.featureId && f.id === action.payload.featureId) return true;
+        const fName = f.name.toLowerCase();
+        if (fName === cleanName || f.id.toLowerCase() === cleanName) return true;
+        // Exact match stripped of suffix
+        const strippedF = fName.replace(/\s*(crater|mons|planitia|basin|vallis|chasma|tholus|patera|terra)/gi, '').trim();
+        const strippedName = cleanName.replace(/\s*(crater|mons|planitia|basin|vallis|chasma|tholus|patera|terra)/gi, '').trim();
+        if (strippedF && strippedName && strippedF === strippedName) return true;
+        // Match word if long enough and not a generic geographic stopword
+        if (cleanName.length >= 4 && !STOPWORDS.includes(cleanName) && (fName.startsWith(cleanName + ' ') || fName.endsWith(' ' + cleanName))) return true;
+        return false;
+      });
+
+      if (canonicalMatch) {
+        lat = canonicalMatch.lat;
+        rawLng = canonicalMatch.lng;
+        name = canonicalMatch.name;
+        elevationM = canonicalMatch.elevationM;
+      }
+
+      // 2. Normalize longitude to standard GIS format [-180, 180]
+      const cleanLng = ((((rawLng + 180) % 360) + 360) % 360) - 180;
+
+      marsSonification.sonifyLocation(elevationM || 0, 2);
+      onFlyToLocation(lat, cleanLng, zoom, name);
       onClose();
     } else if (action.type === 'select_mission') {
-      onOpenMissions?.(action.payload.missionId);
-      if (action.payload.lat !== undefined && action.payload.lng !== undefined) {
-        onFlyToLocation(action.payload.lat, action.payload.lng, 7, action.payload.name);
+      const mission = MARS_MISSIONS_DATA.find(
+        (m) =>
+          m.id === action.payload.missionId ||
+          (action.payload.name && m.name.toLowerCase().includes(action.payload.name.toLowerCase()))
+      );
+      let lat = mission?.lat ?? action.payload.lat;
+      let rawLng = mission?.lng ?? action.payload.lng;
+      onOpenMissions?.(action.payload.missionId || mission?.id);
+      if (lat !== undefined && rawLng !== undefined) {
+        const cleanLng = ((((rawLng + 180) % 360) + 360) % 360) - 180;
+        onFlyToLocation(lat, cleanLng, 7, mission?.name || action.payload.name);
       }
       onClose();
     } else if (action.type === 'compare') {

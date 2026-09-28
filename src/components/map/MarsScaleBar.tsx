@@ -75,16 +75,35 @@ export const MarsScaleBar: React.FC<MarsScaleBarProps> = ({ map }) => {
       });
     };
 
+    let rafId: number | null = null;
+    let lastLat = -999;
+    let lastZoom = -999;
+
+    const throttledUpdate = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (!map) return;
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        if (Math.abs(center.lat - lastLat) < 0.1 && zoom === lastZoom) return;
+        lastLat = center.lat;
+        lastZoom = zoom;
+        updateScale();
+      });
+    };
+
     updateScale();
 
-    map.on('zoom', updateScale);
-    map.on('move', updateScale);
+    map.on('zoom', throttledUpdate);
+    map.on('move', throttledUpdate);
     map.on('zoomend', updateScale);
     map.on('moveend', updateScale);
 
     return () => {
-      map.off('zoom', updateScale);
-      map.off('move', updateScale);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      map.off('zoom', throttledUpdate);
+      map.off('move', throttledUpdate);
       map.off('zoomend', updateScale);
       map.off('moveend', updateScale);
     };

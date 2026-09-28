@@ -21,6 +21,90 @@ function getAIClient(): GoogleGenAI | null {
   return aiClient;
 }
 
+// Authoritative Gazetteer of Certified Martian Coordinates (NASA PDS / MGS MOLA / USGS Astrogeology)
+// Longitudes in standard GIS format [-180, 180]
+const CANONICAL_MARS_LOCATIONS: Record<string, { lat: number; lng: number; zoom: number; elevationM: number; name: string }> = {
+  'olympus mons': { lat: 18.65, lng: -133.8, zoom: 5, elevationM: 21229, name: 'Olympus Mons' },
+  'olympus': { lat: 18.65, lng: -133.8, zoom: 5, elevationM: 21229, name: 'Olympus Mons' },
+  'অলিম্পাস': { lat: 18.65, lng: -133.8, zoom: 5, elevationM: 21229, name: 'Olympus Mons' },
+  'অলিম্পাস মনস': { lat: 18.65, lng: -133.8, zoom: 5, elevationM: 21229, name: 'Olympus Mons' },
+  'jezero crater': { lat: 18.38, lng: 77.58, zoom: 7, elevationM: -2560, name: 'Jezero Crater' },
+  'jezero': { lat: 18.38, lng: 77.58, zoom: 7, elevationM: -2560, name: 'Jezero Crater' },
+  'জেজেরো': { lat: 18.38, lng: 77.58, zoom: 7, elevationM: -2560, name: 'Jezero Crater' },
+  'জেজেরো ক্রেটার': { lat: 18.38, lng: 77.58, zoom: 7, elevationM: -2560, name: 'Jezero Crater' },
+  'perseverance': { lat: 18.38, lng: 77.58, zoom: 7, elevationM: -2560, name: 'Perseverance Rover (Jezero Crater)' },
+  'ingenuity': { lat: 18.38, lng: 77.58, zoom: 7, elevationM: -2560, name: 'Ingenuity Helicopter (Jezero Crater)' },
+  'gale crater': { lat: -4.59, lng: 137.44, zoom: 7, elevationM: -4450, name: 'Gale Crater (Mount Sharp)' },
+  'gale': { lat: -4.59, lng: 137.44, zoom: 7, elevationM: -4450, name: 'Gale Crater (Mount Sharp)' },
+  'গেল': { lat: -4.59, lng: 137.44, zoom: 7, elevationM: -4450, name: 'Gale Crater (Mount Sharp)' },
+  'গেল ক্রেটার': { lat: -4.59, lng: 137.44, zoom: 7, elevationM: -4450, name: 'Gale Crater (Mount Sharp)' },
+  'curiosity': { lat: -4.59, lng: 137.44, zoom: 7, elevationM: -4450, name: 'Curiosity Rover (Gale Crater)' },
+  'mount sharp': { lat: -5.08, lng: 137.85, zoom: 6, elevationM: 5500, name: 'Mount Sharp (Aeolis Mons)' },
+  'aeolis mons': { lat: -5.08, lng: 137.85, zoom: 6, elevationM: 5500, name: 'Mount Sharp (Aeolis Mons)' },
+  'valles marineris': { lat: -13.9, lng: -59.2, zoom: 5, elevationM: -7000, name: 'Valles Marineris' },
+  'marineris': { lat: -13.9, lng: -59.2, zoom: 5, elevationM: -7000, name: 'Valles Marineris' },
+  'ভ্যালিস মেরিনারিস': { lat: -13.9, lng: -59.2, zoom: 5, elevationM: -7000, name: 'Valles Marineris' },
+  'grand canyon': { lat: -13.9, lng: -59.2, zoom: 5, elevationM: -7000, name: 'Valles Marineris' },
+  'elysium mons': { lat: 25.02, lng: 147.21, zoom: 5, elevationM: 14100, name: 'Elysium Mons' },
+  'elysium': { lat: 25.02, lng: 147.21, zoom: 5, elevationM: 14100, name: 'Elysium Mons' },
+  'arsia mons': { lat: -8.4, lng: -121.1, zoom: 5, elevationM: 17761, name: 'Arsia Mons' },
+  'pavonis mons': { lat: 0.8, lng: -113.4, zoom: 5, elevationM: 14058, name: 'Pavonis Mons' },
+  'ascraeus mons': { lat: 11.9, lng: -104.5, zoom: 5, elevationM: 18225, name: 'Ascraeus Mons' },
+  'hellas planitia': { lat: -42.7, lng: 70.0, zoom: 4, elevationM: -8200, name: 'Hellas Planitia' },
+  'hellas': { lat: -42.7, lng: 70.0, zoom: 4, elevationM: -8200, name: 'Hellas Planitia' },
+  'utopia planitia': { lat: 25.066, lng: 109.925, zoom: 6, elevationM: -4000, name: 'Utopia Planitia' },
+  'utopia': { lat: 25.066, lng: 109.925, zoom: 6, elevationM: -4000, name: 'Utopia Planitia' },
+  'zhurong': { lat: 25.066, lng: 109.925, zoom: 7, elevationM: -4000, name: 'Zhurong Rover (Utopia Planitia)' },
+  'meridiani planum': { lat: -1.95, lng: -5.53, zoom: 7, elevationM: -1440, name: 'Meridiani Planum' },
+  'meridiani': { lat: -1.95, lng: -5.53, zoom: 7, elevationM: -1440, name: 'Meridiani Planum' },
+  'opportunity': { lat: -1.95, lng: -5.53, zoom: 7, elevationM: -1440, name: 'Opportunity Rover (Meridiani Planum)' },
+  'gusev crater': { lat: -14.57, lng: 175.47, zoom: 7, elevationM: -1930, name: 'Gusev Crater' },
+  'gusev': { lat: -14.57, lng: 175.47, zoom: 7, elevationM: -1930, name: 'Gusev Crater' },
+  'spirit': { lat: -14.57, lng: 175.47, zoom: 7, elevationM: -1930, name: 'Spirit Rover (Gusev Crater)' },
+  'chryse planitia': { lat: 22.48, lng: -47.97, zoom: 6, elevationM: -3627, name: 'Chryse Planitia' },
+  'viking 1': { lat: 22.48, lng: -47.97, zoom: 7, elevationM: -3627, name: 'Viking 1 Lander (Chryse Planitia)' },
+  'viking 2': { lat: 48.27, lng: 134.0, zoom: 7, elevationM: -4100, name: 'Viking 2 Lander (Utopia Planitia)' },
+  'pathfinder': { lat: 19.33, lng: -33.55, zoom: 7, elevationM: -3650, name: 'Mars Pathfinder & Sojourner' },
+  'sojourner': { lat: 19.33, lng: -33.55, zoom: 7, elevationM: -3650, name: 'Mars Pathfinder & Sojourner' },
+  'phoenix': { lat: 68.22, lng: -125.7, zoom: 7, elevationM: -4150, name: 'Phoenix Lander (Green Valley)' },
+  'insight': { lat: 4.502, lng: 135.623, zoom: 7, elevationM: -2600, name: 'InSight Lander (Elysium Planitia)' },
+  'arcadia planitia': { lat: 39.2, lng: -170.3, zoom: 5, elevationM: -4100, name: 'Arcadia Planitia' },
+  'arcadia': { lat: 39.2, lng: -170.3, zoom: 5, elevationM: -4100, name: 'Arcadia Planitia' },
+  'cydonia': { lat: 40.74, lng: -9.46, zoom: 6, elevationM: -1200, name: 'Cydonia Mensae (Face on Mars)' },
+  'cydonia mensae': { lat: 40.74, lng: -9.46, zoom: 6, elevationM: -1200, name: 'Cydonia Mensae' },
+  'korolev': { lat: 73.0, lng: 165.0, zoom: 5, elevationM: -1800, name: 'Korolev Crater (Water Ice)' },
+  'korolev crater': { lat: 73.0, lng: 165.0, zoom: 5, elevationM: -1800, name: 'Korolev Crater' },
+  'planum boreum': { lat: 85.0, lng: 0.0, zoom: 4, elevationM: -2000, name: 'Planum Boreum (North Polar Ice Cap)' },
+  'north pole': { lat: 85.0, lng: 0.0, zoom: 4, elevationM: -2000, name: 'Planum Boreum (North Polar Ice Cap)' },
+  'উত্তর মেরু': { lat: 85.0, lng: 0.0, zoom: 4, elevationM: -2000, name: 'Planum Boreum (North Polar Ice Cap)' },
+  'planum australe': { lat: -85.0, lng: 0.0, zoom: 4, elevationM: 1000, name: 'Planum Australe (South Polar Ice Cap)' },
+  'south pole': { lat: -85.0, lng: 0.0, zoom: 4, elevationM: 1000, name: 'Planum Australe (South Polar Ice Cap)' },
+  'দক্ষিণ মেরু': { lat: -85.0, lng: 0.0, zoom: 4, elevationM: 1000, name: 'Planum Australe (South Polar Ice Cap)' },
+  'alba mons': { lat: 40.5, lng: -109.9, zoom: 5, elevationM: 6770, name: 'Alba Mons' },
+  'noctis labyrinthus': { lat: -7.0, lng: -101.2, zoom: 5, elevationM: 2000, name: 'Noctis Labyrinthus' },
+  'kasei valles': { lat: 24.6, lng: -65.0, zoom: 5, elevationM: -3000, name: 'Kasei Valles' },
+  'syrtis major': { lat: 8.4, lng: 69.5, zoom: 5, elevationM: 1000, name: 'Syrtis Major Planum' },
+  'isidis planitia': { lat: 12.9, lng: 87.0, zoom: 5, elevationM: -3800, name: 'Isidis Planitia' },
+  'schiaparelli': { lat: -2.7, lng: 16.7, zoom: 6, elevationM: -1500, name: 'Schiaparelli Crater' },
+  'mawrth vallis': { lat: 23.99, lng: -18.96, zoom: 6, elevationM: -2240, name: 'Mawrth Vallis' },
+  'oxia planum': { lat: 18.2, lng: -24.3, zoom: 6, elevationM: -3000, name: 'Oxia Planum' },
+  'beagle 2': { lat: 11.53, lng: 90.43, zoom: 7, elevationM: -3800, name: 'Beagle 2 (Isidis Planitia)' },
+};
+
+function resolveCanonicalMarsLocation(queryOrName: string) {
+  if (!queryOrName) return null;
+  const q = queryOrName.toLowerCase().trim();
+  if (CANONICAL_MARS_LOCATIONS[q]) {
+    return CANONICAL_MARS_LOCATIONS[q];
+  }
+  for (const [key, loc] of Object.entries(CANONICAL_MARS_LOCATIONS)) {
+    if (key.length >= 4 && (q.includes(key) || key.includes(q))) {
+      return loc;
+    }
+  }
+  return null;
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -48,11 +132,22 @@ async function startServer() {
 
       const client = getAIClient();
       if (!client) {
-        // Graceful response if API key is not yet configured
+        const canonical = resolveCanonicalMarsLocation(query);
         res.json({
           source: 'local-knowledge',
-          answer: `[AI Studio Gemini key not configured in environment; utilizing MarsWay built-in spatial planetary intelligence dataset]. For: "${query}", explore the interactive map, mission layers, and location telemetry.`,
-          action: null,
+          answer: canonical
+            ? `MarsWay built-in spatial planetary dataset located: ${canonical.name} at coordinates (${canonical.lat.toFixed(2)}°, ${canonical.lng.toFixed(2)}°), elevation ${canonical.elevationM}m.`
+            : `[AI Studio Gemini key not configured in environment; utilizing MarsWay built-in spatial planetary intelligence dataset]. For: "${query}", explore the interactive map, mission layers, and location telemetry.`,
+          action: canonical
+            ? {
+                type: 'fly_to',
+                lat: canonical.lat,
+                lng: canonical.lng,
+                zoom: canonical.zoom,
+                name: canonical.name,
+                elevationM: canonical.elevationM,
+              }
+            : null,
         });
         return;
       }
@@ -63,16 +158,36 @@ Your role is to assist scientists, students, and space explorers with scientific
 CRITICAL RULES:
 1. NEVER fabricate scientific data, temperatures, or coordinates. Reference authoritative datasets (NASA Planetary Data System, MGS MOLA, Odyssey THEMIS, MRO HiRISE/SHARAD/CRISM, MSL REMS, Mars 2020 MEDA).
 2. Clearly distinguish between Observed Data, Derived Models, and Hypothetical Human Mission Planning.
-3. If the user's query asks to see, locate, fly to, or examine a specific crater, volcano, rover, landing site, or feature, produce a JSON object with:
+3. CRITICAL LONGITUDE SPECIFICATION: All longitudes MUST be in standard GIS format between -180 and +180 degrees.
+   Authoritative Reference Locations:
+   - Olympus Mons: lat: 18.65, lng: -133.8, zoom: 5
+   - Jezero Crater (Perseverance / Ingenuity): lat: 18.38, lng: 77.58, zoom: 7
+   - Gale Crater (Curiosity): lat: -4.59, lng: 137.44, zoom: 7
+   - Valles Marineris (Grand Canyon): lat: -13.9, lng: -59.2, zoom: 5
+   - Elysium Mons: lat: 25.02, lng: 147.21, zoom: 5
+   - Arsia Mons: lat: -8.4, lng: -121.1, zoom: 5
+   - Pavonis Mons: lat: 0.8, lng: -113.4, zoom: 5
+   - Ascraeus Mons: lat: 11.9, lng: -104.5, zoom: 5
+   - Hellas Planitia (Basin): lat: -42.7, lng: 70.0, zoom: 4
+   - Utopia Planitia (Zhurong Rover): lat: 25.066, lng: 109.925, zoom: 6
+   - Meridiani Planum (Opportunity): lat: -1.95, lng: -5.53, zoom: 7
+   - Gusev Crater (Spirit): lat: -14.57, lng: 175.47, zoom: 7
+   - Chryse Planitia (Viking 1): lat: 22.48, lng: -47.97, zoom: 6
+   - Arcadia Planitia (Human Landing Candidate): lat: 39.2, lng: -170.3, zoom: 5
+   - Cydonia Mensae: lat: 40.74, lng: -9.46, zoom: 6
+   - Korolev Crater: lat: 73.0, lng: 165.0, zoom: 5
+   - Planum Boreum (North Polar Cap): lat: 85.0, lng: 0.0, zoom: 4
+   - Planum Australe (South Polar Cap): lat: -85.0, lng: 0.0, zoom: 4
+4. If the user's query asks to see, locate, fly to, or examine a specific crater, volcano, rover, landing site, or feature, produce a JSON object with:
    - "answer": concise, scientifically accurate explanation (2-4 sentences) with data source attribution.
    - "action": an action object if applicable, or null.
      Action types:
      - { "type": "fly_to", "lat": number, "lng": number, "zoom": number, "name": string, "featureId": string }
      - { "type": "select_mission", "missionId": string, "name": string }
-     - { "type": "toggle_layer", "layerId": "viking" | "mola" | "themis" | "opm" | "geology" | "water_ice" | "human_zones" }
+     - { "type": "toggle_layer", "layerId": "viking" | "mola" | "themis" | "opm" }
      - { "type": "compare", "site1Id": string, "site2Id": string }
      - { "type": "human_mode" }
-4. Respond in valid JSON only with structure:
+5. Respond in valid JSON only with structure:
    {
      "answer": "string",
      "action": { ... } | null
@@ -97,11 +212,34 @@ CRITICAL RULES:
       });
 
       const responseText = response.text || '{}';
-      let parsed = {};
+      let parsed: any = {};
       try {
         parsed = JSON.parse(responseText);
       } catch {
         parsed = { answer: responseText, action: null };
+      }
+
+      // Canonical snapping & auto-detection: Guarantee 100% accurate coordinates for all Martian targets
+      const canonicalFromQuery = resolveCanonicalMarsLocation(query);
+      if (parsed.action && parsed.action.type === 'fly_to') {
+        const canonical = resolveCanonicalMarsLocation(parsed.action.name) || canonicalFromQuery;
+        if (canonical) {
+          parsed.action.lat = canonical.lat;
+          parsed.action.lng = canonical.lng;
+          parsed.action.zoom = canonical.zoom;
+          parsed.action.name = canonical.name;
+          parsed.action.elevationM = canonical.elevationM;
+        }
+      } else if (!parsed.action && canonicalFromQuery) {
+        // User asked for a location or rover in any language, auto-attach certified fly_to action
+        parsed.action = {
+          type: 'fly_to',
+          lat: canonicalFromQuery.lat,
+          lng: canonicalFromQuery.lng,
+          zoom: canonicalFromQuery.zoom,
+          name: canonicalFromQuery.name,
+          elevationM: canonicalFromQuery.elevationM,
+        };
       }
 
       res.json({
@@ -328,6 +466,20 @@ Keep your tone adventurous, composed, scientific, and encouraging.`,
             // Tool calls
             const toolCall = (message as any).toolCall;
             if (toolCall) {
+              if (toolCall.functionCalls) {
+                for (const fc of toolCall.functionCalls) {
+                  if (fc.name === 'flyToLocation' && fc.args) {
+                    const canonical = resolveCanonicalMarsLocation(fc.args.name);
+                    if (canonical) {
+                      fc.args.lat = canonical.lat;
+                      fc.args.lng = canonical.lng;
+                      fc.args.zoom = canonical.zoom;
+                      fc.args.name = canonical.name;
+                    }
+                  }
+                }
+              }
+
               clientWs.send(
                 JSON.stringify({
                   type: 'tool_call',

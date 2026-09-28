@@ -52,6 +52,29 @@ import {
 import { MarsScienceDossierModal } from './MarsScienceDossierModal';
 import { MarsMoonDossierModal, MARS_MOONS_DATA } from './MarsMoonDossierModal';
 
+// Pre-allocated static vectors to avoid heap allocation & GC stalls in 120fps render loop
+const _tmpCamDir = new THREE.Vector3();
+const _tmpCamLocal = new THREE.Vector3();
+const _tmpWorldPos = new THREE.Vector3();
+const _tmpScreenPos = new THREE.Vector3();
+const _tmpSunFocal = new THREE.Vector3();
+const _FEATURE_VECTORS = new Map<string, THREE.Vector3>();
+
+function getCachedFeatureLocalVector(lat: number, lng: number, radius = 101.2): THREE.Vector3 {
+  const key = `${lat}_${lng}_${radius}`;
+  let v = _FEATURE_VECTORS.get(key);
+  if (!v) {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lng + 180) * (Math.PI / 180);
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+    const y = radius * Math.cos(phi);
+    v = new THREE.Vector3(x, y, z);
+    _FEATURE_VECTORS.set(key, v);
+  }
+  return v;
+}
+
 // Official NASA & USGS Planetary Mosaics with verified WMS parameters
 const MARS_TEXTURE_PRESETS = [
   {
@@ -156,6 +179,23 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   // State
   const [selectedLayerId, setSelectedLayerId] = useState<string>(activeLayer || 'viking');
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
+  const layerMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close layer menu on outside click
+  useEffect(() => {
+    if (!isLayerMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (layerMenuRef.current && !layerMenuRef.current.contains(e.target as Node)) {
+        setIsLayerMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [isLayerMenuOpen]);
   const [showGraticule, setShowGraticule] = useState<boolean>(false);
   const [lightingMode, setLightingMode] = useState<'survey' | 'sunlit'>('survey');
   const lightingModeRef = useRef(lightingMode);
@@ -257,6 +297,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
   // Real-time camera distance & altitude state
   const [cameraDist, setCameraDist] = useState<number>(420);
+  const cameraDistRef = useRef<number>(420);
+  const solSecondsStateRef = useRef<number>(50400);
   const [focalTelemetry, setFocalTelemetry] = useState<{
     lat: number;
     lng: number;
@@ -642,13 +684,20 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     camera.position.set(0, 50, 420);
     cameraRef.current = camera;
 
-    // 3. Renderer with high dynamic range & antialiasing
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      powerPreference: 'high-performance',
-      alpha: false,
-    });
+    // 3. Renderer with high dynamic range & antialiasing (guarded against WebGL context failures)
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        powerPreference: 'high-performance',
+        alpha: false,
+      });
+    } catch (webGlErr) {
+      console.warn('WebGL is not available in current environment:', webGlErr);
+      onSwitchToFlatMap();
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -755,37 +804,26 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       metalness: 0.02,
     });
 
-    // Real Global Topography Elevation Bump Map using official USGS MOLA Shaded Relief
-    // This creates authentic physical 3D elevation relief for Olympus Mons, Valles Marineris & impact craters!
-    const molaBumpUrl = 'https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/mars/mars_simp_cyl.map&service=WMS&request=GetMap&version=1.1.1&layers=MOLA_bw&styles=&format=image/jpeg&srs=EPSG:4326&bbox=-180,-90,180,90&width=2048&height=1024';
+    // High-Frequency Martian Micro-Terrain & Regolith Bump Map
+    // Uses repeating UV coordinates (96x48) to render crisp physical rock ridges,
+    // micro-craters, dune ripples, and shadow edges so the surface is NEVER blurry when zooming in!
+    const microBumpUrl = createProceduralMicroTerrainBumpMap(512);
     const bumpLoader = new THREE.TextureLoader();
     bumpLoader.setCrossOrigin('anonymous');
-    bumpLoader.load(
-      molaBumpUrl,
-      (bTex) => {
-        bTex.minFilter = THREE.LinearMipmapLinearFilter;
-        bTex.magFilter = THREE.LinearFilter;
-        bTex.generateMipmaps = true;
-        if (renderer) {
-          bTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        }
-        marsMat.bumpMap = bTex;
-        marsMat.bumpScale = 0.06;
-        marsMat.needsUpdate = true;
-      },
-      undefined,
-      () => {
-        // Fallback: subtle single-tile smooth elevation relief
-        const fallbackBumpUrl = createProceduralMicroTerrainBumpMap(512);
-        bumpLoader.load(fallbackBumpUrl, (fbTex) => {
-          fbTex.wrapS = THREE.ClampToEdgeWrapping;
-          fbTex.wrapT = THREE.ClampToEdgeWrapping;
-          marsMat.bumpMap = fbTex;
-          marsMat.bumpScale = 0.03;
-          marsMat.needsUpdate = true;
-        });
+    bumpLoader.load(microBumpUrl, (fbTex) => {
+      fbTex.wrapS = THREE.RepeatWrapping;
+      fbTex.wrapT = THREE.RepeatWrapping;
+      fbTex.repeat.set(96, 48);
+      fbTex.minFilter = THREE.LinearMipmapLinearFilter;
+      fbTex.magFilter = THREE.LinearFilter;
+      fbTex.generateMipmaps = true;
+      if (renderer) {
+        fbTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
       }
-    );
+      marsMat.bumpMap = fbTex;
+      marsMat.bumpScale = 0.05;
+      marsMat.needsUpdate = true;
+    });
     const marsMesh = new THREE.Mesh(marsGeo, marsMat);
     marsGroup.add(marsMesh);
     marsMeshRef.current = marsMesh;
@@ -1224,54 +1262,75 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       camera.position.set(camX, camY, camZ);
       camera.lookAt(0, 0, 0);
 
+      // Dynamic physical relief scaling: As camera zooms closer to Mars surface (radius 200 -> 101.5),
+      // increase bumpScale so rocky ridges, crater rims, and dunes become tangibly crisp and 3D
+      if (marsMeshRef.current && marsMeshRef.current.material instanceof THREE.MeshStandardMaterial) {
+        const mat = marsMeshRef.current.material;
+        if (mat.bumpMap) {
+          const closeness = Math.max(0, Math.min(1, (210 - s.radius) / 108));
+          mat.bumpScale = 0.04 + closeness * 0.16;
+        }
+      }
+
       const wHalf = (container.clientWidth || window.innerWidth) / 2;
       const hHalf = (container.clientHeight || window.innerHeight) / 2;
-      const camDir = camera.position.clone().normalize();
+      _tmpCamDir.copy(camera.position).normalize();
 
-      // Throttle React state updates to every 80-100ms for silky 60fps WebGL execution
-      if (!s.lastTelemetryTime || time - s.lastTelemetryTime > 90) {
+      // 120 FPS Pacing: While user is actively dragging/swiping Mars with finger/mouse, do NOT trigger React re-renders!
+      if (s.isDragging) {
+        // Pure WebGL rendering at 120fps during touch/mouse drag gestures
+      } else if (!s.lastTelemetryTime || time - s.lastTelemetryTime > 400) {
         s.lastTelemetryTime = time;
-        setCameraDist(s.radius);
-        setSolSeconds(Math.floor(solSecondsRef.current));
-
-        // Ground coordinate currently under camera focal center
-        let camLocal: THREE.Vector3;
-        if (marsMeshRef.current) {
-          camLocal = marsMeshRef.current.worldToLocal(camera.position.clone()).normalize();
-        } else {
-          camLocal = camera.position.clone().normalize();
-          camLocal.applyAxisAngle(new THREE.Vector3(0, 0, 1), -(25.19 * Math.PI) / 180);
-          camLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), -s.marsRotationY);
+        if (Math.abs(s.radius - cameraDistRef.current) > 6) {
+          cameraDistRef.current = s.radius;
+          setCameraDist(s.radius);
+        }
+        const curSolInt = Math.floor(solSecondsRef.current);
+        if (Math.abs(curSolInt - solSecondsStateRef.current) >= 1) {
+          solSecondsStateRef.current = curSolInt;
+          setSolSeconds(curSolInt);
         }
 
-        const fLat = Number((90 - Math.acos(Math.max(-1, Math.min(1, camLocal.y))) * (180 / Math.PI)).toFixed(2));
-        let fLng = Number(((Math.atan2(camLocal.z, -camLocal.x) * (180 / Math.PI)) - 180).toFixed(2));
+        // Ground coordinate currently under camera focal center without heap allocations
+        if (marsMeshRef.current) {
+          _tmpCamLocal.copy(camera.position);
+          marsMeshRef.current.worldToLocal(_tmpCamLocal).normalize();
+        } else {
+          _tmpCamLocal.copy(camera.position).normalize();
+          _tmpCamLocal.applyAxisAngle(new THREE.Vector3(0, 0, 1), -(25.19 * Math.PI) / 180);
+          _tmpCamLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), -s.marsRotationY);
+        }
+
+        const fLat = Number((90 - Math.acos(Math.max(-1, Math.min(1, _tmpCamLocal.y))) * (180 / Math.PI)).toFixed(2));
+        let fLng = Number(((Math.atan2(_tmpCamLocal.z, -_tmpCamLocal.x) * (180 / Math.PI)) - 180).toFixed(2));
         while (fLng < -180) fLng += 360;
         while (fLng > 180) fLng -= 360;
 
-        // Auto Day / Night computation for focal point
-        let focalWorldVec: THREE.Vector3;
+        // Auto Day / Night computation for focal point using cached vector
+        const focalLocal = getCachedFeatureLocalVector(fLat, fLng, 100.0);
         if (marsMeshRef.current) {
-          focalWorldVec = marsMeshRef.current.localToWorld(latLngToVector3(fLat, fLng, 100.0));
+          _tmpSunFocal.copy(focalLocal);
+          marsMeshRef.current.localToWorld(_tmpSunFocal);
         } else {
-          focalWorldVec = latLngToVector3(fLat, fLng, 1.0);
-          focalWorldVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
-          focalWorldVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
+          _tmpSunFocal.copy(focalLocal);
+          _tmpSunFocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
+          _tmpSunFocal.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
         }
-        const sunDot = focalWorldVec.normalize().dot(SUN_POSITION_VECTOR);
+        const sunDot = _tmpSunFocal.normalize().dot(SUN_POSITION_VECTOR);
         const isDaySide = sunDot > -0.05;
         const solarElevationDeg = Math.round(Math.asin(Math.max(-1, Math.min(1, sunDot))) * (180 / Math.PI));
 
         // Find nearest landmark to ground focal point
         let nearest: MarsFeature | undefined;
         let minD = 14.0;
-        ALL_MARS_FEATURES.forEach((f) => {
+        for (let i = 0; i < ALL_MARS_FEATURES.length; i++) {
+          const f = ALL_MARS_FEATURES[i];
           const d = Math.hypot(f.lat - fLat, f.lng - fLng);
           if (d < minD) {
             minD = d;
             nearest = f;
           }
-        });
+        }
 
         const altKm = Math.max(12, Math.round(((s.radius - 100) / 100) * 3389.5));
         const zoomScale = Number((420 / Math.max(100.8, s.radius)).toFixed(1));
@@ -1302,24 +1361,23 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
           const projected: Array<{ site: MarsFeature; x: number; y: number; visible: boolean }> = [];
 
-          visiblePool.forEach((site) => {
-            const localV = latLngToVector3(site.lat, site.lng, marsRadius * 1.012);
-            let worldPos: THREE.Vector3;
+          for (let i = 0; i < visiblePool.length; i++) {
+            const site = visiblePool[i];
+            const localV = getCachedFeatureLocalVector(site.lat, site.lng, marsRadius * 1.012);
+            _tmpWorldPos.copy(localV);
             if (marsMeshRef.current) {
-              worldPos = marsMeshRef.current.localToWorld(localV.clone());
+              marsMeshRef.current.localToWorld(_tmpWorldPos);
             } else {
-              worldPos = localV.clone();
-              worldPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
-              worldPos.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
+              _tmpWorldPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.marsRotationY);
+              _tmpWorldPos.applyAxisAngle(new THREE.Vector3(0, 0, 1), (25.19 * Math.PI) / 180);
             }
 
-            const siteDir = worldPos.clone().normalize();
-            const dot = siteDir.dot(camDir);
+            const dot = _tmpWorldPos.clone().normalize().dot(_tmpCamDir);
 
             if (dot > 0.15) {
-              const screenPos = worldPos.clone().project(camera);
-              const sx = screenPos.x * wHalf + wHalf;
-              const sy = -(screenPos.y * hHalf) + hHalf;
+              _tmpScreenPos.copy(_tmpWorldPos).project(camera);
+              const sx = _tmpScreenPos.x * wHalf + wHalf;
+              const sy = -(_tmpScreenPos.y * hHalf) + hHalf;
               projected.push({
                 site,
                 x: sx,
@@ -1327,7 +1385,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 visible: true,
               });
             }
-          });
+          }
 
           // Elegant visual decluttering: prioritize selected site and iconic landmarks, avoid overlapping badges
           const nonOverlapping: Array<{ site: MarsFeature; x: number; y: number; visible: boolean }> = [];
@@ -1339,7 +1397,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             return 0;
           });
 
-          for (const item of sorted) {
+          for (let i = 0; i < sorted.length; i++) {
+            const item = sorted[i];
             const collides = nonOverlapping.some((p) => Math.hypot(p.x - item.x, p.y - item.y) < 46);
             if (!collides || item.site.name === selectedSite?.name) {
               nonOverlapping.push(item);
@@ -1359,8 +1418,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           const deimosWorldPos = new THREE.Vector3();
           deimosMeshRef.current.getWorldPosition(deimosWorldPos);
 
-          const pDot = phobosWorldPos.clone().normalize().dot(camDir);
-          const dDot = deimosWorldPos.clone().normalize().dot(camDir);
+          const pDot = phobosWorldPos.clone().normalize().dot(_tmpCamDir);
+          const dDot = deimosWorldPos.clone().normalize().dot(_tmpCamDir);
 
           let pProj: { x: number; y: number; visible: boolean; distKm: number } | null = null;
           let dProj: { x: number; y: number; visible: boolean; distKm: number } | null = null;
@@ -1954,42 +2013,64 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           )}
 
           {/* Layer Selector Popover Button */}
-          <div className="relative">
+          <div className="relative" ref={layerMenuRef}>
             <button
               type="button"
               onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
-              className="p-1.5 sm:p-2 rounded-xl bg-[#090d16]/90 border border-neutral-700 text-neutral-300 hover:text-white shadow-xl transition-all cursor-pointer active:scale-95"
+              className={`p-1.5 sm:p-2 rounded-xl border shadow-xl transition-all cursor-pointer active:scale-95 ${
+                isLayerMenuOpen
+                  ? 'bg-orange-600 text-white border-orange-400 shadow-orange-950/60'
+                  : 'bg-[#090d16]/90 border-neutral-700 text-neutral-300 hover:text-white'
+              }`}
               title="Select Map Imagery Layer"
             >
               <Layers className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
             </button>
 
-            {/* Layer Picker Dropdown */}
+            {/* Desktop Layer Picker Dropdown - Positioned safely to the LEFT of the button & right control column */}
             {isLayerMenuOpen && (
-              <div className="absolute right-0 top-11 sm:top-12 w-60 sm:w-64 bg-[#0c101a] border border-neutral-700 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 text-xs">
-                <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider px-2 py-1">
-                  Global Basemaps
-                </span>
-                {MARS_TEXTURE_PRESETS.map((layer) => (
+              <div className="hidden sm:flex absolute right-full mr-3 top-0 w-68 sm:w-72 bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl p-2.5 shadow-2xl z-50 flex-col gap-1.5 text-xs animate-in fade-in slide-in-from-right-3 duration-200">
+                <div className="flex items-center justify-between px-2 py-1 border-b border-neutral-800 pb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="text-[10.5px] font-mono text-neutral-300 uppercase tracking-wider font-bold">
+                      Global Basemaps
+                    </span>
+                  </div>
                   <button
-                    key={layer.id}
                     type="button"
-                    onClick={() => handleSelectLayer(layer.id)}
-                    className={`p-2 rounded-xl text-left transition-colors cursor-pointer ${
-                      selectedLayerId === layer.id
-                        ? 'bg-orange-950/80 border border-orange-700/80 text-orange-200'
-                        : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'
-                    }`}
+                    onClick={() => setIsLayerMenuOpen(false)}
+                    className="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                    title="Close"
                   >
-                    <div className="font-bold flex items-center justify-between">
-                      <span>{layer.name}</span>
-                      {selectedLayerId === layer.id && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                      )}
-                    </div>
-                    <span className="text-[9.5px] text-neutral-400 font-mono block mt-0.5">{layer.subtext}</span>
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                ))}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {MARS_TEXTURE_PRESETS.map((layer) => (
+                    <button
+                      key={layer.id}
+                      type="button"
+                      onClick={() => {
+                        handleSelectLayer(layer.id);
+                        setIsLayerMenuOpen(false);
+                      }}
+                      className={`p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        selectedLayerId === layer.id
+                          ? 'bg-orange-950/90 border border-orange-600/80 text-orange-100 shadow-md shadow-orange-950/50'
+                          : 'text-neutral-300 hover:bg-neutral-800/80 hover:text-white border border-transparent'
+                      }`}
+                    >
+                      <div className="font-bold flex items-center justify-between text-xs">
+                        <span>{layer.name}</span>
+                        {selectedLayerId === layer.id && (
+                          <span className="w-2 h-2 rounded-full bg-orange-400 shadow-sm shadow-orange-400" />
+                        )}
+                      </div>
+                      <span className="text-[9.5px] text-neutral-400 font-mono block mt-0.5">{layer.subtext}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -2634,8 +2715,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
       {/* BOTTOM INSPECTION CARD (Single unified card for surface point, rover, or landmark) */}
       {(inspectedCoord || selectedSite) && (
-        <div className="absolute bottom-16 sm:bottom-4 left-3 right-3 sm:left-4 sm:right-auto sm:max-w-md z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-neutral-200 max-h-[58vh] sm:max-h-[75vh] overflow-y-auto">
+        <div className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-neutral-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-start justify-between gap-2 border-b border-neutral-800 pb-2.5">
               <div className="min-w-0">
@@ -3006,6 +3087,71 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           }}
           onFocusMoon={(id) => flyToMoon(id)}
         />
+      )}
+
+      {/* MOBILE FULL-WIDTH LAYER SELECTOR SHEET WITH BACKDROP (Zero Overlap with Right Controls) */}
+      {isLayerMenuOpen && (
+        <div
+          className="sm:hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex flex-col justify-end p-3 animate-in fade-in duration-200"
+          onClick={() => setIsLayerMenuOpen(false)}
+        >
+          <div
+            className="w-full bg-[#0c101a] border border-neutral-700/90 rounded-3xl p-4 shadow-2xl flex flex-col gap-2.5 text-xs mb-1 animate-in slide-in-from-bottom-4 duration-250"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-orange-950/90 border border-orange-700/60 flex items-center justify-center">
+                  <Layers className="w-4 h-4 text-orange-400" />
+                </div>
+                <div>
+                  <span className="font-extrabold text-white text-xs uppercase tracking-wider block font-sans">
+                    Global Basemaps
+                  </span>
+                  <span className="text-[10px] text-neutral-400 font-mono">
+                    USGS & NASA Planetary GIS Mosaics
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLayerMenuOpen(false)}
+                className="p-1.5 rounded-full bg-neutral-800 text-neutral-400 hover:text-white"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto pt-1">
+              {MARS_TEXTURE_PRESETS.map((layer) => (
+                <button
+                  key={layer.id}
+                  type="button"
+                  onClick={() => {
+                    handleSelectLayer(layer.id);
+                    setIsLayerMenuOpen(false);
+                  }}
+                  className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between ${
+                    selectedLayerId === layer.id
+                      ? 'bg-orange-950/90 border border-orange-600 text-orange-100 shadow-md shadow-orange-950/40'
+                      : 'bg-neutral-900/70 border border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:text-white'
+                  }`}
+                >
+                  <div className="pr-2">
+                    <span className="font-bold text-xs block text-white">{layer.name}</span>
+                    <span className="text-[10px] text-neutral-400 font-mono block mt-0.5">{layer.subtext}</span>
+                  </div>
+                  {selectedLayerId === layer.id ? (
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-sm shadow-orange-400 shrink-0" />
+                  ) : (
+                    <div className="w-2 h-2 rounded-full border border-neutral-600 shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
