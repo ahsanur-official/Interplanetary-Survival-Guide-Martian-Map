@@ -23,6 +23,7 @@ export interface MissionLayerOptions {
   showActiveRovers: boolean;
   showTraverseTracks: boolean;
   showDustStormOverlay?: boolean;
+  showMolaAvailabilityOverlay?: boolean;
   enabledTraverseMissionIds: string[]; // e.g. ['perseverance', 'curiosity', 'opportunity']
   agencyFilter: 'all' | 'nasa' | 'international';
   missionTypeFilter: 'all' | 'rover' | 'lander';

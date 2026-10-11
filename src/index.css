@@ -2,11 +2,28 @@
 @import "leaflet/dist/leaflet.css";
 
 /* Modern high-contrast typography and smooth text rendering */
-body {
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: #080b11;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 code, kbd, samp, pre, .font-mono {

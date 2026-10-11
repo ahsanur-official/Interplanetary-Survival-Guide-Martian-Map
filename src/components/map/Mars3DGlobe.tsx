@@ -36,6 +36,7 @@ import {
   Moon,
   Grid,
   TrendingUp,
+  Footprints,
 } from 'lucide-react';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
@@ -131,6 +132,7 @@ const SUN_POSITION_VECTOR = new THREE.Vector3(1400, 280, 900).normalize();
 
 interface Mars3DGlobeProps {
   onSwitchToFlatMap: (site?: MarsFeature | { lat: number; lng: number; name?: string; elevationM?: number; type?: string; [key: string]: any }) => void;
+  onSwitchToAstronaut?: (site?: MarsFeature | { lat: number; lng: number; name?: string; elevationM?: number; type?: string; [key: string]: any }) => void;
   onOpenNASACloseUp: (featureName: string) => void;
   onOpenEarthComparison?: (comparisonId?: string) => void;
   onOpenPlaceIdentifier?: (feature: MarsFeature) => void;
@@ -144,6 +146,7 @@ interface Mars3DGlobeProps {
 
 export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   onSwitchToFlatMap,
+  onSwitchToAstronaut,
   onOpenNASACloseUp,
   onOpenEarthComparison,
   onOpenPlaceIdentifier,
@@ -2085,6 +2088,19 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="text-[11px] sm:text-xs">2D</span>
           </button>
+
+          {/* Switch to Astronaut EVA First-Person Surface View */}
+          {onSwitchToAstronaut && (
+            <button
+              type="button"
+              onClick={() => onSwitchToAstronaut(selectedSite || undefined)}
+              className="hidden md:flex items-center gap-1 sm:gap-1.5 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/50 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-xl text-xs font-semibold text-cyan-300 hover:text-white cursor-pointer transition-all active:scale-95"
+              title="Step down onto Martian Surface in First-Person Astronaut EVA View"
+            >
+              <Footprints className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="text-[11px] sm:text-xs">Astronaut EVA</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2715,7 +2731,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
       {/* BOTTOM INSPECTION CARD (Single unified card for surface point, rover, or landmark) */}
       {(inspectedCoord || selectedSite) && (
-        <div className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="absolute bottom-18 sm:bottom-4 left-2 right-2 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-neutral-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-start justify-between gap-2 border-b border-neutral-800 pb-2.5">
@@ -2876,6 +2892,18 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 <Globe className="w-3.5 h-3.5 text-emerald-400" />
                 <span>2D Map</span>
               </button>
+
+              {onSwitchToAstronaut && (
+                <button
+                  type="button"
+                  onClick={() => onSwitchToAstronaut(selectedSite || undefined)}
+                  className="py-1.5 px-2.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-200 hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md"
+                  title="Step onto surface at this landmark (Astronaut EVA View)"
+                >
+                  <Footprints className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>EVA View</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -4,6 +4,27 @@ import path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
+import { ALL_MARS_FEATURES } from './src/data/marsNomenclature';
+import { MARS_REGIONS } from './src/data/marsRegions';
+import {
+  JEZERO_REGION,
+  JEZERO_ENVIRONMENT,
+  JEZERO_NAMED_LOCATIONS,
+  JEZERO_SCIENCE_TARGETS,
+  JEZERO_ROVER_OBSERVATIONS,
+  JEZERO_HAZARD_ZONES,
+  JEZERO_RESOURCE_SITES,
+} from './src/data/jezeroDataset';
+import {
+  GALE_REGION,
+  GALE_ENVIRONMENT,
+  GALE_NAMED_LOCATIONS,
+  GALE_SCIENCE_TARGETS,
+  GALE_HAZARD_ZONES,
+} from './src/data/galeDataset';
+import { NASA_DATASET_CATALOG } from './src/data/provenanceData';
+import { generateCandidateRoutes } from './src/engine/multiObjectiveRouter';
+import { calculateMarsDistanceKm } from './src/engine/spatialMath';
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -111,13 +132,476 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Health check
+  // 1. Health check with detailed service telemetry
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
       service: 'MarsWay API',
+      version: '2026.1.0',
+      tagline: 'Explore Smarter. Navigate Safer. Discover More.',
+      challenge: 'NASA Space Apps Challenge 2026 — Interplanetary Survival Guide: Martian Map',
+      team: 'Team UnknownX',
       liveModel: 'gemini-3.8-live',
       geminiKeyConfigured: Boolean(process.env.GEMINI_API_KEY),
+      datasetsLoaded: NASA_DATASET_CATALOG.length,
+      regionsAvailable: MARS_REGIONS.length,
+      featuresCatalogSize: ALL_MARS_FEATURES.length,
+    });
+  });
+
+  // 2. Study Regions API: GET /api/regions
+  app.get('/api/regions', (req, res) => {
+    const detailedRegions = [
+      {
+        ...JEZERO_REGION,
+        namedLocations: JEZERO_NAMED_LOCATIONS,
+        scienceTargetsCount: JEZERO_SCIENCE_TARGETS.length,
+        hazardZonesCount: JEZERO_HAZARD_ZONES.length,
+        environment: JEZERO_ENVIRONMENT,
+      },
+      {
+        ...GALE_REGION,
+        namedLocations: GALE_NAMED_LOCATIONS,
+        scienceTargetsCount: GALE_SCIENCE_TARGETS.length,
+        hazardZonesCount: GALE_HAZARD_ZONES.length,
+        environment: GALE_ENVIRONMENT,
+      },
+      ...MARS_REGIONS.filter((r) => r.id !== 'jezero' && r.id !== 'gale').map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.category || 'Martian Geological Region',
+        center: { latitude: r.center[0], longitude: r.center[1] },
+        bounds: {
+          minLat: Math.min(...r.polygon.map((p) => p[0])),
+          maxLat: Math.max(...r.polygon.map((p) => p[0])),
+          minLon: Math.min(...r.polygon.map((p) => p[1])),
+          maxLon: Math.max(...r.polygon.map((p) => p[1])),
+        },
+        baseElevationMeters: -2000,
+        elevationRange: [-4500, 2500],
+        areaKm2: r.areaKm2,
+        dimensions: r.dimensions,
+        description: r.description,
+        primaryMission: 'NASA Planetary Geologic Mapping (USGS/IAU)',
+        geologicalContext: r.geologicalSignificance || r.description,
+        keyHighlights: r.keyHighlights,
+      })),
+    ];
+    res.json({
+      success: true,
+      count: detailedRegions.length,
+      regions: detailedRegions,
+    });
+  });
+
+  // 3. Map Layers & Provenance Catalog: GET /api/layers
+  app.get('/api/layers', (req, res) => {
+    const layers = [
+      {
+        id: 'viking',
+        name: 'Viking MDIM 2.1 True Color',
+        type: 'Basemap Mosaic',
+        mission: 'Viking Orbiters 1 & 2',
+        status: 'OBSERVED',
+        resolution: '232 m/pixel',
+        format: 'XYZ Tiles / NASA Trek',
+        tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
+        attribution: 'NASA Mars Trek / USGS Astrogeology',
+      },
+      {
+        id: 'mola',
+        name: 'MGS MOLA Color Shaded Relief Topography',
+        type: 'Topographic Altimetry',
+        mission: 'Mars Global Surveyor (MGS)',
+        status: 'OBSERVED',
+        resolution: '463 m/pixel (128 px/deg)',
+        format: 'XYZ Tiles / NASA Trek',
+        tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
+        attribution: 'NASA GSFC MOLA Science Team',
+      },
+      {
+        id: 'themis',
+        name: 'Odyssey THEMIS Daytime Infrared 100m',
+        type: 'Thermal Infrared Regolith',
+        mission: 'Mars Odyssey',
+        status: 'OBSERVED',
+        resolution: '100 m/pixel',
+        format: 'XYZ Tiles / NASA Trek',
+        tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/THEMIS_DayIR_ControlledMosaics_100m_v2_oct2018/1.0.0/default/default028mm/{z}/{y}/{x}.png',
+        attribution: 'NASA / ASU / Odyssey THEMIS Team',
+      },
+      {
+        id: 'hirise-coverage',
+        name: 'MRO HiRISE Orthomosaic Footprints',
+        type: 'High-Resolution Orbital Reconnaissance',
+        mission: 'Mars Reconnaissance Orbiter (MRO)',
+        status: 'DERIVED',
+        resolution: '0.25 - 0.50 m/pixel',
+        attribution: 'NASA / JPL / University of Arizona',
+      },
+      {
+        id: 'crism-mineralogy',
+        name: 'CRISM Hyperspectral Hydration & Phyllosilicate Indices',
+        type: 'Spectroscopic Mineralogy',
+        mission: 'Mars Reconnaissance Orbiter (MRO)',
+        status: 'DERIVED',
+        resolution: '18 m/pixel',
+        attribution: 'NASA / JHU-APL CRISM Team',
+      },
+      {
+        id: 'rad-radiation',
+        name: 'MSL RAD Galactic Cosmic Ray & SPE Telemetry',
+        type: 'In-Situ Biohazard & Radiation Environment',
+        mission: 'Curiosity Rover / MSL',
+        status: 'MODELED',
+        resolution: 'Point Sensor + Column Density Model',
+        attribution: 'Southwest Research Institute / NASA MSL RAD',
+      },
+      {
+        id: 'meda-weather',
+        name: 'Mars 2020 MEDA Diurnal Atmospheric Pressure & Dust',
+        type: 'Surface Meteorology',
+        mission: 'Perseverance Rover / Mars 2020',
+        status: 'HISTORICAL',
+        resolution: 'Surface Station Log',
+        attribution: 'CAB / NASA Mars 2020 MEDA',
+      },
+    ];
+
+    res.json({
+      success: true,
+      count: layers.length,
+      layers,
+      provenanceCatalog: NASA_DATASET_CATALOG,
+    });
+  });
+
+  // 4. Geographic & Scientific Features: GET /api/features
+  app.get('/api/features', (req, res) => {
+    const { category, q, featured, region } = req.query;
+    let list = ALL_MARS_FEATURES;
+
+    if (category && typeof category === 'string') {
+      const catLower = category.toLowerCase();
+      list = list.filter((f) => f.type.toLowerCase().includes(catLower));
+    }
+
+    if (q && typeof q === 'string') {
+      const qLower = q.toLowerCase().trim();
+      list = list.filter(
+        (f) =>
+          f.name.toLowerCase().includes(qLower) ||
+          f.id.toLowerCase().includes(qLower) ||
+          f.description.toLowerCase().includes(qLower)
+      );
+    }
+
+    if (featured === 'true') {
+      list = list.filter((f) => f.featured);
+    }
+
+    // Attach local Jezero / Gale science targets if region specified
+    let scienceTargets: any[] = [];
+    if (region === 'jezero') {
+      scienceTargets = JEZERO_SCIENCE_TARGETS;
+    } else if (region === 'gale') {
+      scienceTargets = GALE_SCIENCE_TARGETS;
+    }
+
+    res.json({
+      success: true,
+      count: list.length,
+      features: list.slice(0, 150),
+      scienceTargets,
+    });
+  });
+
+  // 5. Specific Feature Detail: GET /api/features/:feature_id
+  app.get('/api/features/:feature_id', (req, res) => {
+    const { feature_id } = req.params;
+    const f = ALL_MARS_FEATURES.find(
+      (item) => item.id.toLowerCase() === feature_id.toLowerCase() || item.name.toLowerCase() === feature_id.toLowerCase()
+    );
+    if (!f) {
+      // Check regional science targets
+      const st = [...JEZERO_SCIENCE_TARGETS, ...GALE_SCIENCE_TARGETS].find(
+        (item) => item.id.toLowerCase() === feature_id.toLowerCase() || item.name.toLowerCase() === feature_id.toLowerCase()
+      );
+      if (st) {
+        res.json({ success: true, feature: st, type: 'ScienceTarget' });
+        return;
+      }
+      res.status(404).json({ error: 'Feature not found in Mars planetary catalog' });
+      return;
+    }
+    res.json({ success: true, feature: f, type: 'PlanetaryNomenclature' });
+  });
+
+  // 6. Intelligent Marswalk Multi-Objective Route Planner: POST /api/routes/plan
+  app.post('/api/routes/plan', (req, res) => {
+    try {
+      const {
+        startCoord,
+        startName,
+        destCoord,
+        destName,
+        regionId = 'jezero',
+        constraints = {
+          startLocationId: 'loc_butler',
+          destinationLocationId: 'loc_delta_scarp',
+          maxDurationHours: 4.5,
+          maxDistanceKm: 12.0,
+          priorityWeights: { safety: 0.5, science: 0.5, efficiency: 0.5, resources: 0.3 },
+          requiredScienceTargetIds: [],
+          avoidHazardTypes: [],
+        },
+      } = req.body;
+
+      // Coordinate validation: Mars latitude [-90, +90], longitude [-180, +180] or [0, 360]
+      if (
+        !startCoord ||
+        typeof startCoord.latitude !== 'number' ||
+        typeof startCoord.longitude !== 'number' ||
+        !destCoord ||
+        typeof destCoord.latitude !== 'number' ||
+        typeof destCoord.longitude !== 'number'
+      ) {
+        res.status(400).json({ error: 'Valid startCoord and destCoord with numeric latitude and longitude are required' });
+        return;
+      }
+
+      if (
+        startCoord.latitude < -90 ||
+        startCoord.latitude > 90 ||
+        destCoord.latitude < -90 ||
+        destCoord.latitude > 90
+      ) {
+        res.status(400).json({ error: 'Latitude must be between -90° and +90°' });
+        return;
+      }
+
+      const cleanStart = {
+        latitude: startCoord.latitude,
+        longitude: ((((startCoord.longitude + 180) % 360) + 360) % 360) - 180,
+      };
+      const cleanDest = {
+        latitude: destCoord.latitude,
+        longitude: ((((destCoord.longitude + 180) % 360) + 360) % 360) - 180,
+      };
+
+      const selectedRegion = regionId === 'gale' ? GALE_REGION : JEZERO_REGION;
+      const scienceTargets = regionId === 'gale' ? GALE_SCIENCE_TARGETS : JEZERO_SCIENCE_TARGETS;
+      const hazardZones = regionId === 'gale' ? GALE_HAZARD_ZONES : JEZERO_HAZARD_ZONES;
+      const resourceSites = regionId === 'gale' ? [] : JEZERO_RESOURCE_SITES;
+
+      const routes = generateCandidateRoutes(
+        cleanStart,
+        startName || 'Departure Base',
+        cleanDest,
+        destName || 'Primary Science Target',
+        selectedRegion,
+        scienceTargets,
+        hazardZones,
+        resourceSites,
+        constraints
+      );
+
+      const directDistKm = Number(calculateMarsDistanceKm(cleanStart, cleanDest).toFixed(3));
+
+      res.json({
+        success: true,
+        regionId,
+        directDistanceKm: directDistKm,
+        routesCount: routes.length,
+        routes,
+        solverMetadata: {
+          algorithm: 'Pareto Multi-Objective Graph Traversal (C(e) = w_d·D + w_s·S + w_h·H - w_v·V)',
+          gravityRatio: '0.38g (Mars)',
+          bioenergeticModel: 'Margaria-Minetti Metabolic Walking Speed Formulation (150 W/kg baseline)',
+          elevationDatum: 'MGS MOLA Areoid 0 km Reference Surface',
+          dataTimestamp: new Date().toISOString(),
+          statusDisclaimer: 'Research planning prototype for 2026 NASA Space Apps Challenge; not certified for operational EVA flight.',
+        },
+      });
+    } catch (err: any) {
+      console.error('Route calculation error:', err);
+      res.status(500).json({ error: 'Failed to compute multi-objective routes', details: err?.message || 'Unknown' });
+    }
+  });
+
+  // In-Memory Missions Store seeded with authentic demonstration EVA plans
+  const inMemoryMissions: Record<string, any> = {
+    'mission-jezero-alpha': {
+      id: 'mission-jezero-alpha',
+      name: 'Jezero Delta Western Scarp Astrobiology Traverse',
+      regionId: 'jezero',
+      startName: 'Octavia E. Butler Landing Site',
+      startCoord: { latitude: 18.4447, longitude: 77.4508 },
+      destName: 'Hawkes Bay Delta Bottomsets',
+      destCoord: { latitude: 18.4382, longitude: 77.4128 },
+      selectedRouteId: 'route-b',
+      strategy: 'SCIENCE',
+      notes: 'Investigate ancient fine-grained mudstones with high clay mineral signatures for preserved biosignatures.',
+      createdAt: '2026-10-01T08:00:00.000Z',
+      updatedAt: '2026-10-01T08:00:00.000Z',
+    },
+    'mission-kodiak-recon': {
+      id: 'mission-kodiak-recon',
+      name: 'Kodiak Butte Isolated Mesa Stratigraphic Transect',
+      regionId: 'jezero',
+      startName: 'Octavia E. Butler Landing Site',
+      startCoord: { latitude: 18.4447, longitude: 77.4508 },
+      destName: 'Kodiak Butte Uplift',
+      destCoord: { latitude: 18.4055, longitude: 77.4395 },
+      selectedRouteId: 'route-c',
+      strategy: 'SAFETY',
+      notes: 'Bypass soft sand ripples to assess foreset delta beds proving catastrophic past paleolake highstands.',
+      createdAt: '2026-10-03T11:30:00.000Z',
+      updatedAt: '2026-10-03T11:30:00.000Z',
+    },
+  };
+
+  // 7. Saved Missions: GET /api/missions
+  app.get('/api/missions', (req, res) => {
+    res.json({
+      success: true,
+      missions: Object.values(inMemoryMissions),
+    });
+  });
+
+  // 8. Create Mission: POST /api/missions
+  app.post('/api/missions', (req, res) => {
+    try {
+      const {
+        name = 'New Marswalk Mission',
+        regionId = 'jezero',
+        startName = 'Departure Base',
+        startCoord,
+        destName = 'Destination',
+        destCoord,
+        selectedRouteId = 'route-b',
+        strategy = 'SCIENCE',
+        waypoints = [],
+        notes = '',
+      } = req.body;
+
+      if (!startCoord || !destCoord) {
+        res.status(400).json({ error: 'startCoord and destCoord are required' });
+        return;
+      }
+
+      const id = `mission-${Date.now().toString(36)}`;
+      const newMission = {
+        id,
+        name,
+        regionId,
+        startName,
+        startCoord,
+        destName,
+        destCoord,
+        selectedRouteId,
+        strategy,
+        waypoints,
+        notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      inMemoryMissions[id] = newMission;
+      res.status(201).json({ success: true, mission: newMission });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to create mission', details: err?.message });
+    }
+  });
+
+  // 9. Get Single Mission: GET /api/missions/:mission_id
+  app.get('/api/missions/:mission_id', (req, res) => {
+    const { mission_id } = req.params;
+    const mission = inMemoryMissions[mission_id];
+    if (!mission) {
+      res.status(404).json({ error: 'Mission not found' });
+      return;
+    }
+    res.json({ success: true, mission });
+  });
+
+  // 10. Update Mission: PUT /api/missions/:mission_id
+  app.put('/api/missions/:mission_id', (req, res) => {
+    const { mission_id } = req.params;
+    const existing = inMemoryMissions[mission_id];
+    if (!existing) {
+      res.status(404).json({ error: 'Mission not found' });
+      return;
+    }
+    const updated = {
+      ...existing,
+      ...req.body,
+      id: mission_id,
+      updatedAt: new Date().toISOString(),
+    };
+    inMemoryMissions[mission_id] = updated;
+    res.json({ success: true, mission: updated });
+  });
+
+  // 11. Mission Report Briefing: POST /api/missions/:mission_id/report
+  app.post('/api/missions/:mission_id/report', (req, res) => {
+    const { mission_id } = req.params;
+    const mission = inMemoryMissions[mission_id];
+    if (!mission) {
+      res.status(404).json({ error: 'Mission not found' });
+      return;
+    }
+
+    const region = mission.regionId === 'gale' ? GALE_REGION : JEZERO_REGION;
+    const env = mission.regionId === 'gale' ? GALE_ENVIRONMENT : JEZERO_ENVIRONMENT;
+
+    const reportText = `=====================================================
+MARSWAY — OFFICIAL MARSWALK MISSION BRIEFING (EVA FLIGHT PLAN)
+NASA Space Apps Challenge 2026 | Team UnknownX
+=====================================================
+Mission ID: ${mission.id}
+Mission Name: ${mission.name}
+Generated: ${new Date().toUTCString()}
+Operational Quadrangle: ${region.name} (${region.type})
+
+MISSION OBJECTIVES & TRAVERSE:
+------------------------------
+Departure Base: ${mission.startName} (${mission.startCoord.latitude.toFixed(4)}°N, ${mission.startCoord.longitude.toFixed(4)}°E)
+Destination: ${mission.destName} (${mission.destCoord.latitude.toFixed(4)}°N, ${mission.destCoord.longitude.toFixed(4)}°E)
+Active Strategy: ${mission.strategy} (Route ID: ${mission.selectedRouteId})
+Notes: ${mission.notes || 'Nominal EVA exploration protocol.'}
+
+ENVIRONMENTAL TELEMETRY BASELINE:
+----------------------------------
+Surface Atmospheric Pressure: ${env.atmosphericPressurePascals} Pa
+Diurnal Thermal Range: ${env.diurnalTempRangeCelsius[0]}°C to ${env.diurnalTempRangeCelsius[1]}°C
+Atmospheric Optical Depth (Tau): ${env.dustOpticalDepthTau}
+Calibrated Radiation Dose: ${env.radiationDoseRateMicroGyPerDay} μGy/day
+Effective Column Shielding: ${env.effectiveShieldingIndex * 100}%
+
+AUTHENTIC DATA SOURCES & CITATIONS:
+------------------------------------
+- Elevation Datum: NASA MGS MOLA MEGDR (Areoid 0 km)
+- High-Resolution Orbital Imagery: NASA MRO HiRISE Orthomosaics
+- Mineralogical Composition: NASA MRO CRISM Hyperspectral Parameters
+- Surface Weather Telemetry: NASA Mars 2020 MEDA In-Situ Baseline
+- Radiation Environment: NASA MSL RAD Telemetry & Atmospheric Attenuation
+
+SCIENTIFIC HONESTY DISCLAIMER:
+-------------------------------
+This plan was synthesized using the MARSWAY decision-support prototype. It is
+an academic exploration tool designed for the 2026 NASA Space Apps Challenge
+and is not certified for operational extraterrestrial flight operations.
+=====================================================`;
+
+    res.json({
+      success: true,
+      missionId: mission.id,
+      generatedAt: new Date().toISOString(),
+      reportText,
+      mission,
+      region,
+      environment: env,
     });
   });
 

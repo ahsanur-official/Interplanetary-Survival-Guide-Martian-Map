@@ -12,6 +12,7 @@ import {
   Layers,
   ChevronRight,
   Zap,
+  Footprints,
 } from 'lucide-react';
 import {
   HUMAN_CANDIDATE_SITES,
@@ -24,6 +25,7 @@ interface HumanMissionModeProps {
   onClose: () => void;
   onFlyToLocation: (lat: number, lng: number, zoom?: number, name?: string) => void;
   onSelectSite?: (site: HumanCandidateSite) => void;
+  onSwitchToAstronaut?: (site: HumanCandidateSite) => void;
 }
 
 export function HumanMissionMode({
@@ -31,6 +33,7 @@ export function HumanMissionMode({
   onClose,
   onFlyToLocation,
   onSelectSite,
+  onSwitchToAstronaut,
 }: HumanMissionModeProps) {
   const [selectedSite, setSelectedSite] = useState<HumanCandidateSite>(HUMAN_CANDIDATE_SITES[0]);
 
@@ -115,20 +118,32 @@ export function HumanMissionMode({
               <p className="text-xs text-neutral-300 mt-1">{selectedSite.primaryAdvantage}</p>
             </div>
 
-            <button
-              onClick={() =>
-                onFlyToLocation(
-                  selectedSite.lat,
-                  selectedSite.lng,
-                  6,
-                  `Human Base Candidate: ${selectedSite.name}`
-                )
-              }
-              className="px-3 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-lg shrink-0 transition"
-            >
-              <Compass className="w-3.5 h-3.5" />
-              Fly to Zone
-            </button>
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <button
+                onClick={() =>
+                  onFlyToLocation(
+                    selectedSite.lat,
+                    selectedSite.lng,
+                    6,
+                    `Human Base Candidate: ${selectedSite.name}`
+                  )
+                }
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-lg transition cursor-pointer"
+              >
+                <Compass className="w-3.5 h-3.5" />
+                Fly to Zone
+              </button>
+              {onSwitchToAstronaut && (
+                <button
+                  onClick={() => onSwitchToAstronaut(selectedSite)}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-900 to-blue-900 hover:from-cyan-800 hover:to-blue-800 border border-cyan-400/50 text-cyan-200 hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-lg transition cursor-pointer"
+                  title="Step down onto the Martian surface in First-Person Astronaut View"
+                >
+                  <Footprints className="w-3.5 h-3.5 text-cyan-400" />
+                  Astronaut EVA
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Key Metric Highlights */}

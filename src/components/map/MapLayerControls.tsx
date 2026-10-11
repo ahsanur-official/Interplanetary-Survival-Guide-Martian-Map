@@ -22,6 +22,13 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       color: 'text-amber-400',
     },
     {
+      key: 'molaAvailabilityOverlay',
+      label: 'MOLA Data Availability',
+      icon: Mountain,
+      source: 'MOLA vs HiRISE/HRSC Heatmap',
+      color: 'text-cyan-400',
+    },
+    {
       key: 'dustStormOverlay',
       label: 'Dust Storm & Atmosphere',
       icon: Wind,

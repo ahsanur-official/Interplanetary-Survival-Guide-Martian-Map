@@ -117,6 +117,7 @@ export interface MapLayerConfig {
   scienceTargets: boolean;
   resourceLocations: boolean;
   dustStormOverlay?: boolean;
+  molaAvailabilityOverlay?: boolean;
   candidateRoutes: boolean;
   waypoints: boolean;
 }
