@@ -5,59 +5,56 @@ import {
   Radio,
   Volume2,
   VolumeX,
-  Sparkles,
   Compass,
   X,
   Minimize2,
   Maximize2,
-  AlertCircle,
-  Loader2,
   Layers,
-  Send,
   HelpCircle,
   CheckCircle2,
-  Activity,
-  Zap,
+  Navigation,
+  Globe,
+  Footprints,
+  MapPin,
+  Sparkles,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  RotateCw,
+  Search,
+  Info,
 } from 'lucide-react';
-import { MarsLiveAudioController, AudioVisualizerData } from '../../engine/marsLiveAudio';
+import { MARS_MISSIONS_DATA } from '../../data/marsMissions';
+import { ALL_MARS_FEATURES } from '../../data/marsNomenclature';
+import { marsEvaAudio } from '../../engine/marsEvaAudio';
 
-interface MarsLiveVoiceModalProps {
+export interface MarsLiveVoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentLat?: number;
   currentLng?: number;
   currentZoom?: number;
+  onPanDirection?: (direction: 'north' | 'south' | 'east' | 'west') => void;
+  onZoomAction?: (action: 'in' | 'out' | 'reset') => void;
+  onRotateAction?: (action: 'left' | 'right' | 'reset') => void;
+  onSwitchView?: (mode: '2d' | '3d' | 'astronaut') => void;
   onFlyToLocation?: (lat: number, lng: number, zoom?: number, name?: string) => void;
   onSelectMission?: (missionId: string) => void;
-  onToggleLayer?: (layerId: string) => void;
+  onToggleLayer?: (layerId: 'viking' | 'themis' | 'mola' | 'opm') => void;
+  onSelectSite?: (site: any) => void;
 }
 
-interface TranscriptItem {
+interface CommandLogItem {
   id: string;
-  sender: 'user' | 'model' | 'system' | 'tool';
+  type: 'user' | 'capcom' | 'system';
   text: string;
   timestamp: string;
-  toolDetails?: {
-    name: string;
-    params?: any;
-  };
+  badge?: string;
 }
-
-const VOICE_OPTIONS = [
-  { id: 'Zephyr', label: 'Zephyr (Crisp / Calm)', desc: 'Standard planetary flight controller' },
-  { id: 'Puck', label: 'Puck (Energetic)', desc: 'Spirited exploratory scientist' },
-  { id: 'Charon', label: 'Charon (Deep / Authoritative)', desc: 'Mission command director' },
-  { id: 'Kore', label: 'Kore (Warm)', desc: 'Geoscience telemetry specialist' },
-  { id: 'Fenrir', label: 'Fenrir (Resonant)', desc: 'Field expedition guide' },
-];
-
-const SUGGESTED_VOICE_QUERIES = [
-  'Take me to Olympus Mons caldera',
-  'Fly to Jezero Crater delta where Perseverance landed',
-  'Switch map to MOLA elevation view',
-  'What are the best human landing sites for water ice extraction?',
-  'Tell me about the depth of Valles Marineris canyon',
-];
 
 export function MarsLiveVoiceModal({
   isOpen,
@@ -65,809 +62,764 @@ export function MarsLiveVoiceModal({
   currentLat = 18.38,
   currentLng = 77.58,
   currentZoom = 5,
+  onPanDirection,
+  onZoomAction,
+  onRotateAction,
+  onSwitchView,
   onFlyToLocation,
   onSelectMission,
   onToggleLayer,
+  onSelectSite,
 }: MarsLiveVoiceModalProps) {
-  // Voice Session State
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [selectedVoice, setSelectedVoice] = useState<string>('Zephyr');
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [isPushToTalk, setIsPushToTalk] = useState<boolean>(false);
-  const [isPTTHeld, setIsPTTHeld] = useState<boolean>(false);
+  // Voice Recognition State
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('Standby. Click Start Voice Link.');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('Ready for voice navigation & mission queries.');
+  const [currentTranscript, setCurrentTranscript] = useState<string>('');
+  const [lastCapcomReply, setLastCapcomReply] = useState<string>(
+    'Mars Flight Control online. Say "Move north", "Zoom in", "Where is Perseverance?", or "Tell me about Olympus Mons".'
+  );
+  const [commandLogs, setCommandLogs] = useState<CommandLogItem[]>([
+    {
+      id: 'welcome',
+      type: 'capcom',
+      text: 'Mars Flight Control online. Ready for map navigation & mission site queries.',
+      timestamp: '00:00:01',
+      badge: 'CAPCOM',
+    },
+  ]);
+  const [activeCategory, setActiveCategory] = useState<'all' | 'navigation' | 'missions' | 'landmarks' | 'layers'>('all');
 
-  // Audio & Waveform Visualization
-  const [visualizerData, setVisualizerData] = useState<AudioVisualizerData>({
-    inputLevel: 0,
-    outputLevel: 0,
-    inputWaveform: new Array(16).fill(0),
-    outputWaveform: new Array(16).fill(0),
-  });
-  const [isModelSpeaking, setIsModelSpeaking] = useState<boolean>(false);
-  const [isUserSpeaking, setIsUserSpeaking] = useState<boolean>(false);
+  const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const logEndRef = useRef<HTMLDivElement>(null);
 
-  // Transcripts
-  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
-  const [textInput, setTextInput] = useState<string>('');
-
-  // Audio Controller & WS References
-  const audioControllerRef = useRef<MarsLiveAudioController | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
-  const isClosingRef = useRef<boolean>(false);
-
-  // Auto-scroll transcript
+  // Auto-scroll logs
   useEffect(() => {
     if (!isMinimized) {
-      transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [transcripts, isMinimized]);
+  }, [commandLogs, isMinimized]);
 
-  // Clean up on unmount or close
-  const disconnectSession = useCallback(() => {
-    isClosingRef.current = true;
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (audioControllerRef.current) {
-      audioControllerRef.current.destroy();
-      audioControllerRef.current = null;
-    }
-    setIsConnected(false);
-    setIsConnecting(false);
-    setIsModelSpeaking(false);
-    setIsUserSpeaking(false);
-    setStatusMessage('Voice comms link closed.');
-    setVisualizerData({
-      inputLevel: 0,
-      outputLevel: 0,
-      inputWaveform: new Array(16).fill(0),
-      outputWaveform: new Array(16).fill(0),
-    });
-  }, []);
+  // Voice Synthesis Speaker (CapCom Voice Feedback with Radio Audio Click)
+  const speakCapcom = useCallback(
+    (message: string) => {
+      setLastCapcomReply(message);
+      setCommandLogs((prev) => [
+        ...prev,
+        {
+          id: `capcom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          type: 'capcom',
+          text: message,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          badge: 'CAPCOM',
+        },
+      ]);
 
-  // Handle level updates to detect active speaking
-  const handleLevelUpdate = useCallback((data: AudioVisualizerData) => {
-    setVisualizerData(data);
-    setIsUserSpeaking(data.inputLevel > 0.08);
-    setIsModelSpeaking(data.outputLevel > 0.05);
-  }, []);
+      try {
+        marsEvaAudio.playRadioClick();
+      } catch {}
 
-  // Connect to Gemini Live WebSocket
-  const connectSession = async () => {
-    setErrorMessage(null);
-    setIsConnecting(true);
-    setStatusMessage('Initiating sub-second link to gemini-3.8-live...');
-    isClosingRef.current = false;
+      if (isAudioMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        return;
+      }
 
-    try {
-      // 1. Initialize audio capture and playback pipeline
-      const controller = new MarsLiveAudioController();
-      await controller.initialize((base64Chunk) => {
-        // Send audio chunk to WebSocket
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: 'audio',
-              audio: base64Chunk,
-            })
-          );
-        }
-      }, handleLevelUpdate);
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.rate = 1.05;
+        utterance.pitch = 0.96;
+        utterance.volume = 0.85;
+        // Try to pick an English voice
+        const voices = window.speechSynthesis.getVoices();
+        const enVoice = voices.find((v) => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
+        if (enVoice) utterance.voice = enVoice;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.warn('Speech synthesis error:', e);
+      }
+    },
+    [isAudioMuted]
+  );
 
-      audioControllerRef.current = controller;
+  // Execute Voice Command
+  const processCommand = useCallback(
+    (rawTranscript: string) => {
+      const q = rawTranscript.toLowerCase().trim();
+      setCurrentTranscript(rawTranscript);
 
-      // 2. Request mic access
-      await controller.startMicrophone();
+      // Add user transcript to log
+      setCommandLogs((prev) => [
+        ...prev,
+        {
+          id: `user-${Date.now()}`,
+          type: 'user',
+          text: `"${rawTranscript}"`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          badge: 'VOICE IN',
+        },
+      ]);
 
-      // 3. Connect to WebSocket server on /api/live-ws
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/api/live-ws?voice=${selectedVoice}`;
+      // 1. PAN / MOVE NORTH
+      if (
+        q.includes('move north') ||
+        q.includes('pan north') ||
+        q.includes('go north') ||
+        q.includes('navigate north') ||
+        q.includes('scroll north') ||
+        q === 'north' ||
+        q === 'up' ||
+        q.includes('উত্তরে')
+      ) {
+        onPanDirection?.('north');
+        speakCapcom('Panning map north 15 degrees.');
+        return;
+      }
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      // 2. PAN / MOVE SOUTH
+      if (
+        q.includes('move south') ||
+        q.includes('pan south') ||
+        q.includes('go south') ||
+        q.includes('navigate south') ||
+        q.includes('scroll south') ||
+        q === 'south' ||
+        q === 'down' ||
+        q.includes('দক্ষিণে')
+      ) {
+        onPanDirection?.('south');
+        speakCapcom('Panning map south 15 degrees.');
+        return;
+      }
 
-      ws.onopen = () => {
-        setStatusMessage('Establishing neural audio link with gemini-3.8-live...');
-      };
+      // 3. PAN / MOVE EAST
+      if (
+        q.includes('move east') ||
+        q.includes('pan east') ||
+        q.includes('go east') ||
+        q.includes('navigate east') ||
+        q.includes('scroll east') ||
+        q === 'east' ||
+        q === 'right' ||
+        q.includes('পূর্বে')
+      ) {
+        onPanDirection?.('east');
+        speakCapcom('Panning map east 15 degrees.');
+        return;
+      }
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
+      // 4. PAN / MOVE WEST
+      if (
+        q.includes('move west') ||
+        q.includes('pan west') ||
+        q.includes('go west') ||
+        q.includes('navigate west') ||
+        q.includes('scroll west') ||
+        q === 'west' ||
+        q === 'left' ||
+        q.includes('পশ্চিমে')
+      ) {
+        onPanDirection?.('west');
+        speakCapcom('Panning map west 15 degrees.');
+        return;
+      }
 
-          if (msg.type === 'session_ready') {
-            setIsConnected(true);
-            setIsConnecting(false);
-            setStatusMessage(`Live Voice Active (gemini-3.8-live • Voice: ${selectedVoice})`);
+      // 5. ZOOM IN
+      if (
+        q.includes('zoom in') ||
+        q.includes('closer') ||
+        q.includes('zoom closer') ||
+        q.includes('enhance') ||
+        q.includes('magnify') ||
+        q === 'in' ||
+        q.includes('জুম ইন')
+      ) {
+        onZoomAction?.('in');
+        speakCapcom('Zooming in closer to surface.');
+        return;
+      }
 
-            // Add system greeting to transcript
-            setTranscripts((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(36).substring(7),
-                sender: 'system',
-                text: `Connected to gemini-3.8-live via low-latency audio stream. Grounded in NASA PDS & MOLA GIS. Speak freely or tap a quick prompt.`,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              },
-            ]);
+      // 6. ZOOM OUT
+      if (
+        q.includes('zoom out') ||
+        q.includes('wider') ||
+        q.includes('pull back') ||
+        q === 'out' ||
+        q.includes('জুম আউট')
+      ) {
+        onZoomAction?.('out');
+        speakCapcom('Zooming out to broader regional view.');
+        return;
+      }
 
-            // Send initial situational context about current Mars coordinates
-            ws.send(
-              JSON.stringify({
-                type: 'text',
-                text: `[SYSTEM CONTEXT: Astronaut is viewing Mars map at latitude ${currentLat.toFixed(
-                  2
-                )}°, longitude ${currentLng.toFixed(2)}°, zoom level ${currentZoom}. Please say hello and ask how you can guide their exploration.]`,
-              })
-            );
-          } else if (msg.type === 'audio') {
-            // Play incoming model audio chunk
-            if (audioControllerRef.current) {
-              audioControllerRef.current.playAudioChunk(msg.audio);
-            }
-          } else if (msg.type === 'transcript_model') {
-            // Append or update model transcript
-            setTranscripts((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.sender === 'model') {
-                return [
-                  ...prev.slice(0, -1),
-                  {
-                    ...last,
-                    text: `${last.text} ${msg.text}`.trim(),
-                  },
-                ];
-              } else {
-                return [
-                  ...prev,
-                  {
-                    id: Math.random().toString(36).substring(7),
-                    sender: 'model',
-                    text: msg.text,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  },
-                ];
-              }
-            });
-          } else if (msg.type === 'transcript_user') {
-            // User speech transcribed by Gemini Live
-            setTranscripts((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(36).substring(7),
-                sender: 'user',
-                text: msg.text,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              },
-            ]);
-          } else if (msg.type === 'interrupted') {
-            // User spoke over the model; immediately cut off audio
-            if (audioControllerRef.current) {
-              audioControllerRef.current.handleInterruption();
-            }
-            setIsModelSpeaking(false);
-          } else if (msg.type === 'tool_call') {
-            // Handle tool calls generated by the Live model
-            const toolCall = msg.toolCall;
-            for (const call of toolCall.functionCalls || []) {
-              if (call.name === 'flyToLocation') {
-                const { name, lat, lng, zoom } = call.args || {};
-                if (onFlyToLocation && typeof lat === 'number' && typeof lng === 'number') {
-                  onFlyToLocation(lat, lng, zoom || 6, name || 'Requested Martian Location');
-                }
-                setTranscripts((prev) => [
-                  ...prev,
-                  {
-                    id: Math.random().toString(36).substring(7),
-                    sender: 'tool',
-                    text: `Orbital camera navigated to ${name || 'target'} (${lat?.toFixed(2)}°, ${lng?.toFixed(2)}°)`,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    toolDetails: { name: 'flyToLocation', params: call.args },
-                  },
-                ]);
-              } else if (call.name === 'selectMission') {
-                const { missionId, name } = call.args || {};
-                if (onSelectMission && missionId) {
-                  onSelectMission(missionId);
-                }
-                setTranscripts((prev) => [
-                  ...prev,
-                  {
-                    id: Math.random().toString(36).substring(7),
-                    sender: 'tool',
-                    text: `Selected surface mission: ${name || missionId}`,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    toolDetails: { name: 'selectMission', params: call.args },
-                  },
-                ]);
-              } else if (call.name === 'toggleLayer') {
-                const { layerId } = call.args || {};
-                if (onToggleLayer && layerId) {
-                  onToggleLayer(layerId);
-                }
-                setTranscripts((prev) => [
-                  ...prev,
-                  {
-                    id: Math.random().toString(36).substring(7),
-                    sender: 'tool',
-                    text: `Switched global GIS layer to: ${layerId.toUpperCase()}`,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    toolDetails: { name: 'toggleLayer', params: call.args },
-                  },
-                ]);
-              }
-            }
-          } else if (msg.type === 'error') {
-            setErrorMessage(msg.message || 'Error from Live voice service');
-            disconnectSession();
-          } else if (msg.type === 'session_closed') {
-            disconnectSession();
-          }
-        } catch (e) {
-          console.error('Error parsing live WS message:', e);
-        }
-      };
+      // 7. RESET ZOOM / GLOBAL VIEW
+      if (
+        q.includes('reset zoom') ||
+        q.includes('global view') ||
+        q.includes('overview') ||
+        q.includes('reset map') ||
+        q.includes('full map') ||
+        q === 'reset' ||
+        q === 'center'
+      ) {
+        onZoomAction?.('reset');
+        speakCapcom('Resetting to full global Mars overview.');
+        return;
+      }
 
-      ws.onerror = (err) => {
-        console.error('Live WS socket error:', err);
-        setErrorMessage('Failed to establish WebSocket link to server. Ensure Gemini API key is configured.');
-        disconnectSession();
-      };
+      // 8. ROTATION & BEARING
+      if (q.includes('rotate right') || q.includes('turn right') || q.includes('clockwise')) {
+        onRotateAction?.('right');
+        speakCapcom('Rotating map 90 degrees clockwise.');
+        return;
+      }
+      if (q.includes('rotate left') || q.includes('turn left') || q.includes('counter clockwise')) {
+        onRotateAction?.('left');
+        speakCapcom('Rotating map 90 degrees counter-clockwise.');
+        return;
+      }
+      if (
+        q.includes('reset north') ||
+        q.includes('align north') ||
+        q.includes('true north') ||
+        q.includes('north up')
+      ) {
+        onRotateAction?.('reset');
+        speakCapcom('Map re-aligned with True North Up.');
+        return;
+      }
 
-      ws.onclose = () => {
-        if (!isClosingRef.current) {
-          setIsConnected(false);
-          setIsConnecting(false);
-          setStatusMessage('Live voice comms disconnected.');
-        }
-      };
-    } catch (err: any) {
-      console.error('Error starting live voice session:', err);
-      setErrorMessage(
-        err?.message || 'Could not access microphone or connect to gemini-3.8-live. Please grant mic permissions.'
-      );
-      disconnectSession();
-    }
-  };
+      // 9. VIEW MODE SWITCHING
+      if (q.includes('3d globe') || q.includes('switch to 3d') || q.includes('globe view') || q.includes('show globe')) {
+        onSwitchView?.('3d');
+        speakCapcom('Switching to 3D Orbital Globe mode.');
+        return;
+      }
+      if (q.includes('flat map') || q.includes('2d map') || q.includes('switch to 2d') || q.includes('mercator')) {
+        onSwitchView?.('2d');
+        speakCapcom('Switching to 2D Mercator flat map view.');
+        return;
+      }
+      if (
+        q.includes('astronaut view') ||
+        q.includes('astronaut') ||
+        q.includes('eva') ||
+        q.includes('surface view') ||
+        q.includes('first person') ||
+        q.includes('step onto surface')
+      ) {
+        onSwitchView?.('astronaut');
+        speakCapcom('Deploying to First-Person Astronaut Surface EVA mode.');
+        return;
+      }
 
-  // Toggle mute
-  const handleToggleMute = () => {
-    if (!audioControllerRef.current) return;
-    const next = !isMuted;
-    setIsMuted(next);
-    audioControllerRef.current.setMuted(next);
-  };
+      // 10. BASEMAP LAYERS
+      if (q.includes('mola') || q.includes('elevation') || q.includes('topography')) {
+        onToggleLayer?.('mola');
+        speakCapcom('Basemap switched to NASA MOLA Color Shaded Elevation.');
+        return;
+      }
+      if (q.includes('viking') || q.includes('true color') || q.includes('color map') || q.includes('visible')) {
+        onToggleLayer?.('viking');
+        speakCapcom('Basemap switched to Viking MDIM 2.1 Natural Color Mosaic.');
+        return;
+      }
+      if (q.includes('themis') || q.includes('infrared') || q.includes('thermal')) {
+        onToggleLayer?.('themis');
+        speakCapcom('Basemap switched to THEMIS Day Infrared Controlled Mosaic.');
+        return;
+      }
 
-  // Send typed query to the live session
-  const handleSendText = () => {
-    if (!textInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    const query = textInput.trim();
-    setTextInput('');
+      // 11. DYNAMIC MISSION SITE QUERIES & FAMOUS MISSIONS
+      // Clean query text for entity extraction
+      const cleanTarget = q
+        .replace(/^(where is|tell me about|navigate to|go to|fly to|show me|find|query mission site|query mission|query site|query|show|information on|info on)\s+/i, '')
+        .replace(/\s*(rover|lander|mission|crater|mons|volcano|canyon|basin|planitia|base)?$/i, '')
+        .trim();
 
-    setTranscripts((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(36).substring(7),
-        sender: 'user',
-        text: query,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-
-    wsRef.current.send(
-      JSON.stringify({
-        type: 'text',
-        text: query,
-      })
-    );
-  };
-
-  // Quick Prompt click
-  const handleQuickPrompt = (prompt: string) => {
-    if (!isConnected) {
-      connectSession().then(() => {
-        setTimeout(() => {
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            setTranscripts((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(36).substring(7),
-                sender: 'user',
-                text: prompt,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              },
-            ]);
-            wsRef.current.send(JSON.stringify({ type: 'text', text: prompt }));
-          }
-        }, 1500);
+      // Check MARS_MISSIONS_DATA database
+      const matchedMission = MARS_MISSIONS_DATA.find((m) => {
+        const mName = m.name.toLowerCase();
+        const mId = m.id.toLowerCase();
+        const siteName = (m.landingSiteName || '').toLowerCase();
+        return (
+          q.includes(mName) ||
+          q.includes(mId) ||
+          mName.includes(cleanTarget) ||
+          (cleanTarget.length >= 3 && mId.includes(cleanTarget)) ||
+          (siteName && q.includes(siteName))
+        );
       });
+
+      if (matchedMission && matchedMission.lat !== undefined && matchedMission.lng !== undefined) {
+        onFlyToLocation?.(
+          matchedMission.lat,
+          matchedMission.lng,
+          7,
+          `${matchedMission.landingSiteName || matchedMission.name} — ${matchedMission.name}`
+        );
+        onSelectMission?.(matchedMission.id);
+        const arrivalInfo = matchedMission.arrivalDate ? `Arrived ${matchedMission.arrivalDate}.` : '';
+        const statusInfo = matchedMission.statusDisplay ? `Status: ${matchedMission.statusDisplay}.` : '';
+        const story = matchedMission.keyDiscoveries?.length
+          ? matchedMission.keyDiscoveries[0]
+          : matchedMission.objectives?.slice(0, 2).join('. ') || 'Planetary exploration mission.';
+        speakCapcom(
+          `Navigating to ${matchedMission.name} at ${matchedMission.landingSiteName || 'Martian surface'}. ${arrivalInfo} ${statusInfo} ${story}`
+        );
+        return;
+      }
+
+      // Check ALL_MARS_FEATURES database (craters, volcanoes, canyons, plains)
+      const matchedFeature = ALL_MARS_FEATURES.find((f) => {
+        const fName = f.name.toLowerCase();
+        const fId = f.id.toLowerCase();
+        return (
+          q.includes(fName) ||
+          fName.includes(cleanTarget) ||
+          (cleanTarget.length >= 4 && fId.includes(cleanTarget))
+        );
+      });
+
+      if (matchedFeature) {
+        onFlyToLocation?.(
+          matchedFeature.lat,
+          matchedFeature.lng,
+          6,
+          matchedFeature.name
+        );
+        onSelectSite?.(matchedFeature);
+        const elevDisplay = matchedFeature.elevationM >= 0 ? `+${matchedFeature.elevationM}m` : `${matchedFeature.elevationM}m`;
+        speakCapcom(
+          `Navigating to ${matchedFeature.name} (${matchedFeature.type}). Surface elevation is ${elevDisplay}. ${matchedFeature.description}`
+        );
+        return;
+      }
+
+      // Default fallback guidance
+      speakCapcom(
+        `Command processed: "${rawTranscript}". Try saying "Move north", "Zoom in", "Where is Perseverance?", "Where is Curiosity?", or "Tell me about Olympus Mons".`
+      );
+    },
+    [
+      onPanDirection,
+      onZoomAction,
+      onRotateAction,
+      onSwitchView,
+      onToggleLayer,
+      onFlyToLocation,
+      onSelectMission,
+      onSelectSite,
+      speakCapcom,
+    ]
+  );
+
+  // Initialize Web Speech API Speech Recognition
+  const startListening = () => {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setStatusMessage('Web Speech API is not supported in this browser. Use command chips below to simulate.');
+      speakCapcom('Speech Recognition not supported in browser. Use interactive buttons below.');
       return;
     }
 
-    setTranscripts((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(36).substring(7),
-        sender: 'user',
-        text: prompt,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'text', text: prompt }));
+      recognition.onstart = () => {
+        setIsListening(true);
+        setStatusMessage('Listening for navigation & mission queries...');
+      };
+
+      recognition.onresult = (event: any) => {
+        const lastIdx = event.results.length - 1;
+        const transcript = event.results[lastIdx][0].transcript;
+        if (transcript && transcript.trim()) {
+          processCommand(transcript);
+        }
+      };
+
+      recognition.onerror = (e: any) => {
+        console.warn('Speech recognition error:', e);
+        if (e.error === 'not-allowed') {
+          setStatusMessage('Microphone access denied. You can click any voice command button below to execute it!');
+        } else {
+          setStatusMessage(`Speech link idle (${e.error}). Click to restart or use buttons.`);
+        }
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+      speakCapcom('Voice system online. Say a command or query.');
+    } catch (err) {
+      console.warn('Failed to start speech recognition:', err);
+      setIsListening(false);
+      setStatusMessage('Voice recognition error. Use quick command buttons below.');
     }
   };
 
-  // Handle push-to-talk press
-  const handlePTTDown = () => {
-    if (!isPushToTalk || !audioControllerRef.current) return;
-    setIsPTTHeld(true);
-    audioControllerRef.current.setMuted(false);
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setStatusMessage('Voice listening paused. Click Mic to resume.');
   };
 
-  const handlePTTUp = () => {
-    if (!isPushToTalk || !audioControllerRef.current) return;
-    setIsPTTHeld(false);
-    audioControllerRef.current.setMuted(true);
-  };
+  // Start on mount if opened
+  useEffect(() => {
+    if (isOpen) {
+      startListening();
+    } else {
+      stopListening();
+    }
+    return () => {
+      stopListening();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
+    };
+  }, [isOpen]);
 
-  // If closed, return null unless minimized and still connected
-  if (!isOpen && !isMinimized) {
-    return null;
-  }
+  // Animated Visualizer Simulation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  // Floating Minimized Mode (allows user to speak while looking at map)
-  if (isMinimized) {
-    return (
-      <div className="fixed bottom-14 right-4 sm:bottom-6 sm:right-6 z-50 bg-neutral-900/95 backdrop-blur-md border border-purple-500/50 rounded-2xl shadow-2xl p-3 flex items-center gap-3 text-white animate-in slide-in-from-bottom-3 duration-200">
-        {/* Pulsing indicator */}
-        <div className="relative flex items-center justify-center">
-          <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center ${
-              isModelSpeaking
-                ? 'bg-purple-600 animate-pulse'
-                : isUserSpeaking
-                ? 'bg-emerald-600 animate-pulse'
-                : isConnected
-                ? 'bg-purple-950 border border-purple-500/60'
-                : 'bg-neutral-800'
-            }`}
-          >
-            {isModelSpeaking ? (
-              <Volume2 className="w-5 h-5 text-white" />
-            ) : isMuted ? (
-              <MicOff className="w-5 h-5 text-rose-400" />
-            ) : (
-              <Mic className="w-5 h-5 text-emerald-400" />
-            )}
-          </div>
-          {isConnected && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-neutral-950"></span>
-          )}
-        </div>
+    let animId: number;
+    let phase = 0;
 
-        {/* Live Audio Mini Bars */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs font-bold text-purple-300">Live Comms</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-400 font-mono border border-purple-800/40">
-              gemini-3.8-live
-            </span>
-          </div>
-          <div className="flex items-center gap-1 mt-1">
-            <div className="flex items-end gap-0.5 h-3.5 w-16">
-              {(isModelSpeaking ? visualizerData.outputWaveform : visualizerData.inputWaveform)
-                .slice(0, 8)
-                .map((val, i) => (
-                  <div
-                    key={i}
-                    className={`w-1.5 rounded-t transition-all duration-75 ${
-                      isModelSpeaking ? 'bg-purple-400' : isUserSpeaking ? 'bg-emerald-400' : 'bg-neutral-700'
-                    }`}
-                    style={{ height: `${Math.max(2, val * 14)}px` }}
-                  />
-                ))}
-            </div>
-            <span className="text-[10px] font-mono text-neutral-400 truncate max-w-[120px]">
-              {isModelSpeaking ? 'AI speaking...' : isUserSpeaking ? 'Listening...' : isMuted ? 'Muted' : 'Standby'}
-            </span>
-          </div>
-        </div>
+    const renderWave = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const w = canvas.width;
+      const h = canvas.height;
+      const centerY = h / 2;
 
-        {/* Controls */}
-        <div className="flex items-center gap-1.5 pl-2 border-l border-neutral-800">
-          <button
-            onClick={handleToggleMute}
-            className={`p-2 rounded-lg transition ${
-              isMuted
-                ? 'bg-rose-950/80 text-rose-400 hover:bg-rose-900 border border-rose-700/50'
-                : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'
-            }`}
-            title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
-          >
-            {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </button>
+      const numBars = 28;
+      const barWidth = w / numBars - 2;
 
-          <button
-            onClick={() => setIsMinimized(false)}
-            className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition"
-            title="Expand Live Voice Console"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
+      for (let i = 0; i < numBars; i++) {
+        const x = i * (barWidth + 2);
+        let amplitude = 2;
 
-          <button
-            onClick={() => {
-              disconnectSession();
-              setIsMinimized(false);
-              onClose();
-            }}
-            className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white transition"
-            title="Disconnect Voice Link"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
+        if (isListening) {
+          const wave1 = Math.sin((i / numBars) * Math.PI * 4 + phase);
+          const wave2 = Math.cos((i / numBars) * Math.PI * 2 - phase * 1.5);
+          amplitude = Math.max(2, Math.abs(wave1 * wave2) * (h / 2.2));
+        }
+
+        ctx.fillStyle = isListening ? (i % 2 === 0 ? '#06b6d4' : '#38bdf8') : '#475569';
+        ctx.fillRect(x, centerY - amplitude, barWidth, amplitude * 2);
+      }
+
+      phase += 0.08;
+      animId = requestAnimationFrame(renderWave);
+    };
+
+    renderWave();
+    return () => cancelAnimationFrame(animId);
+  }, [isListening]);
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-neutral-950 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div
+      className={`fixed z-50 transition-all duration-300 ${
+        isMinimized
+          ? 'bottom-20 right-4 sm:right-6 w-80'
+          : 'inset-x-3 bottom-16 sm:bottom-20 sm:inset-x-auto sm:right-6 sm:w-[460px] max-h-[85vh]'
+      }`}
+    >
+      <div className="bg-[#090d16]/95 backdrop-blur-2xl border border-cyan-500/70 rounded-3xl shadow-2xl shadow-black/80 flex flex-col overflow-hidden text-neutral-200">
         {/* Header */}
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/60">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-purple-950/50 border border-purple-500/30">
-              <Radio className="w-5 h-5 text-white animate-pulse" />
+        <div className="p-3.5 sm:p-4 border-b border-neutral-800/80 bg-[#0c1220] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative flex items-center justify-center p-2 rounded-xl bg-cyan-950/80 border border-cyan-500/60 text-cyan-400">
+              <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse text-cyan-300' : 'text-neutral-400'}`} />
+              {isListening && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base text-white tracking-wide font-mono">
-                  MARSWAY LIVE VOICE COMMS
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 font-mono border border-purple-700/60 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-purple-400" />
-                  gemini-3.8-live
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide truncate">
+                  Web Speech Voice Controller
+                </h3>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">
+                  LIVE API
                 </span>
               </div>
-              <p className="text-xs text-neutral-400 font-mono flex items-center gap-2">
-                <span>Real-Time Bi-Directional PCM Audio Link</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 inline-block"></span>
-                <span>NASA PDS & MOLA Grounded</span>
+              <p className="text-[10px] text-neutral-400 truncate font-mono">
+                {statusMessage}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={() => setIsMinimized(true)}
-              className="p-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 transition"
-              title="Minimize to floating HUD"
-            >
-              <Minimize2 className="w-4 h-4" />
-            </button>
-            <button
+              type="button"
               onClick={() => {
-                disconnectSession();
-                onClose();
-              }}
-              className="p-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 transition"
-              title="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Status & Error Notification */}
-        {errorMessage && (
-          <div className="px-4 py-2.5 bg-rose-950/80 border-b border-rose-800 text-rose-200 text-xs flex items-center gap-2 font-mono">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span className="flex-1">{errorMessage}</span>
-            <button
-              onClick={() => setErrorMessage(null)}
-              className="px-2 py-0.5 rounded bg-rose-900 text-white hover:bg-rose-800 text-[10px]"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Main Interactive Audio Center */}
-        <div className="p-5 border-b border-neutral-800/80 bg-gradient-to-b from-neutral-900/40 to-neutral-950 flex flex-col items-center justify-center relative overflow-hidden">
-          {/* Circular Visualizer Radar */}
-          <div className="relative flex items-center justify-center my-4">
-            {/* Outer animated rings */}
-            <div
-              className={`absolute w-36 h-36 rounded-full border border-purple-500/20 transition-all duration-300 ${
-                isModelSpeaking ? 'scale-125 opacity-100 animate-ping' : 'scale-100 opacity-20'
-              }`}
-            />
-            <div
-              className={`absolute w-48 h-48 rounded-full border border-indigo-500/10 transition-all duration-500 ${
-                isUserSpeaking ? 'scale-115 opacity-80 border-emerald-500/30' : 'scale-100 opacity-10'
-              }`}
-            />
-
-            {/* Central Master Button */}
-            {!isConnected ? (
-              <button
-                onClick={connectSession}
-                disabled={isConnecting}
-                className="w-28 h-28 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 disabled:opacity-60 text-white shadow-xl shadow-purple-950/70 border border-purple-400/40 flex flex-col items-center justify-center gap-2 transition-all transform hover:scale-105 active:scale-95 group"
-              >
-                {isConnecting ? (
-                  <>
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-200" />
-                    <span className="text-[11px] font-mono tracking-wider font-semibold">CONNECTING</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-8 h-8 text-white group-hover:animate-pulse" />
-                    <span className="text-[11px] font-mono tracking-wider font-bold">START VOICE</span>
-                  </>
-                )}
-              </button>
-            ) : (
-              <div className="w-28 h-28 rounded-full bg-neutral-900 border-2 border-purple-500/60 shadow-2xl flex flex-col items-center justify-center relative z-10">
-                {isModelSpeaking ? (
-                  <div className="flex flex-col items-center justify-center gap-1.5">
-                    <Volume2 className="w-7 h-7 text-purple-400 animate-bounce" />
-                    <span className="text-[10px] font-mono text-purple-300 font-bold uppercase tracking-wider">
-                      Speaking
-                    </span>
-                  </div>
-                ) : isUserSpeaking ? (
-                  <div className="flex flex-col items-center justify-center gap-1.5">
-                    <Mic className="w-7 h-7 text-emerald-400 animate-pulse" />
-                    <span className="text-[10px] font-mono text-emerald-300 font-bold uppercase tracking-wider">
-                      Listening
-                    </span>
-                  </div>
-                ) : isMuted ? (
-                  <div className="flex flex-col items-center justify-center gap-1.5">
-                    <MicOff className="w-7 h-7 text-rose-400" />
-                    <span className="text-[10px] font-mono text-rose-400 font-bold uppercase tracking-wider">
-                      Muted
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-1.5">
-                    <Radio className="w-7 h-7 text-purple-400 animate-pulse" />
-                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
-                      Live Link
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Real-time Spectrum Oscilloscope */}
-          <div className="w-full max-w-md flex items-end justify-center gap-1 h-12 py-1">
-            {(isModelSpeaking
-              ? visualizerData.outputWaveform
-              : visualizerData.inputWaveform
-            ).map((val, i) => (
-              <div
-                key={i}
-                className={`w-2.5 rounded-t transition-all duration-75 ${
-                  isModelSpeaking
-                    ? 'bg-gradient-to-t from-purple-600 to-indigo-400'
-                    : isUserSpeaking
-                    ? 'bg-gradient-to-t from-emerald-600 to-teal-400'
-                    : 'bg-neutral-800'
-                }`}
-                style={{
-                  height: `${Math.max(4, val * 44)}px`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Connection & Status Banner */}
-          <div className="mt-2 text-center">
-            <p className="text-xs font-mono text-neutral-300">{statusMessage}</p>
-            {isConnected && (
-              <p className="text-[11px] font-mono text-purple-400 mt-0.5">
-                Latency: Sub-second • Sampling: 16kHz PCM In / 24kHz PCM Out • Voice: {selectedVoice}
-              </p>
-            )}
-          </div>
-
-          {/* Audio Controls Toolbar */}
-          {isConnected && (
-            <div className="mt-4 flex items-center gap-2.5 flex-wrap justify-center font-mono text-xs">
-              <button
-                onClick={handleToggleMute}
-                className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition ${
-                  isMuted
-                    ? 'bg-rose-950 text-rose-300 border-rose-700/60 shadow'
-                    : 'bg-neutral-900 text-neutral-200 border-neutral-700/60 hover:bg-neutral-800'
-                }`}
-              >
-                {isMuted ? <MicOff className="w-4 h-4 text-rose-400" /> : <Mic className="w-4 h-4 text-emerald-400" />}
-                <span>{isMuted ? 'Unmute Mic' : 'Mute Mic'}</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsPushToTalk(!isPushToTalk);
-                  if (!isPushToTalk && audioControllerRef.current) {
-                    audioControllerRef.current.setMuted(true);
-                  } else if (audioControllerRef.current) {
-                    audioControllerRef.current.setMuted(false);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition ${
-                  isPushToTalk
-                    ? 'bg-purple-950 text-purple-300 border-purple-700/60'
-                    : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-neutral-200'
-                }`}
-              >
-                <Activity className="w-4 h-4" />
-                <span>{isPushToTalk ? 'Push-To-Talk [ON]' : 'Open Mic (VAD)'}</span>
-              </button>
-
-              {isPushToTalk && (
-                <button
-                  onMouseDown={handlePTTDown}
-                  onMouseUp={handlePTTUp}
-                  onTouchStart={handlePTTDown}
-                  onTouchEnd={handlePTTUp}
-                  className={`px-4 py-1.5 rounded-lg font-bold border transition ${
-                    isPTTHeld
-                      ? 'bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-950'
-                      : 'bg-neutral-800 text-neutral-300 border-neutral-700 hover:bg-neutral-700'
-                  }`}
-                >
-                  {isPTTHeld ? 'TRANSMITTING...' : 'HOLD TO TALK'}
-                </button>
-              )}
-
-              <button
-                onClick={disconnectSession}
-                className="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 transition"
-              >
-                End Voice Link
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Configuration Bar (Voice Persona Selector & Prompt Pills) */}
-        <div className="px-4 py-2.5 bg-neutral-900/80 border-b border-neutral-800 flex items-center justify-between gap-3 flex-wrap text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-neutral-400 shrink-0">Flight Voice:</span>
-            <select
-              value={selectedVoice}
-              onChange={(e) => {
-                const newVoice = e.target.value;
-                setSelectedVoice(newVoice);
-                if (isConnected) {
-                  disconnectSession();
-                  setTimeout(() => {
-                    connectSession();
-                  }, 200);
+                const next = !isAudioMuted;
+                setIsAudioMuted(next);
+                if (next && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                  window.speechSynthesis.cancel();
                 }
               }}
-              className="bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1 text-neutral-200 font-mono focus:outline-none focus:border-purple-500"
+              className="p-1.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 hover:text-white transition"
+              title={isAudioMuted ? 'Unmute CapCom Audio Voice' : 'Mute Voice Audio'}
             >
-              {VOICE_OPTIONS.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-[11px] font-mono text-neutral-400">
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>Try saying: "Fly to Olympus Mons" or "Show MOLA elevation"</span>
+              {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsMinimized((prev) => !prev)}
+              className="p-1.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 hover:text-white transition"
+              title={isMinimized ? 'Expand Voice HUD' : 'Minimize Voice HUD'}
+            >
+              {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 hover:text-white transition"
+              title="Close Voice Assistant"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Live Conversation Transcript Feed */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[160px] max-h-[260px] bg-neutral-950/60 font-sans text-xs">
-          {transcripts.length === 0 ? (
-            <div className="text-center py-6 text-neutral-500 font-mono">
-              <Radio className="w-6 h-6 mx-auto mb-2 text-neutral-600" />
-              <p>Voice transmission log will display here in real-time.</p>
-              <p className="text-[11px] text-neutral-600 mt-1">
-                You can interrupt the AI at any time simply by speaking over it.
-              </p>
-            </div>
-          ) : (
-            transcripts.map((t) => (
-              <div
-                key={t.id}
-                className={`flex flex-col ${
-                  t.sender === 'user'
-                    ? 'items-end'
-                    : t.sender === 'system' || t.sender === 'tool'
-                    ? 'items-center'
-                    : 'items-start'
+        {/* Content Body */}
+        {!isMinimized && (
+          <div className="flex flex-col flex-1 max-h-[500px]">
+            {/* Live Audio Visualizer Canvas & Mic Button */}
+            <div className="p-3 bg-black/40 border-b border-neutral-800 flex items-center justify-between gap-3">
+              <canvas ref={canvasRef} width={180} height={28} className="rounded-lg opacity-90" />
+              <button
+                type="button"
+                onClick={isListening ? stopListening : startListening}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
+                  isListening
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                    : 'bg-cyan-600 hover:bg-cyan-500 text-white'
                 }`}
               >
-                {t.sender === 'system' ? (
-                  <div className="px-3 py-1.5 rounded-lg bg-neutral-900/80 border border-neutral-800 text-[11px] font-mono text-neutral-400 text-center max-w-lg">
-                    {t.text}
+                {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                <span>{isListening ? 'PAUSE MIC' : 'LISTEN'}</span>
+              </button>
+            </div>
+
+            {/* Live CapCom & Transcript Log View */}
+            <div className="p-3 overflow-y-auto space-y-2.5 flex-1 min-h-[140px] max-h-[220px] bg-[#070b14]/50">
+              {commandLogs.map((item) => (
+                <div
+                  key={item.id}
+                  className={`p-2.5 rounded-2xl text-xs leading-relaxed transition-all ${
+                    item.type === 'user'
+                      ? 'bg-cyan-950/70 border border-cyan-800 text-cyan-200 ml-4'
+                      : 'bg-neutral-900/80 border border-neutral-800 text-neutral-200 mr-2'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[10px] font-mono text-neutral-400 mb-1">
+                    <span className={`font-bold ${item.type === 'user' ? 'text-cyan-400' : 'text-orange-400'}`}>
+                      {item.badge}
+                    </span>
+                    <span>{item.timestamp}</span>
                   </div>
-                ) : t.sender === 'tool' ? (
-                  <div className="px-3 py-1.5 rounded-lg bg-indigo-950/50 border border-indigo-700/60 text-[11px] font-mono text-indigo-300 flex items-center gap-2 max-w-lg">
-                    <Compass className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                    <span>{t.text}</span>
-                  </div>
-                ) : (
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs shadow ${
-                      t.sender === 'user'
-                        ? 'bg-purple-600 text-white rounded-tr-none'
-                        : 'bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-tl-none'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3 mb-1 text-[10px] font-mono opacity-70">
-                      <span className="font-bold">
-                        {t.sender === 'user' ? 'Astronaut (You)' : `Gemini Live (${selectedVoice})`}
-                      </span>
-                      <span>{t.timestamp}</span>
-                    </div>
-                    <p className="leading-relaxed">{t.text}</p>
-                  </div>
+                  <div>{item.text}</div>
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+
+            {/* Quick-Click Command Chips (Categorized & 1-Click Interactive Test) */}
+            <div className="p-3 border-t border-neutral-800 bg-[#0a0f1d] space-y-2">
+              <div className="flex items-center justify-between text-[10.5px]">
+                <span className="font-mono text-neutral-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                  <span>Click or Speak Any Command</span>
+                </span>
+                {/* Category Pills */}
+                <div className="flex items-center gap-1">
+                  {(['all', 'navigation', 'missions', 'landmarks'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setActiveCategory(cat)}
+                      className={`px-1.5 py-0.5 rounded text-[9px] capitalize transition ${
+                        activeCategory === cat ? 'bg-cyan-600 text-white font-bold' : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 max-h-[135px] overflow-y-auto pr-1">
+                {/* Navigation Commands */}
+                {(activeCategory === 'all' || activeCategory === 'navigation') && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Move north')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ArrowUp className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span className="truncate">"Move north"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Move south')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ArrowDown className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span className="truncate">"Move south"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Move east')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ArrowRight className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span className="truncate">"Move east"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Move west')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ArrowLeft className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span className="truncate">"Move west"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Zoom in')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ZoomIn className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">"Zoom in"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Zoom out')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ZoomOut className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">"Zoom out"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Align north')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Compass className="w-3 h-3 text-orange-400 shrink-0" />
+                      <span className="truncate">"Align north"</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Mission Queries */}
+                {(activeCategory === 'all' || activeCategory === 'missions') && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Where is Perseverance?')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-orange-950 border border-neutral-800 hover:border-orange-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Navigation className="w-3 h-3 text-orange-400 shrink-0" />
+                      <span className="truncate">"Perseverance Rover"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Where is Curiosity?')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-orange-950 border border-neutral-800 hover:border-orange-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Navigation className="w-3 h-3 text-orange-400 shrink-0" />
+                      <span className="truncate">"Curiosity Rover"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Opportunity Rover')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-orange-950 border border-neutral-800 hover:border-orange-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Navigation className="w-3 h-3 text-orange-400 shrink-0" />
+                      <span className="truncate">"Opportunity Rover"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Where is Zhurong?')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-orange-950 border border-neutral-800 hover:border-orange-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Navigation className="w-3 h-3 text-orange-400 shrink-0" />
+                      <span className="truncate">"Zhurong Rover"</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Landmark Queries */}
+                {(activeCategory === 'all' || activeCategory === 'landmarks') && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Olympus Mons')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-purple-950 border border-neutral-800 hover:border-purple-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                      <span className="truncate">"Olympus Mons"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Valles Marineris')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-purple-950 border border-neutral-800 hover:border-purple-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                      <span className="truncate">"Valles Marineris"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Arcadia Planitia')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-purple-950 border border-neutral-800 hover:border-purple-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">"Arcadia Planitia Base"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Astronaut view')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-blue-950 border border-neutral-800 hover:border-blue-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Footprints className="w-3 h-3 text-cyan-300 shrink-0" />
+                      <span className="truncate">"Astronaut View"</span>
+                    </button>
+                  </>
                 )}
               </div>
-            ))
-          )}
-          <div ref={transcriptEndRef} />
-        </div>
-
-        {/* Quick Voice Starters */}
-        <div className="px-4 py-2 border-t border-neutral-800/80 bg-neutral-950/40 flex items-center gap-1.5 overflow-x-auto text-xs">
-          <span className="text-[10px] font-mono text-neutral-500 shrink-0">Prompts:</span>
-          {SUGGESTED_VOICE_QUERIES.map((query, i) => (
-            <button
-              key={i}
-              onClick={() => handleQuickPrompt(query)}
-              className="px-2.5 py-1 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white whitespace-nowrap transition text-xs flex items-center gap-1"
-            >
-              <Sparkles className="w-3 h-3 text-purple-400" />
-              <span>{query}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Text Fallback / Input Field */}
-        <div className="p-3 border-t border-neutral-800 bg-neutral-900/70 flex items-center gap-2">
-          <input
-            type="text"
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSendText();
-            }}
-            placeholder={
-              isConnected
-                ? 'Type to speak via Gemini Live, or speak into your microphone...'
-                : 'Connect Voice Link above, or type here to start...'
-            }
-            className="flex-1 bg-neutral-950 border border-neutral-800 text-sm text-white placeholder-neutral-500 rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-purple-500"
-          />
-          <button
-            onClick={isConnected ? handleSendText : () => connectSession()}
-            disabled={!textInput.trim() && isConnected}
-            className="p-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-white transition shadow flex items-center justify-center"
-            title="Send Text Message to Live Session"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

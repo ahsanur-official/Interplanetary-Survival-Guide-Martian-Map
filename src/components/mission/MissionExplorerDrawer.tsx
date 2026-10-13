@@ -123,34 +123,58 @@ export function MissionExplorerDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 left-0 w-full sm:w-[480px] lg:w-[520px] bg-[#0c1017]/95 backdrop-blur-md border-r border-neutral-800 z-50 flex flex-col shadow-2xl text-neutral-200">
-      {/* Drawer Header */}
-      <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/60">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-orange-500/10 border border-orange-500/30 text-orange-400">
-            <Radio className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-white tracking-wide flex items-center gap-2">
-              Mission Explorer
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700">
-                NASA · ESA · CNSA · UAESA
-              </span>
-            </h2>
-            <p className="text-xs text-neutral-400">
-              Robotic rovers, surface landers, and scientific orbital reconnaissance
-            </p>
-          </div>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end pointer-events-auto animate-in fade-in duration-200">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Collapsible Bottom Sheet Container */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mars Mission Explorer"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-4xl mx-auto max-h-[82vh] bg-[#0c1017]/98 backdrop-blur-2xl border-t border-x border-neutral-700/80 rounded-t-3xl shadow-[0_-25px_60px_rgba(0,0,0,0.85)] z-10 flex flex-col animate-in slide-in-from-bottom duration-300 text-neutral-200"
+      >
+        {/* Pull Handle */}
+        <div
+          className="pt-2.5 pb-1 flex justify-center cursor-pointer select-none"
+          onClick={onClose}
+          title="Click to collapse"
+        >
+          <div className="w-12 h-1.5 bg-neutral-600 hover:bg-neutral-400 rounded-full transition-colors" />
         </div>
 
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
-          title="Close Mission Explorer"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+        {/* Drawer Header */}
+        <div className="px-5 py-3 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/60 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 shrink-0">
+              <Radio className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-semibold text-white tracking-wide flex items-center gap-2 truncate">
+                <span>Mission Explorer</span>
+                <span className="hidden sm:inline-block text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700">
+                  NASA · ESA · CNSA · UAESA
+                </span>
+              </h2>
+              <p className="text-[11px] sm:text-xs text-neutral-400 truncate">
+                Robotic rovers, surface landers, and scientific orbital reconnaissance
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl hover:bg-neutral-800 text-neutral-400 hover:text-white transition cursor-pointer shrink-0 ml-2"
+            title="Close Mission Explorer"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
       {/* Filter Tabs & Search */}
       <div className="p-4 border-b border-neutral-800 space-y-3 bg-neutral-950/40">
@@ -443,6 +467,7 @@ export function MissionExplorerDrawer({
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

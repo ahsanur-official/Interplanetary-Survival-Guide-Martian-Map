@@ -41,8 +41,6 @@ export function MarsMeasurementTool({
   onChangeMode,
   onOpenElevationProfile,
 }: MarsMeasurementToolProps) {
-  if (!isOpen) return null;
-
   const totalDistanceKm = useMemo(() => {
     if (points.length < 2) return 0;
     let sum = 0;
@@ -61,6 +59,8 @@ export function MarsMeasurementTool({
       points.map((p) => ({ latitude: p.lat, longitude: p.lng }))
     );
   }, [points]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed top-14 sm:top-20 left-2 right-2 sm:left-auto sm:right-6 w-auto sm:w-80 max-w-[calc(100vw-16px)] bg-[#0c1017]/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-2xl z-40 text-neutral-200 overflow-hidden font-mono text-xs">

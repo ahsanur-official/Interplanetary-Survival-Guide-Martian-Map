@@ -72,8 +72,6 @@ export function ElevationProfileModal({
     };
   }, []);
 
-  if (!isOpen) return null;
-
   // Chart Dimensions & Scales
   const chartWidth = 760;
   const chartHeight = 220;
@@ -230,6 +228,8 @@ export function ElevationProfileModal({
     if (!samples || samples.length === 0) return null;
     return samples.reduce((min, s) => (s.elevationM < min.elevationM ? s : min), samples[0]);
   }, [samples]);
+
+  if (!isOpen) return null;
 
   return (
     <div
