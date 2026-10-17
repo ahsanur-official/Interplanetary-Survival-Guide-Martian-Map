@@ -14,6 +14,7 @@ import {
   Compass,
   X,
   Wind,
+  Gauge,
 } from 'lucide-react';
 import { MARS_MISSIONS_DATA, MarsMission } from '../../data/marsMissions';
 
@@ -24,6 +25,7 @@ export interface MissionLayerOptions {
   showTraverseTracks: boolean;
   showDustStormOverlay?: boolean;
   showMolaAvailabilityOverlay?: boolean;
+  showAtmosphereOverlay?: boolean;
   enabledTraverseMissionIds: string[]; // e.g. ['perseverance', 'curiosity', 'opportunity']
   agencyFilter: 'all' | 'nasa' | 'international';
   missionTypeFilter: 'all' | 'rover' | 'lander';
@@ -223,6 +225,28 @@ export const MarsLayerControlPanel: React.FC<MarsLayerControlPanelProps> = ({
                 }`}
               >
                 {layerOptions.showDustStormOverlay ? 'Visible' : 'Hidden'}
+              </button>
+            </div>
+
+            {/* 4. Atmospheric Pressure & Temperature Overlay */}
+            <div className="p-2 rounded-xl bg-neutral-900/90 border border-neutral-800 flex items-center justify-between hover:border-neutral-700 transition">
+              <div className="flex items-center gap-2 min-w-0 pr-1">
+                <Gauge className={`w-3.5 h-3.5 shrink-0 ${layerOptions.showAtmosphereOverlay ? 'text-blue-400 animate-pulse' : 'text-neutral-500'}`} />
+                <div className="min-w-0">
+                  <div className="font-semibold text-white truncate text-[11px]">Atmosphere & Temp</div>
+                  <div className="text-[9px] text-neutral-400 truncate">Barometric Isobars & Landing Site Temps</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onChangeOptions({ showAtmosphereOverlay: !layerOptions.showAtmosphereOverlay })}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer shrink-0 ${
+                  layerOptions.showAtmosphereOverlay
+                    ? 'bg-blue-600 text-white font-bold shadow-sm ring-1 ring-cyan-300'
+                    : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                }`}
+              >
+                {layerOptions.showAtmosphereOverlay ? 'Visible' : 'Hidden'}
               </button>
             </div>
           </div>

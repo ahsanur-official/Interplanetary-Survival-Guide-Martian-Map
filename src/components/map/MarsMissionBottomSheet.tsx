@@ -63,6 +63,8 @@ export interface MarsMissionBottomSheetProps {
   onToggleDustStorm: () => void;
   showMolaAvailabilityOverlay: boolean;
   onToggleMolaAvailability: () => void;
+  showAtmosphereOverlay?: boolean;
+  onToggleAtmosphere?: () => void;
   // Place category filter
   placeCategoryFilter: 'all' | 'mons' | 'crater' | 'chasma' | 'vallis' | 'planitia' | 'mission';
   onSelectCategoryFilter: (filter: 'all' | 'mons' | 'crater' | 'chasma' | 'vallis' | 'planitia' | 'mission') => void;
@@ -106,6 +108,8 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
   onToggleDustStorm,
   showMolaAvailabilityOverlay,
   onToggleMolaAvailability,
+  showAtmosphereOverlay = false,
+  onToggleAtmosphere,
   placeCategoryFilter,
   onSelectCategoryFilter,
   onFlyToLocation,
@@ -596,6 +600,27 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
                         }`}
                       >
                         {showMolaAvailabilityOverlay ? 'Active' : 'Off'}
+                      </button>
+                    </div>
+
+                    {/* Atmospheric Pressure & Surface Temperature */}
+                    <div className="p-3 rounded-xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-white">Atmospheric Pressure & Temperature</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                        </div>
+                        <span className="text-[10px] text-neutral-400">Isobars, isotherms & weather telemetry at landing sites</span>
+                      </div>
+                      <button
+                        onClick={onToggleAtmosphere}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          showAtmosphereOverlay
+                            ? 'bg-blue-600 text-white shadow ring-1 ring-cyan-300'
+                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        {showAtmosphereOverlay ? 'Active' : 'Off'}
                       </button>
                     </div>
                   </div>

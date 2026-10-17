@@ -102,35 +102,36 @@ export function distanceToSegmentMeters(
 }
 
 /**
- * Computes spherical polygon area on Mars in square kilometers using spherical excess
+ * Computes spherical polygon area on Mars in square kilometers using the spherical shoelace formula.
+ * Accurate for both local crater patches and large planetary basins on Mars (R = 3,396.19 km).
  */
 export function calculateMarsPolygonAreaKm2(coords: MarsCoordinate[]): number {
   if (coords.length < 3) return 0;
-
-  let totalAngle = 0;
   const n = coords.length;
+  let total = 0;
 
   for (let i = 0; i < n; i++) {
-    const p1 = coords[i];
-    const p2 = coords[(i + 1) % n];
-    const p3 = coords[(i + 2) % n];
+    const prev = coords[(i - 1 + n) % n];
+    const curr = coords[i];
+    const next = coords[(i + 1) % n];
 
-    // Compute bearings
-    const bearing1 = calculateBearing(p2, p1);
-    const bearing2 = calculateBearing(p2, p3);
+    const latRad = (curr.latitude * Math.PI) / 180;
+    let dLng = ((next.longitude - prev.longitude) * Math.PI) / 180;
+    // Normalize dLng to [-pi, pi] to handle antimeridian crossing correctly
+    while (dLng > Math.PI) dLng -= 2 * Math.PI;
+    while (dLng < -Math.PI) dLng += 2 * Math.PI;
 
-    let angle = bearing2 - bearing1;
-    while (angle < 0) angle += 360;
-    while (angle >= 360) angle -= 360;
-
-    totalAngle += angle * (Math.PI / 180);
+    total += dLng * Math.sin(latRad);
   }
 
-  const excess = Math.abs(totalAngle - (n - 2) * Math.PI);
-  return excess * MARS_RADIUS_KM * MARS_RADIUS_KM;
+  const area = Math.abs((total * MARS_RADIUS_KM * MARS_RADIUS_KM) / 2);
+  return area;
 }
 
-function calculateBearing(start: MarsCoordinate, dest: MarsCoordinate): number {
+/**
+ * Calculates initial Great-Circle forward azimuth / bearing from start to destination on Mars (0° to 360°)
+ */
+export function calculateBearing(start: MarsCoordinate, dest: MarsCoordinate): number {
   const startLat = (start.latitude * Math.PI) / 180;
   const startLon = (start.longitude * Math.PI) / 180;
   const destLat = (dest.latitude * Math.PI) / 180;
@@ -144,4 +145,20 @@ function calculateBearing(start: MarsCoordinate, dest: MarsCoordinate): number {
   const brng = Math.atan2(y, x);
   return ((brng * 180) / Math.PI + 360) % 360;
 }
+
+/**
+ * Converts degree bearing (0° - 360°) to 16-wind compass compass direction (e.g., 'NNE', 'SW')
+ */
+export function getBearingCardinal(bearingDeg: number): string {
+  const directions = [
+    'N', 'NNE', 'NE', 'ENE',
+    'E', 'ESE', 'SE', 'SSE',
+    'S', 'SSW', 'SW', 'WSW',
+    'W', 'WNW', 'NW', 'NNW'
+  ];
+  const normalized = ((bearingDeg % 360) + 360) % 360;
+  const index = Math.round(normalized / 22.5) % 16;
+  return directions[index];
+}
+
 
