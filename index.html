@@ -55,10 +55,25 @@
         }
       })();
     </script>
+    <meta property="og:image" content="/assets/aistudio/image_5c943629.png" />
+    <meta name="twitter:image" content="/assets/aistudio/image_5c943629.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ea580c" />
+    <link rel="icon" type="image/png" href="/assets/aistudio/image_5c943629.png" />
+    <link rel="apple-touch-icon" href="/assets/aistudio/image_5c943629.png" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function(err) {
+            console.debug('ServiceWorker registration skipped:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 

@@ -94,8 +94,12 @@ and is not certified for extraterrestrial flight operations.
       <div className="bg-neutral-900 border border-neutral-700 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl font-mono text-xs text-neutral-300">
         {/* Header */}
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between sticky top-0 bg-neutral-900 z-10">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-orange-400" />
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/assets/aistudio/image_5c943629.png"
+              alt="MARSWAY"
+              className="w-6 h-6 rounded-md object-cover ring-1 ring-orange-500/40 shadow-sm shrink-0"
+            />
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
               Marswalk Mission Briefing & Flight Plan
             </h3>

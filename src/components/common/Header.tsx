@@ -18,10 +18,13 @@ export function Header({
 }: HeaderProps) {
   return (
     <header className="bg-neutral-950 border-b border-neutral-800/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-white select-none z-20 relative">
-      {/* Brand & Project Identity */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-600 to-amber-700 flex items-center justify-center shadow-md shadow-orange-950/40 border border-orange-500/30">
-          <Compass className="w-5 h-5 text-white animate-pulse" />
+        <div className="relative group shrink-0">
+          <img
+            src="/assets/aistudio/image_5c943629.png"
+            alt="MARSWAY Icon"
+            className="w-9 h-9 rounded-xl object-cover shadow-lg shadow-orange-950/60 ring-1 ring-orange-500/40 group-hover:scale-105 transition-transform"
+          />
         </div>
         <div>
           <div className="flex items-center gap-2">

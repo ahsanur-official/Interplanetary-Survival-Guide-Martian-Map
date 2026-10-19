@@ -111,9 +111,14 @@ export function MarsPlatformTourModal({
       <div className="w-full max-w-xl bg-[#0c1017] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-neutral-200 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/60">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/assets/aistudio/image_5c943629.png"
+              alt="MARSWAY"
+              className="w-5 h-5 rounded-md object-cover ring-1 ring-orange-500/40 shadow-sm shrink-0"
+            />
             <span className="text-xs font-mono text-orange-400 font-bold uppercase tracking-wider">
-              Platform Walkthrough
+              MarsWay Platform Walkthrough
             </span>
             <span className="text-neutral-600">•</span>
             <span className="text-xs font-mono text-neutral-400">

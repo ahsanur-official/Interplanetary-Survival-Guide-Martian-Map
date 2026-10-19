@@ -62,12 +62,19 @@ export function ChallengeAlignmentModal({ onClose }: ChallengeAlignmentModalProp
       <div className="bg-neutral-900 border border-neutral-700 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl font-mono text-xs text-neutral-300">
         {/* Header */}
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between sticky top-0 bg-neutral-900 z-10">
-          <div className="flex items-center gap-2">
-            <Award className="w-4 h-4 text-amber-400" />
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/assets/aistudio/image_5c943629.png"
+              alt="MARSWAY Logo"
+              className="w-7 h-7 rounded-lg object-cover ring-1 ring-orange-500/40 shadow-sm shrink-0"
+            />
             <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                2026 NASA Space Apps Challenge Alignment
-              </h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  2026 NASA Space Apps Challenge Alignment
+                </h3>
+                <Award className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              </div>
               <p className="text-[11px] text-neutral-400">
                 Challenge: &quot;Interplanetary Survival Guide: Martian Map&quot;
               </p>

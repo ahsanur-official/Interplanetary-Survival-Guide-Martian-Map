@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <radialGradient id="marsGrad192" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="40%" stop-color="#ea580c" />
+      <stop offset="85%" stop-color="#9a3412" />
+      <stop offset="100%" stop-color="#431407" />
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" rx="48" fill="#070b14" />
+  <circle cx="96" cy="96" r="68" fill="url(#marsGrad192)" />
+  <ellipse cx="96" cy="96" rx="82" ry="30" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.75" transform="rotate(-25 96 96)" />
+  <path d="M96 45 C81 45 69 57 69 72 C69 92 96 120 96 120 C96 120 123 92 123 72 C123 57 111 45 96 45 Z" fill="#38bdf8" />
+  <circle cx="96" cy="72" r="10" fill="#070b14" />
+  <circle cx="96" cy="72" r="5" fill="#ffffff" />
+</svg>

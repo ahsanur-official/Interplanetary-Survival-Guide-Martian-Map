@@ -64,8 +64,12 @@ export function DemoTourModal({ onClose, onExecuteTourStep }: DemoTourModalProps
       <div className="bg-neutral-900 border border-neutral-700 rounded-xl max-w-xl w-full shadow-2xl font-mono text-xs text-neutral-300">
         {/* Header */}
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-orange-400" />
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/assets/aistudio/image_5c943629.png"
+              alt="MARSWAY Icon"
+              className="w-6 h-6 rounded-md object-cover ring-1 ring-orange-500/40 shadow-sm shrink-0"
+            />
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">
               Guided 3-Minute Marswalk Demo Tour
             </h3>

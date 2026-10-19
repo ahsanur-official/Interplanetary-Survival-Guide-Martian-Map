@@ -1,0 +1,37 @@
+{
+  "name": "MarsWay — Interactive Mars Mission Intelligence",
+  "short_name": "MarsWay",
+  "description": "Planetary Mars exploration, multi-mission layers, A* EVA route planning, and life-support environmental analysis platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070b14",
+  "theme_color": "#ea580c",
+  "categories": ["education", "science", "utilities"],
+  "icons": [
+    {
+      "src": "/assets/aistudio/image_5c943629.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/marsway-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
