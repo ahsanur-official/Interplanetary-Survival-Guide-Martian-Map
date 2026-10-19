@@ -99,9 +99,11 @@ import { CompareSitesModal } from '../science/CompareSitesModal';
 import { DataSourcesModal } from '../provenance/DataSourcesModal';
 import { MarsBookmarksModal } from '../common/MarsBookmarksModal';
 import { MarsMeasurementTool, MeasurementPoint } from './MarsMeasurementTool';
+import { MarsPathElevationGraph } from './MarsPathElevationGraph';
 import { ElevationProfileModal } from '../science/ElevationProfileModal';
 import {
   generateElevationTransect,
+  generateMultiPointElevationTransect,
   getMolaElevation,
   getMarsPressureMbar,
   PRESET_MARS_TRANSECTS,
@@ -460,6 +462,7 @@ export function RealMarsMap() {
 
   const [measurePoints, setMeasurePoints] = useState<MeasurementPoint[]>([]);
   const [measureMode, setMeasureMode] = useState<'distance' | 'area'>('distance');
+  const [isWideElevationDockOpen, setIsWideElevationDockOpen] = useState<boolean>(false);
   const measureLayerRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
@@ -1299,7 +1302,36 @@ export function RealMarsMap() {
 
       marker.addTo(layer);
     });
-  }, [isMeasureToolOpen, measurePoints, measureMode]);
+
+    // 4. Synchronized live hover reticle from cross-sectional elevation graph
+    if (hoveredElevationSample) {
+      const hoverMarkerHtml = `
+        <div class="relative flex items-center justify-center w-8 h-8 pointer-events-none">
+          <div class="absolute inset-0 rounded-full animate-ping opacity-80" style="background-color: ${hoveredElevationSample.difficultyColor};"></div>
+          <div class="w-4 h-4 rounded-full border-2 border-white shadow-2xl flex items-center justify-center" style="background-color: ${hoveredElevationSample.difficultyColor};">
+            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+          </div>
+        </div>
+      `;
+      const hoverIcon = L.divIcon({
+        html: hoverMarkerHtml,
+        className: 'hover-measure-transect-pin',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+      const hoverMarker = L.marker([hoveredElevationSample.lat, hoveredElevationSample.lng], {
+        icon: hoverIcon,
+        zIndexOffset: 4500,
+      }).addTo(layer);
+      hoverMarker.bindTooltip(
+        `<div style="font-family: monospace; font-size: 11px; padding: 2px 4px;">
+          <div style="font-weight: bold; color: #ffffff;">Dist: ${hoveredElevationSample.distanceKm} km | Elev: ${hoveredElevationSample.elevationM > 0 ? `+${hoveredElevationSample.elevationM}` : hoveredElevationSample.elevationM}m</div>
+          <div style="color: ${hoveredElevationSample.difficultyColor};">Slope: ${hoveredElevationSample.slopeDeg}° (${hoveredElevationSample.difficultyLabel})</div>
+        </div>`,
+        { permanent: true, direction: 'top', offset: [0, -10] }
+      );
+    }
+  }, [isMeasureToolOpen, measurePoints, measureMode, hoveredElevationSample]);
 
   // Render MGS MOLA Elevation Profile Transect on Map
   useEffect(() => {
@@ -5934,23 +5966,52 @@ export function RealMarsMap() {
             mapInstanceRef.current.fitBounds(bounds, { padding: [70, 70] });
           }
         }}
-        onOpenElevationProfile={() => {
-          if (measurePoints.length >= 2) {
-            const ptA = measurePoints[0];
-            const ptB = measurePoints[measurePoints.length - 1];
-            const nameA = `Measure Pt 1 (${ptA.lat.toFixed(2)}°, ${ptA.lng.toFixed(2)}°)`;
-            const nameB = `Measure Pt ${measurePoints.length} (${ptB.lat.toFixed(2)}°, ${ptB.lng.toFixed(2)}°)`;
-            setElevationPoints([
-              { lat: ptA.lat, lng: ptA.lng, name: nameA },
-              { lat: ptB.lat, lng: ptB.lng, name: nameB },
-            ]);
-            const prof = generateElevationTransect(ptA.lat, ptA.lng, ptB.lat, ptB.lng, 120, nameA, nameB);
-            setElevationProfile(prof);
+        hoveredElevationSample={hoveredElevationSample}
+        onHoverElevationSample={(sample) => setHoveredElevationSample(sample)}
+        onFlyToCoord={(lat, lng, name) => handleFlyToLocation(lat, lng, 6, name)}
+        isWideElevationDockOpen={isWideElevationDockOpen}
+        onToggleWideElevationDock={() => setIsWideElevationDockOpen(!isWideElevationDockOpen)}
+        onOpenElevationProfile={(customProfile) => {
+          if (customProfile) {
+            setElevationProfile(customProfile);
+            setElevationPoints(measurePoints.map((p, i) => ({ lat: p.lat, lng: p.lng, name: `Measure Pt ${i + 1}` })));
             setIsElevationProfileOpen(true);
             setIsMeasureToolOpen(false);
+          } else if (measurePoints.length >= 2) {
+            const prof = generateMultiPointElevationTransect(measurePoints);
+            if (prof) {
+              setElevationProfile(prof);
+              setElevationPoints(measurePoints.map((p, i) => ({ lat: p.lat, lng: p.lng, name: `Measure Pt ${i + 1}` })));
+              setIsElevationProfileOpen(true);
+              setIsMeasureToolOpen(false);
+            }
           }
         }}
       />
+
+      {/* WIDE BOTTOM-DOCKED MOLA CROSS-SECTIONAL ELEVATION BAR */}
+      {isMeasureToolOpen && measurePoints.length >= 2 && isWideElevationDockOpen && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 max-w-full">
+          <MarsPathElevationGraph
+            profile={generateMultiPointElevationTransect(measurePoints)}
+            points={measurePoints}
+            hoveredSample={hoveredElevationSample}
+            onHoverSample={(sample) => setHoveredElevationSample(sample)}
+            onFlyToCoord={(lat, lng, name) => handleFlyToLocation(lat, lng, 6, name)}
+            onOpenFullAnalysis={() => {
+              const prof = generateMultiPointElevationTransect(measurePoints);
+              if (prof) {
+                setElevationProfile(prof);
+                setElevationPoints(measurePoints.map((p, i) => ({ lat: p.lat, lng: p.lng, name: `Measure Pt ${i + 1}` })));
+                setIsElevationProfileOpen(true);
+                setIsMeasureToolOpen(false);
+              }
+            }}
+            variant="docked"
+            onCloseDocked={() => setIsWideElevationDockOpen(false)}
+          />
+        </div>
+      )}
 
       {/* MGS MOLA ELEVATION PROFILE & TERRAIN STEEPNESS MODAL */}
       <ElevationProfileModal

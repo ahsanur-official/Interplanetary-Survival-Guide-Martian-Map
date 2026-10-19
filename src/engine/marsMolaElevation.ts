@@ -508,3 +508,252 @@ export function generateElevationTransect(
     roverFeasibility,
   };
 }
+
+/**
+ * Generate high-resolution continuous MOLA elevation profile across a multi-point measured path.
+ * Traverses consecutive waypoints, calculating spherical great-circle arc segments and sampling
+ * continuous MOLA elevation, slope gradient, and terrain metrics.
+ */
+export function generateMultiPointElevationTransect(
+  points: { lat: number; lng: number; name?: string }[],
+  targetSamples = 160
+): ElevationTransectProfile | null {
+  if (!points || points.length < 2) return null;
+
+  // 1. Calculate Individual Segment Distances
+  const segmentDistances: number[] = [];
+  let totalDistanceKm = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const d = calculateMarsDistanceKm(
+      { latitude: points[i].lat, longitude: points[i].lng },
+      { latitude: points[i + 1].lat, longitude: points[i + 1].lng }
+    );
+    segmentDistances.push(d);
+    totalDistanceKm += d;
+  }
+
+  if (totalDistanceKm <= 0.001) return null;
+
+  const samples: ElevationSamplePoint[] = [];
+  let minElev = Infinity;
+  let maxElev = -Infinity;
+  let runningDistKm = 0;
+
+  // 2. Sample along each segment
+  for (let sIdx = 0; sIdx < points.length - 1; sIdx++) {
+    const p1 = points[sIdx];
+    const p2 = points[sIdx + 1];
+    const segDist = segmentDistances[sIdx];
+
+    // Number of samples for this segment proportional to its distance (at least 2)
+    const segSamples = Math.max(2, Math.round((segDist / totalDistanceKm) * targetSamples));
+
+    const lat1 = (p1.lat * Math.PI) / 180;
+    const lon1 = (p1.lng * Math.PI) / 180;
+    const lat2 = (p2.lat * Math.PI) / 180;
+    const lon2 = (p2.lng * Math.PI) / 180;
+
+    const dLat = lat2 - lat1;
+    const dLon = lon2 - lon1;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const delta = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+
+    // For all but the last segment, omit the last point so it's not duplicated
+    const isLastSegment = sIdx === points.length - 2;
+    const limit = isLastSegment ? segSamples : segSamples - 1;
+
+    for (let i = 0; i <= limit; i++) {
+      const f = i / segSamples;
+      let sampleLat: number;
+      let sampleLng: number;
+
+      if (delta < 1e-6) {
+        sampleLat = p1.lat;
+        sampleLng = p1.lng;
+      } else {
+        const A = Math.sin((1 - f) * delta) / Math.sin(delta);
+        const B = Math.sin(f * delta) / Math.sin(delta);
+        const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
+        const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
+        const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+
+        sampleLat = (Math.atan2(z, Math.hypot(x, y)) * 180) / Math.PI;
+        sampleLng = (Math.atan2(y, x) * 180) / Math.PI;
+      }
+
+      const distKm = runningDistKm + segDist * f;
+      const elevationM = getMolaElevation(sampleLat, sampleLng);
+
+      if (elevationM < minElev) minElev = elevationM;
+      if (elevationM > maxElev) maxElev = elevationM;
+
+      samples.push({
+        index: samples.length,
+        lat: Number(sampleLat.toFixed(4)),
+        lng: Number(sampleLng.toFixed(4)),
+        distanceKm: Number(distKm.toFixed(2)),
+        elevationM,
+        slopeDeg: 0,
+        difficultyLevel: 1,
+        difficultyLabel: 'Planar / Gentle',
+        difficultyColor: '#10b981',
+        astronautSpeedKmH: 3.2,
+        atmosphericPressureMbar: getMarsPressureMbar(elevationM),
+      });
+    }
+
+    runningDistKm += segDist;
+  }
+
+  // 3. Second pass: Calculate slopes, difficulty, ascent, descent
+  let maxSlopeDeg = 0;
+  let maxSlopeLocationKm = 0;
+  let slopeSum = 0;
+  let totalAscent = 0;
+  let totalDescent = 0;
+  let gentleCount = 0;
+  let moderateCount = 0;
+  let steepCount = 0;
+  let extremeCount = 0;
+  let totalWalkingHours = 0;
+
+  for (let i = 0; i < samples.length; i++) {
+    let slope = 0;
+    const cur = samples[i];
+
+    if (i === 0) {
+      const next = samples[1] || cur;
+      const distM = (next.distanceKm - cur.distanceKm) * 1000;
+      if (distM > 0.1) {
+        slope = (Math.atan(Math.abs(next.elevationM - cur.elevationM) / distM) * 180) / Math.PI;
+      }
+    } else if (i === samples.length - 1) {
+      const prev = samples[i - 1];
+      const distM = (cur.distanceKm - prev.distanceKm) * 1000;
+      if (distM > 0.1) {
+        slope = (Math.atan(Math.abs(cur.elevationM - prev.elevationM) / distM) * 180) / Math.PI;
+      }
+    } else {
+      const prev = samples[i - 1];
+      const next = samples[i + 1];
+      const distM = (next.distanceKm - prev.distanceKm) * 1000;
+      if (distM > 0.1) {
+        slope = (Math.atan(Math.abs(next.elevationM - prev.elevationM) / distM) * 180) / Math.PI;
+      }
+    }
+
+    if (i > 0) {
+      const elevDelta = samples[i].elevationM - samples[i - 1].elevationM;
+      if (elevDelta > 0) totalAscent += elevDelta;
+      else totalDescent += Math.abs(elevDelta);
+    }
+
+    slope = Number(slope.toFixed(1));
+    cur.slopeDeg = slope;
+    slopeSum += slope;
+
+    if (slope > maxSlopeDeg) {
+      maxSlopeDeg = slope;
+      maxSlopeLocationKm = cur.distanceKm;
+    }
+
+    if (slope < 5) {
+      cur.difficultyLevel = 1;
+      cur.difficultyLabel = 'Planar / Gentle';
+      cur.difficultyColor = '#10b981';
+      cur.astronautSpeedKmH = 3.2;
+      gentleCount++;
+    } else if (slope < 15) {
+      cur.difficultyLevel = 2;
+      cur.difficultyLabel = 'Moderate Slope';
+      cur.difficultyColor = '#eab308';
+      cur.astronautSpeedKmH = Math.max(1.8, 3.2 - (slope - 5) * 0.14);
+      moderateCount++;
+    } else if (slope < 25) {
+      cur.difficultyLevel = 3;
+      cur.difficultyLabel = 'Steep Incline';
+      cur.difficultyColor = '#f97316';
+      cur.astronautSpeedKmH = Math.max(0.6, 1.8 - (slope - 15) * 0.12);
+      steepCount++;
+    } else {
+      cur.difficultyLevel = 4;
+      cur.difficultyLabel = 'Extreme Cliff';
+      cur.difficultyColor = '#ef4444';
+      cur.astronautSpeedKmH = 0.2;
+      extremeCount++;
+    }
+
+    if (i > 0) {
+      const stepDistKm = cur.distanceKm - samples[i - 1].distanceKm;
+      const avgSpeed = (cur.astronautSpeedKmH + samples[i - 1].astronautSpeedKmH) / 2;
+      totalWalkingHours += stepDistKm / avgSpeed;
+    }
+  }
+
+  const meanSlopeDeg = Number((slopeSum / Math.max(1, samples.length)).toFixed(1));
+  const totalPoints = samples.length;
+
+  const difficultyStats = {
+    gentlePct: Math.round((gentleCount / totalPoints) * 100),
+    moderatePct: Math.round((moderateCount / totalPoints) * 100),
+    steepPct: Math.round((steepCount / totalPoints) * 100),
+    extremePct: Math.round((extremeCount / totalPoints) * 100),
+  };
+
+  let overallDifficulty: ElevationTransectProfile['overallDifficulty'] = 'Level 1: Traversable Plains';
+  if (difficultyStats.extremePct > 5 || maxSlopeDeg >= 28) {
+    overallDifficulty = 'Level 4: Extreme Chasm / Cliff Hazard';
+  } else if (difficultyStats.steepPct > 15 || maxSlopeDeg >= 18) {
+    overallDifficulty = 'Level 3: Rugged Escarpments';
+  } else if (difficultyStats.moderatePct > 25 || maxSlopeDeg >= 8) {
+    overallDifficulty = 'Level 2: Rolling Undulations';
+  }
+
+  let roverFeasibility: ElevationTransectProfile['roverFeasibility'];
+  if (maxSlopeDeg >= 28) {
+    roverFeasibility = {
+      status: 'Impassable',
+      description: `Exceeds NASA Mars 2020 & MSL rocker-bogie limit (~30°). High risk of wheel slippage and chassis rollover at km ${maxSlopeLocationKm.toFixed(0)}.`,
+      color: 'text-red-400 border-red-500/50 bg-red-950/40',
+    };
+  } else if (maxSlopeDeg >= 18) {
+    roverFeasibility = {
+      status: 'Hazardous',
+      description: `Steep terrain (${maxSlopeDeg}° max). Requires high-torque autonomous AutoNav drive mode and avoidance of loose scree talus.`,
+      color: 'text-orange-400 border-orange-500/50 bg-orange-950/40',
+    };
+  } else if (maxSlopeDeg >= 10) {
+    roverFeasibility = {
+      status: 'Cautious',
+      description: 'Moderate undulating grades. Traversable by wheeled rovers with nominal motor currents and traction monitoring.',
+      color: 'text-yellow-400 border-yellow-500/50 bg-yellow-950/40',
+    };
+  } else {
+    roverFeasibility = {
+      status: 'Nominal',
+      description: 'Gentle planar relief (<10° throughout). Ideal terrain for long-distance autonomous rover traverses and astronaut EVAs.',
+      color: 'text-emerald-400 border-emerald-500/50 bg-emerald-950/40',
+    };
+  }
+
+  return {
+    startPoint: { lat: points[0].lat, lng: points[0].lng, name: points[0].name || 'Pt 1' },
+    endPoint: { lat: points[points.length - 1].lat, lng: points[points.length - 1].lng, name: points[points.length - 1].name || `Pt ${points.length}` },
+    totalDistanceKm: Number(totalDistanceKm.toFixed(2)),
+    samples,
+    minElevationM: minElev,
+    maxElevationM: maxElev,
+    elevationSpanM: maxElev - minElev,
+    totalAscentM: Math.round(totalAscent),
+    totalDescentM: Math.round(totalDescent),
+    maxSlopeDeg,
+    meanSlopeDeg,
+    maxSlopeLocationKm: Number(maxSlopeLocationKm.toFixed(1)),
+    difficultyStats,
+    overallDifficulty,
+    astronautTravelTimeHours: Number(totalWalkingHours.toFixed(1)),
+    roverFeasibility,
+  };
+}

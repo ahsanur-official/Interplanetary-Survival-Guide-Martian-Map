@@ -27,7 +27,13 @@ import {
   getBearingCardinal,
   MARS_RADIUS_KM,
 } from '../../engine/spatialMath';
-import { getMolaElevation } from '../../engine/marsMolaElevation';
+import {
+  getMolaElevation,
+  generateMultiPointElevationTransect,
+  ElevationSamplePoint,
+  ElevationTransectProfile,
+} from '../../engine/marsMolaElevation';
+import { MarsPathElevationGraph } from './MarsPathElevationGraph';
 
 export interface MeasurementPoint {
   lat: number;
@@ -60,9 +66,14 @@ export interface MarsMeasurementToolProps {
   onUpdatePoint?: (index: number, lat: number, lng: number) => void;
   measurementMode: 'distance' | 'area';
   onChangeMode: (mode: 'distance' | 'area') => void;
-  onOpenElevationProfile?: () => void;
+  onOpenElevationProfile?: (customProfile?: ElevationTransectProfile) => void;
   onFitBounds?: () => void;
   onLoadPreset?: (points: MeasurementPoint[]) => void;
+  hoveredElevationSample?: ElevationSamplePoint | null;
+  onHoverElevationSample?: (sample: ElevationSamplePoint | null) => void;
+  onFlyToCoord?: (lat: number, lng: number, name?: string) => void;
+  isWideElevationDockOpen?: boolean;
+  onToggleWideElevationDock?: () => void;
 }
 
 // Preset benchmark geological features on Mars for instant scale verification
@@ -145,11 +156,23 @@ export function MarsMeasurementTool({
   onOpenElevationProfile,
   onFitBounds,
   onLoadPreset,
+  hoveredElevationSample,
+  onHoverElevationSample,
+  onFlyToCoord,
+  isWideElevationDockOpen,
+  onToggleWideElevationDock,
 }: MarsMeasurementToolProps) {
   const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>('metric');
   const [showSegmentsList, setShowSegmentsList] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [showPresets, setShowPresets] = useState<boolean>(false);
+  const [showInlineElevationGraph, setShowInlineElevationGraph] = useState<boolean>(true);
+
+  // Real-time continuous MOLA elevation profile across all measured path vertices
+  const elevationTransect = useMemo(() => {
+    if (points.length < 2) return null;
+    return generateMultiPointElevationTransect(points);
+  }, [points]);
 
   // 1. Calculate Individual Segments
   const segments = useMemo<MeasurementSegment[]>(() => {
@@ -280,7 +303,7 @@ export function MarsMeasurementTool({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed top-14 sm:top-20 left-2 right-2 sm:left-auto sm:right-6 w-auto sm:w-88 max-w-[calc(100vw-16px)] bg-[#0b1019]/95 backdrop-blur-xl border border-cyan-500/40 rounded-2xl shadow-2xl shadow-black/80 z-40 text-neutral-100 overflow-hidden font-sans text-xs animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed top-14 sm:top-20 left-2 right-2 sm:left-auto sm:right-6 w-auto sm:w-96 max-w-[calc(100vw-16px)] max-h-[calc(100vh-100px)] overflow-y-auto no-scrollbar bg-[#0b1019]/95 backdrop-blur-xl border border-cyan-500/40 rounded-2xl shadow-2xl shadow-black/80 z-40 text-neutral-100 font-sans text-xs animate-in fade-in zoom-in-95 duration-200">
       {/* Top Header */}
       <div className="p-3 bg-neutral-950/90 border-b border-neutral-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -568,15 +591,62 @@ export function MarsMeasurementTool({
           </div>
         )}
 
+        {/* Real-time MOLA Elevation Cross-Section Graph */}
+        {points.length >= 2 && elevationTransect && (
+          <div className="border-t border-neutral-800/80 pt-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowInlineElevationGraph(!showInlineElevationGraph)}
+                className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white transition cursor-pointer"
+              >
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <span>MOLA Elevation Cross-Section</span>
+                {showInlineElevationGraph ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              <div className="flex items-center gap-1">
+                {onToggleWideElevationDock && (
+                  <button
+                    type="button"
+                    onClick={onToggleWideElevationDock}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-mono border transition cursor-pointer flex items-center gap-1 ${
+                      isWideElevationDockOpen
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                        : 'bg-neutral-900 text-neutral-400 hover:text-white border-neutral-800'
+                    }`}
+                    title="Toggle wide panoramic bottom dock"
+                  >
+                    <Maximize2 className="w-3 h-3" />
+                    <span>{isWideElevationDockOpen ? 'Docked' : 'Bottom Dock'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {showInlineElevationGraph && (
+              <MarsPathElevationGraph
+                profile={elevationTransect}
+                points={points}
+                hoveredSample={hoveredElevationSample}
+                onHoverSample={onHoverElevationSample}
+                onFlyToCoord={onFlyToCoord}
+                onOpenFullAnalysis={() => onOpenElevationProfile && onOpenElevationProfile(elevationTransect)}
+                variant="compact"
+              />
+            )}
+          </div>
+        )}
+
         {/* 3D MOLA Elevation Transect Action Button */}
         {onOpenElevationProfile && points.length >= 2 && (
           <button
             type="button"
-            onClick={onOpenElevationProfile}
+            onClick={() => onOpenElevationProfile(elevationTransect ?? undefined)}
             className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold flex items-center justify-center gap-2 transition text-xs shadow-md shadow-cyan-950/60 cursor-pointer"
           >
             <TrendingUp className="w-4 h-4" />
-            <span>Generate 3D MOLA Elevation Profile</span>
+            <span>Launch Full Scientific Terrain Analysis</span>
           </button>
         )}
 
