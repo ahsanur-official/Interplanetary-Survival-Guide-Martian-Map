@@ -219,7 +219,12 @@ export function MarsDestinationTool({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-[#070b14]/95 border border-cyan-500/40 rounded-3xl shadow-2xl shadow-black/90 w-full max-w-2xl max-h-[92vh] flex flex-col text-white ring-1 ring-cyan-500/20 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-cyan-950/40 via-transparent to-transparent shrink-0">

@@ -52,3 +52,18 @@ test('shared route engine returns a science route with Boxwork stop data', () =>
   assert.ok(route.waypoints.length > 2);
   assert.ok(route.nearbyScienceStops.some((stop) => stop.category === 'Boxwork Formation'));
 });
+
+import { analyzeRouteSafety } from '../src/engine/marsRouteSafetyAnalyzer';
+import { JEZERO_HAZARD_ZONES } from '../src/data/jezeroDataset';
+
+test('analyzeRouteSafety detects hazards and generates a safer bypass', () => {
+  const assessment = analyzeRouteSafety(
+    { lat: 18.4447, lng: 77.4508, name: 'Octavia Base' },
+    { lat: 18.4340, lng: 77.4120, name: 'Delta Scarp' },
+    JEZERO_HAZARD_ZONES
+  );
+  assert.ok(assessment.directDistanceKm > 0);
+  assert.ok(assessment.suggestedSaferRoute.waypoints.length > 2);
+  assert.ok(assessment.comparison.saferSlope >= 0);
+  assert.ok(assessment.warningHeadlineBn.length > 0);
+});

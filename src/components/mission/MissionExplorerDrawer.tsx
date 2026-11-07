@@ -123,7 +123,7 @@ export function MissionExplorerDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end pointer-events-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex flex-col justify-end pointer-events-auto animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity"

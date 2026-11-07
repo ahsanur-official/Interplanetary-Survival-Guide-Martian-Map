@@ -134,7 +134,12 @@ export const MarsPlaceIdentifierModal: React.FC<MarsPlaceIdentifierModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#0b0f19] border border-orange-500/60 rounded-2xl shadow-2xl shadow-black flex flex-col overflow-hidden text-neutral-200">
         {/* Header */}
         <div className="px-5 py-4 bg-gradient-to-r from-neutral-900 via-neutral-900 to-orange-950/40 border-b border-neutral-800 flex items-start justify-between gap-3">

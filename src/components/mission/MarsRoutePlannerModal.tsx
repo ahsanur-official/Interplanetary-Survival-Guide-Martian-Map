@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Navigation,
@@ -28,6 +28,8 @@ import {
   User,
   Truck,
   Droplets,
+  ArrowRightLeft,
+  Crosshair,
 } from 'lucide-react';
 import {
   PlannedRouteResult,
@@ -62,6 +64,10 @@ export interface MarsRoutePlannerModalProps {
   onChangeTransportMode?: (mode: MarsTransportModeType) => void;
   crewConfig?: CrewBuddyConfigType;
   onChangeCrewConfig?: (config: CrewBuddyConfigType) => void;
+  onCancelRoute?: () => void;
+  onClearRoute?: () => void;
+  onSwapPoints?: () => void;
+  onPickOnMap?: () => void;
 }
 
 export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
@@ -84,10 +90,26 @@ export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
   onChangeTransportMode,
   crewConfig = 'buddy_pair',
   onChangeCrewConfig,
+  onCancelRoute,
+  onClearRoute,
+  onSwapPoints,
+  onPickOnMap,
 }) => {
+  const handleCancelRoute = onCancelRoute || onClearRoute;
   const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'stops' | 'explainer' | 'comms' | 'export'>('overview');
   const [explainerLang, setExplainerLang] = useState<'en' | 'bn'>('en');
   const [hoveredProfileIndex, setHoveredProfileIndex] = useState<number | null>(null);
+
+  // Keyboard Escape listener to dismiss modal smoothly
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -191,61 +213,139 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
   };
 
   return (
-    <div className="fixed inset-0 sm:inset-auto sm:top-14 sm:left-4 sm:bottom-4 z-40 pointer-events-auto bg-[#070b14]/96 backdrop-blur-2xl border border-cyan-500/40 rounded-none sm:rounded-2xl shadow-2xl shadow-black/95 flex flex-col text-neutral-200 w-full sm:w-[460px] lg:w-[500px] overflow-hidden font-sans text-xs" role="dialog" aria-modal="true" aria-labelledby="mars-route-planner-title">
-      {/* Top Header */}
-      <div className="p-3 sm:p-3.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-600/30 to-blue-500/20 border border-cyan-500/50 text-cyan-400">
-            <Navigation className="w-4 h-4" />
+    <div
+      className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 pointer-events-auto animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mars-route-planner-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-[#070b14]/98 border border-cyan-500/50 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 flex flex-col text-neutral-200 w-full max-w-2xl max-h-[92vh] overflow-hidden font-sans text-xs ring-1 ring-cyan-500/30">
+        {/* Top Header */}
+        <div className="p-3 sm:p-3.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-600/40 to-blue-600/30 border border-cyan-500/60 text-cyan-300 shadow-md shadow-cyan-950/50">
+              <Navigation className="w-4 h-4 fill-cyan-400/20" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-white text-xs sm:text-sm tracking-wide">
+                  <span id="mars-route-planner-title">Mars Route Planner & Directions</span>
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/90 text-cyan-300 border border-cyan-500/40 font-bold">
+                  A* Multi-Objective
+                </span>
+              </div>
+              <div className="text-[10.5px] text-neutral-400">
+                গুগল ম্যাপ স্টাইল মঙ্গল গ্রহ রুট প্ল্যানার ও সেফটি অ্যানালাইজার
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-white text-xs tracking-wide">
-                <span id="mars-route-planner-title">Mars EVA A* Route Planner</span>
-              </h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 font-semibold">
-                3 Modes
-              </span>
-            </div>
-            <div className="text-[10.5px] text-neutral-400">
-              Multi-objective terrain slope & consumable optimization
-            </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {handleCancelRoute && (
+              <button
+                type="button"
+                onClick={handleCancelRoute}
+                className="px-2.5 py-1 rounded-lg bg-red-950/80 hover:bg-red-900/90 text-red-200 border border-red-500/50 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                title="Cancel route planning and clear path from map (রুট বাতিল করুন)"
+              >
+                <X className="w-3 h-3 text-red-400" />
+                <span>Cancel Route</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-xl hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              title="Close window (উইন্ডো বন্ধ করুন)"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-          {/* Demo Scenario Selectors */}
-          <div className="flex items-center gap-1">
+        {/* Google Maps Style Origin & Destination Header Bar */}
+        <div className="px-3.5 py-2.5 bg-[#0a101d] border-b border-white/10 shrink-0 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1.5 flex-1">
+              {/* Origin Start Point */}
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-neutral-950/90 border border-emerald-500/40">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[9.5px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
+                    Departure Base (যাত্রা শুরু)
+                  </div>
+                  <div className="text-xs font-bold text-white truncate">
+                    {startPoint?.name || (startPoint ? `${startPoint.lat.toFixed(3)}°N, ${startPoint.lng.toFixed(3)}°E` : 'Select Departure Base')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Destination Target Point */}
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-neutral-950/90 border border-cyan-500/40">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[9.5px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+                    Destination Target (গন্তব্য)
+                  </div>
+                  <div className="text-xs font-bold text-cyan-200 truncate">
+                    {endPoint?.name || (endPoint ? `${endPoint.lat.toFixed(3)}°N, ${endPoint.lng.toFixed(3)}°E` : 'Select Destination Point')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Swap ⇄ and Map Pick Action Column */}
+            <div className="flex flex-col gap-1 items-center shrink-0">
+              {onSwapPoints && (
+                <button
+                  type="button"
+                  onClick={onSwapPoints}
+                  className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:text-cyan-300 transition cursor-pointer shadow-sm"
+                  title="Swap Departure & Destination (যাত্রা শুরু ও গন্তব্য অদলবদল)"
+                >
+                  <ArrowRightLeft className="w-4 h-4 text-cyan-400 rotate-90" />
+                </button>
+              )}
+
+              {onPickOnMap && (
+                <button
+                  type="button"
+                  onClick={onPickOnMap}
+                  className="p-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/50 transition cursor-pointer shadow-sm"
+                  title="Pick destination directly on Mars map (ম্যাপে ক্লিক করে গন্তব্য নির্ধারণ)"
+                >
+                  <Crosshair className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Preset Route Scenarios */}
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+            <span className="text-neutral-400 font-mono">Quick Scenarios:</span>
             <button
               type="button"
               onClick={() => onLoadDemoScenario('jezero')}
-              className="px-2 py-0.5 rounded-lg bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 font-mono text-[9.5px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-              title="Load Jezero Crater Delta sample fetch scenario"
+              className="px-2 py-0.5 rounded-lg bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 font-mono font-bold flex items-center gap-1 transition cursor-pointer"
             >
               <Sparkles className="w-2.5 h-2.5 text-orange-400" />
-              <span>Jezero Delta</span>
+              <span>Jezero Crater Delta</span>
             </button>
-
             <button
               type="button"
               onClick={() => onLoadDemoScenario('boxwork')}
-              className="px-2 py-0.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 font-mono text-[9.5px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-              title="Load NASA Curiosity 2025 Boxwork Formations Expedition scenario"
+              className="px-2 py-0.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 font-mono font-bold flex items-center gap-1 transition cursor-pointer"
             >
               <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
-              <span>Boxwork (2025)</span>
+              <span>Gale Crater Boxwork</span>
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
-      </div>
 
       {/* Transport Mode & Crew Configuration Controls */}
       <div className="px-3 py-2 bg-neutral-900/90 border-b border-white/5 space-y-1.5 shrink-0">
@@ -448,6 +548,55 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
 
       {/* Main Body Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+        {/* Empty / Unselected Route State with 1-Click Launchers */}
+        {activeTab === 'overview' && !activeRoute && (
+          <div className="p-6 text-center space-y-4 bg-neutral-950/80 border border-white/10 rounded-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-600/30 to-blue-600/20 border border-cyan-500/50 flex items-center justify-center text-cyan-300 mx-auto shadow-lg shadow-cyan-950/60">
+              <Navigation className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-wide">
+                Select Mars Exploration Route (রুট নির্ধারণ করুন)
+              </h4>
+              <p className="text-xs text-neutral-400 mt-1 max-w-md mx-auto">
+                গুগল ম্যাপের মতো যাত্রা শুরুর স্থান ও গন্তব্য নির্বাচন করুন অথবা নিচে থেকে রেডিমেড বৈজ্ঞানিক দৃশ্যকল্প লোড করুন।
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => onLoadDemoScenario('jezero')}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-orange-950/50 active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-orange-200" />
+                <span>🚀 Load Jezero Delta Scenario</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onLoadDemoScenario('boxwork')}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-cyan-950/50 active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-cyan-200" />
+                <span>🪨 Load Boxwork Formations (2025)</span>
+              </button>
+            </div>
+
+            {onPickOnMap && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onPickOnMap}
+                  className="px-3.5 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-cyan-300 border border-cyan-500/40 text-xs font-semibold flex items-center gap-1.5 mx-auto transition cursor-pointer"
+                >
+                  <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>🎯 Pick Departure or Destination on Map (ম্যাপে ক্লিক করুন)</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tab 1: Route Overview & Details Card (Tier 1 #5 & Tier 2 #8) */}
         {activeTab === 'overview' && activeRoute && (
           <div className="space-y-3">
@@ -464,6 +613,33 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 <span className="font-bold text-white truncate">{endPoint?.name || 'Destination Point'}</span>
               </div>
             </div>
+
+            {/* Safety Alert & Suggested Safer Alternative Proposal (if active mode has hazards or high slope) */}
+            {activeRoute.safetyScore < 85 && candidateRoutes.safest && selectedMode !== 'safest' && (
+              <div className="p-3 rounded-xl bg-red-950/70 border border-red-500/60 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-red-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <span>⚠️ সরাসরি রুটে বিপদ সনাক্ত হয়েছে (Hazard Alert)</span>
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold font-mono">
+                    Score: {activeRoute.safetyScore}/100
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-300 leading-snug">
+                  এই রুটে সর্বোচ্চ ঢাল <strong>{activeRoute.maxSlopeDeg}°</strong> তে পৌঁছেছে যা স্পেসস্যুট বা রোভারের জন্য ঝুঁকিপূর্ণ। 
+                  প্রস্তাবিত বিকল্প নিরাপদ রুট ব্যবহার করলে ঢাল নেমে আসবে মাত্র <strong>{candidateRoutes.safest.maxSlopeDeg}°</strong> তে।
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onSelectMode('safest')}
+                  className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>🛡️ প্রস্তাবিত নিরাপদ রুট গ্রহণ করুন (Switch to Safest Bypass Corridor)</span>
+                </button>
+              </div>
+            )}
 
             {/* PRIMARY ROUTE DETAILS CARD (Tier 1 Item 5) */}
             <div className="p-3.5 rounded-xl bg-gradient-to-br from-neutral-950 to-neutral-900 border border-cyan-500/30 space-y-3 shadow-lg">
@@ -950,17 +1126,38 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
 
       {/* Footer Actions */}
       <div className="p-3 bg-neutral-950 border-t border-white/10 flex items-center justify-between shrink-0 font-mono text-[10.5px]">
+        <div className="flex items-center gap-2">
+          {handleCancelRoute && (
+            <button
+              type="button"
+              onClick={handleCancelRoute}
+              className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-500/50 flex items-center gap-1.5 transition font-sans font-bold cursor-pointer shadow-sm active:scale-95"
+              title="Cancel and reset this route (রুট বাতিল ও রিসেট করুন)"
+            >
+              <X className="w-3.5 h-3.5 text-red-400" />
+              <span>রুট বাতিল (Cancel Route)</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onFlyToRoute}
+            className="text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-lg hover:bg-cyan-950/40 border border-transparent hover:border-cyan-500/30"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            <span>Fit Route on Map</span>
+          </button>
+        </div>
+
         <button
           type="button"
-          onClick={onFlyToRoute}
-          className="text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer flex items-center gap-1 font-semibold"
+          onClick={onClose}
+          className="px-3.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white transition font-sans font-semibold cursor-pointer shadow-sm"
         >
-          <Navigation className="w-3.5 h-3.5" />
-          <span>Fit Route on Map</span>
+          বন্ধ করুন (Close)
         </button>
-
-        <span className="text-neutral-500">MarsWay A* Engine</span>
       </div>
     </div>
+  </div>
   );
 };

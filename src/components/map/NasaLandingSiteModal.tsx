@@ -225,7 +225,12 @@ export const NasaLandingSiteModal: React.FC<NasaLandingSiteModalProps> = ({
   const hasTraverse = mission.traverseTrack && mission.traverseTrack.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-2xl bg-[#090d16]/98 border border-orange-500/50 rounded-3xl shadow-2xl shadow-orange-950/50 text-neutral-100 overflow-hidden flex flex-col max-h-[92vh] font-sans">
         {/* Header Ribbon */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-neutral-950 via-orange-950/40 to-neutral-950 border-b border-white/10 flex items-start justify-between gap-3 shrink-0">

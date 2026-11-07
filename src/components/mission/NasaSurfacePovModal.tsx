@@ -32,7 +32,12 @@ export const NasaSurfacePovModal: React.FC<NasaSurfacePovModalProps> = ({
   if (!isOpen || !povImage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-3xl bg-[#090d16]/98 border border-orange-500/50 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-neutral-100 overflow-hidden flex flex-col max-h-[92vh] font-sans">
         {/* Header */}
         <div className="p-3.5 sm:p-4 bg-gradient-to-r from-neutral-950 via-orange-950/40 to-neutral-950 border-b border-white/10 flex items-center justify-between shrink-0">

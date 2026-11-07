@@ -548,7 +548,7 @@ export function MarsLiveVoiceModal({
 
   return (
     <div
-      className={`fixed z-50 transition-all duration-300 ${
+      className={`fixed z-[9999] transition-all duration-300 ${
         isMinimized
           ? 'bottom-20 right-4 sm:right-6 w-80'
           : 'inset-x-3 bottom-16 sm:bottom-20 sm:inset-x-auto sm:right-6 sm:w-[460px] max-h-[85vh]'

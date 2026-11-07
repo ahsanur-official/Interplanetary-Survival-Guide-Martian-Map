@@ -176,6 +176,8 @@ export const NASA_LANDING_ELLIPSES: Record<string, { majorKm: number; minorKm: n
 };
 import { NasaLandingSiteModal } from './NasaLandingSiteModal';
 import { MarsRoutePlannerModal } from '../mission/MarsRoutePlannerModal';
+import { MarsRouteSafetyHUD } from '../mission/MarsRouteSafetyHUD';
+import { analyzeRouteSafety, RouteSafetyAssessment } from '../../engine/marsRouteSafetyAnalyzer';
 import { NasaSurfacePovModal } from '../mission/NasaSurfacePovModal';
 import { MarsDisplayModeOverlay } from './MarsDisplayModeOverlay';
 import { DisplayViewFormat, NasaSurfacePovImage } from '../../types/mars';
@@ -267,6 +269,7 @@ export function RealMarsMap() {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
+  const routeComparisonPolylineRef = useRef<L.Polyline | null>(null);
   const routeHazardLayerRef = useRef<L.LayerGroup | null>(null);
   const routeMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const sitesLayerRef = useRef<L.LayerGroup | null>(null);
@@ -599,6 +602,8 @@ export function RealMarsMap() {
 
   // Marswalk EVA Route Planner Modal & Multi-Transport Engine State
   const [isRoutePlannerModalOpen, setIsRoutePlannerModalOpen] = useState<boolean>(false);
+  const [isRouteSafetyHUDOpen, setIsRouteSafetyHUDOpen] = useState<boolean>(true);
+  const [showRouteComparisonOnMap, setShowRouteComparisonOnMap] = useState<boolean>(true);
   const [routeTransportMode, setRouteTransportMode] = useState<MarsTransportModeType>('foot');
   const [routeCrewConfig, setRouteCrewConfig] = useState<CrewBuddyConfigType>('buddy_pair');
   const [routeMode, setRouteMode] = useState<RouteMode>('safest');
@@ -618,6 +623,15 @@ export function RealMarsMap() {
     if (!point) return [];
     return point.lng > 130 && point.lng < 145 ? GALE_HAZARD_ZONES : JEZERO_HAZARD_ZONES;
   }, [routeStartPoint, routeEndPoint]);
+
+  // Real-time Route Safety Assessment (Detects scarps, soft dunes, and offers safer corridors)
+  const routeSafetyAssessment = useMemo(() => {
+    if (!routeStartPoint || !routeEndPoint) return null;
+    return analyzeRouteSafety(routeStartPoint, routeEndPoint, routeHazardZones, {
+      transportMode: routeTransportMode,
+      crewConfig: routeCrewConfig,
+    });
+  }, [routeStartPoint, routeEndPoint, routeHazardZones, routeTransportMode, routeCrewConfig]);
 
   // Candidate routes computed via A* router with transport mode & buddy multiplier
   const candidateRoutes = useMemo(() => {
@@ -3189,9 +3203,9 @@ export function RealMarsMap() {
     });
   }, [routeHazardZones, routeStartPoint, routeEndPoint, mapInstance]);
 
-  // Render User Planned Route & Waypoints
+  // Render User Planned Route, Hazard Overlays, & Safer Bypass Corridor on Map
   useEffect(() => {
-    const map = mapInstanceRef.current;
+    const map = mapInstanceRef.current || mapInstance;
     const markersGroup = routeMarkersLayerRef.current;
     if (!map || !markersGroup) return;
 
@@ -3201,71 +3215,208 @@ export function RealMarsMap() {
       map.removeLayer(routePolylineRef.current);
       routePolylineRef.current = null;
     }
-
-    if (routeWaypoints.length === 0) {
-      setRouteStats(null);
-      return;
+    if (routeComparisonPolylineRef.current) {
+      map.removeLayer(routeComparisonPolylineRef.current);
+      routeComparisonPolylineRef.current = null;
     }
 
-    // Render waypoint markers
-    routeWaypoints.forEach((wp, idx) => {
-      const isStart = idx === 0;
-      const isEnd = idx === routeWaypoints.length - 1 && routeWaypoints.length > 1;
+    // 1. Render automated A* route (Active route or Hazard comparison)
+    if (activePlannedRoute && activePlannedRoute.waypoints.length > 1 && routeStartPoint && routeEndPoint) {
+      const isDangerousOrCaution = routeSafetyAssessment && !routeSafetyAssessment.isSafe;
 
-      const wpIcon = L.divIcon({
+      if (showRouteComparisonOnMap && isDangerousOrCaution && routeSafetyAssessment) {
+        // A. Draw the Direct Hazardous Line in Crimson Red
+        const directCoords: [number, number][] = routeSafetyAssessment.directRoute.waypoints.map((w) => [w.lat, w.lng]);
+        const directLine = L.polyline(directCoords, {
+          color: '#ef4444',
+          weight: 3.5,
+          opacity: 0.85,
+          dashArray: '8, 6',
+        }).addTo(map);
+
+        directLine.bindTooltip(
+          `<div style="font-family:system-ui,sans-serif;line-height:1.35;max-width:260px;">
+            <strong style="color:#ef4444;">⚠️ সরাসরি রুট (ঝুঁকিপূর্ণ / Direct Path)</strong><br/>
+            <span>সর্বোচ্চ ঢাল: <strong>${routeSafetyAssessment.maxDirectSlopeDeg}°</strong></span><br/>
+            <span style="color:#fca5a5;">${routeSafetyAssessment.issues.length} টি সম্ভাব্য বিপদ সনাক্ত হয়েছে</span>
+          </div>`,
+          { className: 'mars-tooltip', sticky: true }
+        );
+        routeComparisonPolylineRef.current = directLine;
+
+        // B. Draw the Suggested Safer Corridor in Glowing Emerald Green
+        const saferCoords: [number, number][] = routeSafetyAssessment.suggestedSaferRoute.waypoints.map((w) => [w.lat, w.lng]);
+        const saferLine = L.polyline(saferCoords, {
+          color: '#10b981',
+          weight: 5.5,
+          opacity: 0.95,
+        }).addTo(map);
+
+        saferLine.bindTooltip(
+          `<div style="font-family:system-ui,sans-serif;line-height:1.35;max-width:260px;">
+            <strong style="color:#10b981;">✨ প্রস্তাবিত নিরাপদ রুট (Recommended Safe Corridor)</strong><br/>
+            <span>সর্বোচ্চ ঢাল মাত্র: <strong>${routeSafetyAssessment.comparison.saferSlope}°</strong></span><br/>
+            <span style="color:#86efac;">১০০% নিরাপদ বাইপাস • ০ টি বিপদ</span>
+          </div>`,
+          { className: 'mars-tooltip', sticky: true }
+        );
+        routePolylineRef.current = saferLine;
+
+        // Add visual Caution Markers along the direct route hazard intersections
+        routeSafetyAssessment.issues.forEach((issue) => {
+          const matchingWp =
+            routeSafetyAssessment.directRoute.waypoints.find(
+              (w) => w.hazardRisk === 'Hazardous' || w.slopeDeg >= 15
+            ) ||
+            routeSafetyAssessment.directRoute.waypoints[
+              Math.floor(routeSafetyAssessment.directRoute.waypoints.length / 2)
+            ];
+
+          if (matchingWp) {
+            const cautionIcon = L.divIcon({
+              html: `<div class="animate-bounce" style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;background:#ef4444;border:2px solid white;color:white;font-size:12px;font-weight:bold;box-shadow:0 0 14px rgba(239,68,68,0.85);">⚠️</div>`,
+              className: 'hazard-caution-pin',
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+            });
+            const marker = L.marker([matchingWp.lat, matchingWp.lng], { icon: cautionIcon });
+            marker.bindTooltip(
+              `<strong style="color:#ef4444;">${issue.hazardName}</strong><br/><span>${issue.issueSummaryBn}</span>`,
+              { className: 'mars-tooltip' }
+            );
+            markersGroup.addLayer(marker);
+          }
+        });
+      } else {
+        // Standard route rendering
+        const routeCoords: [number, number][] = activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]);
+        const routeColor = routeMode === 'safest' ? '#10b981' : routeMode === 'science' ? '#a855f7' : '#f59e0b';
+        const polyline = L.polyline(routeCoords, {
+          color: routeColor,
+          weight: 5,
+          opacity: 0.95,
+          dashArray: routeMode === 'shortest' ? '8, 5' : undefined,
+        }).addTo(map);
+
+        polyline.bindTooltip(
+          `<div style="font-family:system-ui,sans-serif;line-height:1.35;">
+            <strong style="color:${routeColor};">${activePlannedRoute.name}</strong><br/>
+            <span>দূরত্ব: ${activePlannedRoute.totalDistanceKm} km • সময়: ${activePlannedRoute.estimatedWalkTimeFormatted}</span><br/>
+            <span>সুরক্ষা স্কোর: ${activePlannedRoute.safetyScore}/100</span>
+          </div>`,
+          { className: 'mars-tooltip', sticky: true }
+        );
+        routePolylineRef.current = polyline;
+      }
+
+      // Add Start Marker (Point A - Emerald Pin)
+      const startWp = activePlannedRoute.waypoints[0];
+      const startIcon = L.divIcon({
         html: `
-          <div class="mars-waypoint-badge flex items-center justify-center w-6 h-6 rounded-full font-bold text-[10px] text-white shadow-lg border-2 ${
-            isStart
-              ? 'bg-emerald-600 border-white'
-              : isEnd
-              ? 'bg-red-600 border-white'
-              : 'bg-cyan-600 border-cyan-200'
-          }" style="transform: rotate(var(--map-bearing, 0deg)); transform-origin: center center; transition: transform 0.45s cubic-bezier(0.2, 0, 0, 1);">
-            ${idx + 1}
+          <div class="relative flex items-center justify-center select-none" style="transform: translate(-50%, -50%);">
+            <div class="absolute w-7 h-7 rounded-full bg-emerald-400/35 animate-ping"></div>
+            <div class="relative flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/95 border-2 border-emerald-400 text-white font-mono font-bold text-[10.5px] shadow-2xl whitespace-nowrap">
+              <span>🚀</span>
+              <span>START: ${routeStartPoint.name?.split('(')[0]?.trim() || 'Base A'}</span>
+            </div>
           </div>
         `,
-        className: 'route-wp-icon',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+        className: 'route-start-pin',
+        iconSize: [20, 20],
+        iconAnchor: [0, 0],
       });
+      const startMarker = L.marker([startWp.lat, startWp.lng], { icon: startIcon });
+      startMarker.bindTooltip(
+        `Departure Base: ${routeStartPoint.name || 'Point A'}<br/>Elevation: ${startWp.elevationM}m`,
+        { className: 'mars-tooltip' }
+      );
+      markersGroup.addLayer(startMarker);
 
-      const marker = L.marker([wp.lat, wp.lng], { icon: wpIcon });
-      marker.bindTooltip(`Waypoint ${idx + 1}<br/>${wp.lat.toFixed(2)}°, ${wp.lng.toFixed(2)}°`, {
-        className: 'mars-tooltip',
+      // Add Destination Marker (Point B - Red/Cyan Pin)
+      const destWp = activePlannedRoute.waypoints[activePlannedRoute.waypoints.length - 1];
+      const destIcon = L.divIcon({
+        html: `
+          <div class="relative flex items-center justify-center select-none" style="transform: translate(-50%, -50%);">
+            <div class="absolute w-7 h-7 rounded-full bg-cyan-400/35 animate-ping"></div>
+            <div class="relative flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/95 border-2 border-cyan-400 text-white font-mono font-bold text-[10.5px] shadow-2xl whitespace-nowrap">
+              <span>🎯</span>
+              <span>DEST: ${routeEndPoint.name?.split('(')[0]?.trim() || 'Target B'}</span>
+            </div>
+          </div>
+        `,
+        className: 'route-dest-pin',
+        iconSize: [20, 20],
+        iconAnchor: [0, 0],
       });
-      markersGroup.addLayer(marker);
-    });
+      const destMarker = L.marker([destWp.lat, destWp.lng], { icon: destIcon });
+      destMarker.bindTooltip(
+        `Destination: ${routeEndPoint.name || 'Point B'}<br/>Elevation: ${destWp.elevationM}m`,
+        { className: 'mars-tooltip' }
+      );
+      markersGroup.addLayer(destMarker);
 
-    if (routeWaypoints.length < 2) {
-      setRouteStats(null);
-      return;
+      // Add intermediate waypoint indicators
+      activePlannedRoute.waypoints.slice(1, -1).forEach((wp, idx) => {
+        if (idx % 2 === 0 || wp.isScienceStop) {
+          const wpIcon = L.divIcon({
+            html: `
+              <div class="w-4 h-4 rounded-full ${
+                wp.isScienceStop ? 'bg-purple-600 border-purple-200' : 'bg-neutral-800 border-white'
+              } border-2 text-[8px] font-bold text-white flex items-center justify-center shadow">
+                ${wp.isScienceStop ? '🔬' : idx + 1}
+              </div>
+            `,
+            className: 'route-mid-pin',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          });
+          const midMarker = L.marker([wp.lat, wp.lng], { icon: wpIcon });
+          midMarker.bindTooltip(
+            `${wp.name}<br/>Slope: ${wp.slopeDeg}° • Elevation: ${wp.elevationM}m`,
+            { className: 'mars-tooltip' }
+          );
+          markersGroup.addLayer(midMarker);
+        }
+      });
     }
 
-    const latLngs: [number, number][] = routeWaypoints.map((w) => [w.lat, w.lng]);
-    const polyline = L.polyline(latLngs, {
-      color: '#38bdf8',
-      weight: 4,
-      opacity: 0.95,
-      dashArray: '8, 4',
-    }).addTo(map);
+    // 2. Fallback manual routeWaypoints if user explicitly draws manual line
+    if (routeWaypoints.length >= 2 && !activePlannedRoute) {
+      const latLngs: [number, number][] = routeWaypoints.map((w) => [w.lat, w.lng]);
+      const polyline = L.polyline(latLngs, {
+        color: '#38bdf8',
+        weight: 4,
+        opacity: 0.95,
+        dashArray: '8, 4',
+      }).addTo(map);
 
-    routePolylineRef.current = polyline;
+      routePolylineRef.current = polyline;
 
-    let totalMeters = 0;
-    for (let i = 0; i < routeWaypoints.length - 1; i++) {
-      const p1 = { latitude: routeWaypoints[i].lat, longitude: routeWaypoints[i].lng };
-      const p2 = { latitude: routeWaypoints[i + 1].lat, longitude: routeWaypoints[i + 1].lng };
-      totalMeters += calculateMarsDistanceMeters(p1, p2);
+      let totalMeters = 0;
+      for (let i = 0; i < routeWaypoints.length - 1; i++) {
+        const p1 = { latitude: routeWaypoints[i].lat, longitude: routeWaypoints[i].lng };
+        const p2 = { latitude: routeWaypoints[i + 1].lat, longitude: routeWaypoints[i + 1].lng };
+        totalMeters += calculateMarsDistanceMeters(p1, p2);
+      }
+
+      const km = totalMeters / 1000;
+      const hours = km / 3.2;
+
+      setRouteStats({
+        distanceKm: Number(km.toFixed(2)),
+        estHours: Number(hours.toFixed(1)),
+      });
     }
-
-    const km = totalMeters / 1000;
-    const hours = km / 3.2; // Marswalk walking speed ~ 3.2 km/h
-
-    setRouteStats({
-      distanceKm: Number(km.toFixed(2)),
-      estHours: Number(hours.toFixed(1)),
-    });
-  }, [routeWaypoints, mapInstance]);
+  }, [
+    activePlannedRoute,
+    routeStartPoint,
+    routeEndPoint,
+    routeMode,
+    showRouteComparisonOnMap,
+    routeSafetyAssessment,
+    routeWaypoints,
+    mapInstance,
+  ]);
 
   // Render Destination Beacon & Range Trajectory Line on Mars Map
   useEffect(() => {
@@ -3953,6 +4104,26 @@ export function RealMarsMap() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Header Route Plan Button */}
+          <button
+            onClick={() => {
+              if (!routeStartPoint || !routeEndPoint) {
+                handleLoadDemoScenario('jezero');
+              }
+              openPrimaryOverlay(setIsRoutePlannerModalOpen);
+            }}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+              isRoutePlannerModalOpen || activePlannedRoute
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 shadow-md shadow-cyan-950/60 ring-1 ring-cyan-400/50'
+                : 'bg-cyan-950/40 hover:bg-cyan-950/70 text-cyan-300 border-cyan-500/40 hover:text-white'
+            }`}
+            title="Google Maps Style Route Planner (রুট প্ল্যান করুন)"
+          >
+            <Navigation className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/20" />
+            <span className="hidden sm:inline">রুট প্ল্যান</span>
+            <span className="sm:hidden text-[11px]">Route</span>
+          </button>
+
           {/* Universal Search Modal Button (Both Desktop & Mobile) */}
           <button
             onClick={() => openPrimaryOverlay(setIsSearchModalOpen)}
@@ -4821,14 +4992,36 @@ export function RealMarsMap() {
         >
           {/* UNIFIED TOP SEARCH & CATEGORY HUD (Stacked with clean gap-2.5, Zero Collision) */}
           <div className="hidden sm:flex absolute top-3 left-1/2 -translate-x-1/2 z-35 flex-col items-center gap-2.5 pointer-events-none max-w-[96vw]">
-            {/* Search Input Bar */}
-            <div className="w-[420px] md:w-[480px] max-w-[94vw] pointer-events-auto relative z-30">
-              <MarsTopSearchBar
-                placeholder="Search craters, volcanoes, canyons, rovers..."
-                onFlyTo={(target) => {
-                  handleFlyToLocation(target.lat, target.lng, target.zoom ?? 6, target.name, target.elevationM);
+            {/* Search Input Bar + Dedicated Directions / Route Plan Button */}
+            <div className="flex items-center gap-2 w-[480px] md:w-[560px] max-w-[94vw] pointer-events-auto relative z-30">
+              <div className="flex-1">
+                <MarsTopSearchBar
+                  placeholder="Search craters, volcanoes, canyons, rovers..."
+                  onFlyTo={(target) => {
+                    handleFlyToLocation(target.lat, target.lng, target.zoom ?? 6, target.name, target.elevationM);
+                  }}
+                />
+              </div>
+
+              {/* Dedicated Google Maps Style Directions / Route Plan Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!routeStartPoint || !routeEndPoint) {
+                    handleLoadDemoScenario('jezero');
+                  }
+                  openPrimaryOverlay(setIsRoutePlannerModalOpen);
                 }}
-              />
+                className={`px-3.5 py-2 rounded-full flex items-center gap-2 text-xs font-bold transition-all shadow-xl cursor-pointer active:scale-95 shrink-0 border ${
+                  isRoutePlannerModalOpen || activePlannedRoute
+                    ? 'bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white border-cyan-400 shadow-cyan-950/70 ring-2 ring-cyan-400/40'
+                    : 'bg-[#080e1b]/95 hover:bg-[#0c152a] text-cyan-300 border-cyan-500/50 hover:border-cyan-400'
+                }`}
+                title="Open Google Maps Style Route Planner (রুট প্ল্যান করুন)"
+              >
+                <Navigation className="w-4 h-4 text-cyan-300 fill-cyan-400/30" />
+                <span className="font-mono tracking-tight">রুট প্ল্যান</span>
+              </button>
             </div>
 
             {/* UNIFIED TOP NOTIFICATION & ACTIVE MODE BANNER (Clean, Non-Colliding) */}
@@ -5043,32 +5236,47 @@ export function RealMarsMap() {
 
             {/* Google Maps Directions & Route Navigation */}
             <button
-              onClick={() => openPrimaryOverlay(setIsDestinationToolOpen)}
+              onClick={() => {
+                if (!routeStartPoint || !routeEndPoint) {
+                  handleLoadDemoScenario('jezero');
+                }
+                openPrimaryOverlay(setIsRoutePlannerModalOpen);
+              }}
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 ${
-                activeDestination
-                  ? 'bg-cyan-500 text-neutral-950 font-bold shadow-md shadow-cyan-950/60'
+                isRoutePlannerModalOpen || activePlannedRoute
+                  ? 'bg-cyan-500 text-neutral-950 font-bold shadow-md shadow-cyan-950/60 ring-2 ring-cyan-400'
                   : 'text-cyan-400 hover:text-white hover:bg-cyan-500/20'
               }`}
-              title="Directions & Destination Navigation (Google Maps Route Planner)"
+              title="Directions & Route Planner (Google Maps Style রুট প্ল্যানার)"
               aria-label="Directions"
             >
-              <Navigation className="w-4 h-4 text-cyan-400" />
+              <Navigation className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
             </button>
 
-            {/* Marswalk EVA Route Planner (A* Multimodal Rover/Foot Engine) */}
+            {/* Marswalk EVA Route Planner & Safety Hub */}
             <button
-              onClick={() => openPrimaryOverlay(setIsRoutePlannerModalOpen)}
+              onClick={() => {
+                if (!routeStartPoint || !routeEndPoint) {
+                  handleLoadDemoScenario('jezero');
+                }
+                openPrimaryOverlay(setIsRoutePlannerModalOpen);
+              }}
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 relative ${
-                isRoutePlannerModalOpen || activePlannedRoute
+                isRoutePlannerModalOpen
                   ? 'bg-orange-600 text-white font-bold shadow-md shadow-orange-950/60 ring-1 ring-orange-400'
                   : 'text-orange-400 hover:text-white hover:bg-orange-500/20'
               }`}
-              title="Marswalk EVA & Multimodal Route Planner (Foot / LTV / Pressurized Rover, Boxwork 2025)"
-              aria-label="Marswalk Route Planner"
+              title="Marswalk EVA Route Planner & Real-Time Safety Hub (রুট প্ল্যান ও সেফটি)"
+              aria-label="Marswalk Route Planner & Safety Hub"
             >
-              <Footprints className="w-4 h-4 text-orange-400" />
-              {activePlannedRoute && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-400 animate-ping" />
+              <Footprints className="w-4 h-4 text-white" />
+              {routeSafetyAssessment && (
+                <span
+                  className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-black ${
+                    routeSafetyAssessment.isSafe ? 'bg-emerald-400' : 'bg-red-500 animate-ping'
+                  }`}
+                  title={routeSafetyAssessment.isSafe ? 'Safe Corridor' : 'Hazard Detected'}
+                />
               )}
             </button>
 
@@ -6373,6 +6581,45 @@ export function RealMarsMap() {
 
               <button
                 onClick={() => {
+                  const targetName = contextMenu.nearestFeature
+                    ? `Sector: ${contextMenu.nearestFeature.name}`
+                    : `Target (${contextMenu.lat.toFixed(2)}°, ${contextMenu.lng.toFixed(2)}°)`;
+                  setRouteEndPoint({
+                    lat: contextMenu.lat,
+                    lng: contextMenu.lng,
+                    name: targetName,
+                  });
+                  setIsRouteSafetyHUDOpen(true);
+                  setShowRouteComparisonOnMap(true);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-emerald-500/20 text-emerald-300 hover:text-white font-medium transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>🎯 Plan Route Here & Check Safety</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const baseName = contextMenu.nearestFeature
+                    ? `Base: ${contextMenu.nearestFeature.name}`
+                    : `Base (${contextMenu.lat.toFixed(2)}°, ${contextMenu.lng.toFixed(2)}°)`;
+                  setRouteStartPoint({
+                    lat: contextMenu.lat,
+                    lng: contextMenu.lng,
+                    name: baseName,
+                  });
+                  setIsRouteSafetyHUDOpen(true);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-orange-500/20 text-orange-300 hover:text-white font-medium transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <MapPin className="w-3.5 h-3.5 text-orange-400" />
+                <span>🚀 Set as Departure Base</span>
+              </button>
+
+              <button
+                onClick={() => {
                   setIsMeasureToolOpen(true);
                   setMeasurePoints([{ lat: contextMenu.lat, lng: contextMenu.lng }]);
                   setContextMenu(null);
@@ -6699,11 +6946,54 @@ export function RealMarsMap() {
             lng: dest.lng,
             name: dest.name,
           };
-          setRouteWaypoints([startPt, endPt]);
-          setIsRoutePlanningActive(true);
+          setRouteStartPoint(startPt);
+          setRouteEndPoint(endPt);
+          setIsRouteSafetyHUDOpen(true);
+          setShowRouteComparisonOnMap(true);
           handleFlyToLocation(dest.lat, dest.lng, dest.recommendedZoom || 6, dest.name, dest.elevationM);
         }}
       />
+
+      {/* REAL-TIME ROUTE SAFETY HUD & SAFER CORRIDOR ENGINE */}
+      {isRouteSafetyHUDOpen && !isRoutePlannerModalOpen && routeSafetyAssessment && (
+        <MarsRouteSafetyHUD
+          assessment={routeSafetyAssessment}
+          activeMode={routeMode}
+          onSelectMode={setRouteMode}
+          transportMode={routeTransportMode}
+          onChangeTransportMode={setRouteTransportMode}
+          onApplySaferRoute={() => {
+            setRouteMode('safest');
+            setShowRouteComparisonOnMap(false);
+            if (activePlannedRoute && activePlannedRoute.waypoints.length > 0 && mapInstanceRef.current) {
+              const bounds = L.latLngBounds(activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]));
+              mapInstanceRef.current.fitBounds(bounds, { padding: [70, 70] });
+            }
+          }}
+          onOpenFullModal={() => {
+            setIsRoutePlannerModalOpen(true);
+          }}
+          onFlyToRoute={() => {
+            if (activePlannedRoute && activePlannedRoute.waypoints.length > 0 && mapInstanceRef.current) {
+              const bounds = L.latLngBounds(activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]));
+              mapInstanceRef.current.fitBounds(bounds, { padding: [70, 70] });
+            }
+          }}
+          onSwapPoints={() => {
+            if (routeStartPoint && routeEndPoint) {
+              const temp = routeStartPoint;
+              setRouteStartPoint(routeEndPoint);
+              setRouteEndPoint(temp);
+            }
+          }}
+          onPickNewDestination={() => {
+            setIsMapPickDestinationMode(true);
+          }}
+          showComparisonOnMap={showRouteComparisonOnMap}
+          onToggleShowComparison={() => setShowRouteComparisonOnMap((prev) => !prev)}
+          onClose={() => setIsRouteSafetyHUDOpen(false)}
+        />
+      )}
 
       {/* HISTORICAL EXPLORATION TIMELINE MODAL */}
       <MarsTimeline
@@ -7268,6 +7558,24 @@ export function RealMarsMap() {
         onChangeTransportMode={setRouteTransportMode}
         crewConfig={routeCrewConfig}
         onChangeCrewConfig={setRouteCrewConfig}
+        onClearRoute={() => {
+          setRouteStartPoint(null);
+          setRouteEndPoint(null);
+          setIsRouteSafetyHUDOpen(false);
+          setShowRouteComparisonOnMap(false);
+          setIsRoutePlannerModalOpen(false);
+        }}
+        onSwapPoints={() => {
+          if (routeStartPoint && routeEndPoint) {
+            const temp = routeStartPoint;
+            setRouteStartPoint(routeEndPoint);
+            setRouteEndPoint(temp);
+          }
+        }}
+        onPickOnMap={() => {
+          setIsRoutePlannerModalOpen(false);
+          setIsMapPickDestinationMode(true);
+        }}
       />
 
       {/* NASA POINT-OF-VIEW (POV) GROUND IMAGERY MODAL */}

@@ -139,7 +139,12 @@ export function MarsSearchModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center pt-16 sm:pt-24 p-4">
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 sm:pt-24 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="w-full max-w-2xl bg-[#0c1017] border border-neutral-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Search Header Input */}
         <div className="p-4 border-b border-neutral-800 flex items-center gap-3 bg-neutral-900/60">

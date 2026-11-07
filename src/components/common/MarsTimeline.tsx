@@ -169,7 +169,7 @@ export function MarsTimeline({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-14 left-1/2 -translate-x-1/2 w-full max-w-4xl px-3 z-40 animate-in slide-in-from-bottom duration-200">
+    <div className="fixed bottom-14 left-1/2 -translate-x-1/2 w-full max-w-4xl px-3 z-[9990] animate-in slide-in-from-bottom duration-200">
       <div className="bg-[#0b0e14]/95 backdrop-blur-md border border-neutral-800 rounded-xl p-4 shadow-2xl space-y-3 text-neutral-200">
         {/* Header Controls */}
         <div className="flex items-center justify-between">

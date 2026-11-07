@@ -129,7 +129,7 @@ function resolveCanonicalMarsLocation(queryOrName: string) {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -778,7 +778,11 @@ CRITICAL RULES:
   // Vite middleware for development or static serving for production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+        ws: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -795,6 +799,13 @@ CRITICAL RULES:
 
   // Attach WebSocketServer for Gemini Live (gemini-3.8-live) Real-Time Audio Streaming
   const wss = new WebSocketServer({ server, path: '/api/live-ws' });
+
+  wss.on('error', (err: any) => {
+    if (err?.code === 'EADDRINUSE') {
+      return; // Handled by HTTP server listener
+    }
+    console.error('Mars Live WebSocketServer error:', err);
+  });
 
   wss.on('connection', async (clientWs: WebSocket, req) => {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -1088,6 +1099,37 @@ Keep your tone adventurous, composed, scientific, and encouraging.`,
       }
     }
   });
+
+  let isRetrying = false;
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      if (!isRetrying) {
+        isRetrying = true;
+        console.warn(`Port ${PORT} is temporarily busy. Retrying in 1.5s...`);
+        setTimeout(() => {
+          isRetrying = false;
+          try {
+            server.close();
+          } catch {}
+          server.listen(PORT, '0.0.0.0');
+        }, 1500);
+      }
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+
+  const cleanup = () => {
+    try {
+      wss.close();
+    } catch {}
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', cleanup);
+  process.on('SIGINT', cleanup);
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`MarsWay Server & Gemini Live WebSocket running on http://0.0.0.0:${PORT}`);

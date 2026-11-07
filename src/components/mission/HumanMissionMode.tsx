@@ -47,7 +47,7 @@ export function HumanMissionMode({
   };
 
   return (
-    <div className="fixed inset-y-0 left-0 w-full sm:w-[500px] lg:w-[540px] bg-[#0b0e14]/95 backdrop-blur-md border-r border-neutral-800 z-50 flex flex-col shadow-2xl text-neutral-200">
+    <div className="fixed inset-y-0 left-0 w-full sm:w-[500px] lg:w-[540px] bg-[#0b0e14]/95 backdrop-blur-md border-r border-neutral-800 z-[9999] flex flex-col shadow-2xl text-neutral-200">
       {/* Header */}
       <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/60">
         <div className="flex items-center gap-2.5">
