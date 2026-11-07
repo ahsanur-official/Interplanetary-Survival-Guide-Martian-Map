@@ -1,10 +1,17 @@
+<<<<<<< HEAD
 // MGS MOLA-calibrated topographic model.
 // The map basemap uses NASA Trek MOLA tiles, but this numeric sampler is a
 // deterministic approximation and must not be presented as raw DEM lookup data.
+=======
+// MGS MOLA (Mars Global Surveyor - Mars Orbiter Laser Altimeter) Topographic Engine
+// Computes continuous high-fidelity elevation, slope gradients, and terrain difficulty
+// across the Martian surface referenced to the IAU 2000 MOLA 0m Areoid Datum.
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
 import { ALL_MARS_FEATURES, MarsFeature } from '../data/marsNomenclature';
 import { calculateMarsDistanceKm, MARS_RADIUS_KM } from './spatialMath';
 
+<<<<<<< HEAD
 export const MOLA_ELEVATION_PROVENANCE = {
   status: 'MODELED' as const,
   label: 'MODELED: MOLA-calibrated approximation',
@@ -13,6 +20,8 @@ export const MOLA_ELEVATION_PROVENANCE = {
   limitation: 'Use the NASA/USGS DEM products for certified local elevation values.',
 };
 
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 export interface ElevationSamplePoint {
   index: number;
   lat: number;

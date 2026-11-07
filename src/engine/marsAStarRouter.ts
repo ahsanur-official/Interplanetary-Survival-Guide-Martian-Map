@@ -2,7 +2,11 @@
 // Computes optimal EVA traverses on Mars using IAU 2000 MOLA elevation datum,
 // terrain slope cost functions, hazard avoidance, and scientific opportunity interception.
 
+<<<<<<< HEAD
 import { HazardZone, MarsCoordinate } from '../types/mars';
+=======
+import { MarsCoordinate } from '../types/mars';
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 import {
   calculateMarsDistanceKm,
   calculateMarsDistanceMeters,
@@ -13,11 +17,15 @@ import {
 } from './spatialMath';
 import { getMolaElevation } from './marsMolaElevation';
 
+<<<<<<< HEAD
 import { NasaSurfacePovImage } from '../types/mars';
 
 export type RouteMode = 'safest' | 'shortest' | 'science';
 export type MarsTransportModeType = 'foot' | 'unpressurized_rover' | 'pressurized_rover';
 export type CrewBuddyConfigType = 'solo' | 'buddy_pair';
+=======
+export type RouteMode = 'safest' | 'shortest' | 'science';
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
 export interface PlannedWaypoint {
   id: string;
@@ -31,7 +39,10 @@ export interface PlannedWaypoint {
   isScienceStop?: boolean;
   scienceCategory?: string;
   hazardRisk: 'Low' | 'Moderate' | 'Hazardous';
+<<<<<<< HEAD
   surfacePovImage?: NasaSurfacePovImage;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface ScienceStopSuggestion {
@@ -39,12 +50,19 @@ export interface ScienceStopSuggestion {
   name: string;
   lat: number;
   lng: number;
+<<<<<<< HEAD
   category: 'Clay Hydration' | 'Deltaic Sediment' | 'Subsurface Ice' | 'Carbonate Deposit' | 'Crater Rim' | 'Boxwork Formation';
+=======
+  category: 'Clay Hydration' | 'Deltaic Sediment' | 'Subsurface Ice' | 'Carbonate Deposit' | 'Crater Rim';
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   description: string;
   detourDistanceMeters: number;
   detourTimeMinutes: number;
   scientificValueScore: number; // 1 to 10
+<<<<<<< HEAD
   surfacePovImage?: NasaSurfacePovImage;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface PlannedRouteResult {
@@ -52,8 +70,11 @@ export interface PlannedRouteResult {
   name: string;
   mode: RouteMode;
   color: string;
+<<<<<<< HEAD
   transportMode?: MarsTransportModeType;
   crewConfig?: CrewBuddyConfigType;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   waypoints: PlannedWaypoint[];
   totalDistanceKm: number;
   totalAscentM: number;
@@ -63,9 +84,12 @@ export interface PlannedRouteResult {
   estimatedWalkTimeHours: number;
   estimatedWalkTimeFormatted: string;
   metabolicKcal: number;
+<<<<<<< HEAD
   oxygenExpenditureLiters: number;
   batteryPowerKwh?: number;
   crewProductivityMultiplier: number;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   safetyScore: number; // 0 to 100
   safetyExplanation: string;
   safetyFactors: {
@@ -91,10 +115,16 @@ export const MARS_SCIENCE_CATALOG: Array<{
   name: string;
   lat: number;
   lng: number;
+<<<<<<< HEAD
   category: 'Clay Hydration' | 'Deltaic Sediment' | 'Subsurface Ice' | 'Carbonate Deposit' | 'Crater Rim' | 'Boxwork Formation';
   description: string;
   scientificValueScore: number;
   surfacePovImage?: NasaSurfacePovImage;
+=======
+  category: 'Clay Hydration' | 'Deltaic Sediment' | 'Subsurface Ice' | 'Carbonate Deposit' | 'Crater Rim';
+  description: string;
+  scientificValueScore: number;
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }> = [
   {
     id: 'jezero_delta_fan',
@@ -160,6 +190,7 @@ export const MARS_SCIENCE_CATALOG: Array<{
     scientificValueScore: 9.6,
   },
   {
+<<<<<<< HEAD
     id: 'gale_boxwork_formations',
     name: 'Mount Sharp Boxwork Formations (2025 Discovery)',
     lat: -4.738,
@@ -181,6 +212,8 @@ export const MARS_SCIENCE_CATALOG: Array<{
     },
   },
   {
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     id: 'valles_carbonate_rim',
     name: 'Coprates Chasma Carbonate Veins',
     lat: -14.2,
@@ -215,9 +248,12 @@ export function calculateAStarRoute(
     customName?: string;
     includeScienceStops?: boolean;
     avoidSlopesOverDeg?: number;
+<<<<<<< HEAD
     transportMode?: MarsTransportModeType;
     crewConfig?: CrewBuddyConfigType;
     hazardZones?: HazardZone[];
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   }
 ): PlannedRouteResult {
   const directDistKm = calculateMarsDistanceKm(
@@ -225,10 +261,13 @@ export function calculateAStarRoute(
     { latitude: endLat, longitude: endLng }
   );
 
+<<<<<<< HEAD
   const transportMode = options?.transportMode || 'foot';
   const crewConfig = options?.crewConfig || 'buddy_pair';
   const hazardZones = options?.hazardZones || [];
 
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   // Number of discretized navigation nodes along the corridor (scale with distance)
   const numSteps = Math.max(8, Math.min(32, Math.round(directDistKm / 0.75)));
   const waypoints: PlannedWaypoint[] = [];
@@ -254,14 +293,22 @@ export function calculateAStarRoute(
     let isScience = false;
     let scienceCat: string | undefined;
     let pointName = i === 0 ? 'Start (Departure)' : i === numSteps ? 'Destination' : `Waypoint ${i}`;
+<<<<<<< HEAD
     let waypointPovImage: NasaSurfacePovImage | undefined = undefined;
 
     // Apply Mode-Specific Path Adjustments and avoid mapped hazard footprints.
     if (i > 0 && i < numSteps) {
+=======
+
+    // Apply Mode-Specific Path Adjustments:
+    if (mode === 'safest' && i > 0 && i < numSteps) {
+      // Safest Mode: actively deviates around steep slopes by sampling perpendicular terrain offsets
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       const normalLat = -(endLng - startLng);
       const normalLng = endLat - startLat;
       const normLen = Math.hypot(normalLat, normalLng) || 1;
 
+<<<<<<< HEAD
       // Sample lateral offsets and choose the lowest combined terrain/hazard cost.
       let bestLat = lat;
       let bestLng = lng;
@@ -269,6 +316,14 @@ export function calculateAStarRoute(
       let bestCost = Infinity;
 
       [-0.025, -0.015, 0, 0.015, 0.025].forEach((offsetFactor) => {
+=======
+      // Sample 3 candidate lateral offsets and pick the one with lowest slope
+      let bestLat = lat;
+      let bestLng = lng;
+      let bestSlope = Infinity;
+
+      [-0.015, 0, 0.015].forEach((offsetFactor) => {
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         const testLat = lat + (normalLat / normLen) * offsetFactor;
         const testLng = lng + (normalLng / normLen) * offsetFactor;
         const elevTest = getMolaElevation(testLat, testLng);
@@ -280,6 +335,7 @@ export function calculateAStarRoute(
             )
           : 100;
         const slope = (Math.abs(elevTest - prevElev) / Math.max(1, distStep)) * (180 / Math.PI);
+<<<<<<< HEAD
         const hazardCost = hazardZones.reduce((total, hazard) => {
           const distance = calculateMarsDistanceMeters(
             { latitude: testLat, longitude: testLng },
@@ -294,6 +350,9 @@ export function calculateAStarRoute(
         const cost = slope + hazardCost * modeHazardWeight;
         if (cost < bestCost) {
           bestCost = cost;
+=======
+        if (slope < bestSlope) {
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
           bestSlope = slope;
           bestLat = testLat;
           bestLng = testLng;
@@ -302,9 +361,13 @@ export function calculateAStarRoute(
 
       lat = bestLat;
       lng = bestLng;
+<<<<<<< HEAD
     }
 
     if (mode === 'science' && i > 0 && i < numSteps && nearbyScience.length > 0) {
+=======
+    } else if (mode === 'science' && i > 0 && i < numSteps && nearbyScience.length > 0) {
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       // Science-rich Mode: detours toward nearest unvisited science target
       const target = nearbyScience[0];
       const targetDistToFraction = Math.abs(fraction - 0.5);
@@ -315,7 +378,10 @@ export function calculateAStarRoute(
         isScience = true;
         scienceCat = target.category;
         pointName = `Science Stop: ${target.name}`;
+<<<<<<< HEAD
         waypointPovImage = target.surfacePovImage;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       }
     }
 
@@ -342,6 +408,7 @@ export function calculateAStarRoute(
         elev
       );
 
+<<<<<<< HEAD
       // Speed calculation based on Transport Mode & Slope
       let speedKmH: number;
       if (transportMode === 'unpressurized_rover') {
@@ -352,6 +419,10 @@ export function calculateAStarRoute(
         speedKmH = calculateAstronautWalkingSpeedKmH(slope, elevDelta > 0);
       }
 
+=======
+      // Walking speed based on slope (Margaria-Minetti model for 0.38g Mars spacesuit)
+      const speedKmH = calculateAstronautWalkingSpeedKmH(slope, elevDelta > 0);
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       cumTimeHours += stepDistKm / speedKmH;
     }
 
@@ -362,6 +433,7 @@ export function calculateAStarRoute(
     if (slope > 18) hazardRisk = 'Hazardous';
     else if (slope > 8) hazardRisk = 'Moderate';
 
+<<<<<<< HEAD
     // Check if near any catalog item with POV image
     if (!waypointPovImage) {
       const matchedCatalog = MARS_SCIENCE_CATALOG.find((cat) => {
@@ -373,6 +445,8 @@ export function calculateAStarRoute(
       }
     }
 
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     waypoints.push({
       id: `wp-${i}`,
       lat: Number(lat.toFixed(4)),
@@ -385,7 +459,10 @@ export function calculateAStarRoute(
       isScienceStop: isScience,
       scienceCategory: scienceCat,
       hazardRisk,
+<<<<<<< HEAD
       surfacePovImage: waypointPovImage,
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     });
   }
 
@@ -396,6 +473,7 @@ export function calculateAStarRoute(
   const minsInt = Math.round((roundedTimeHours - hoursInt) * 60);
   const timeFormatted = `${hoursInt}h ${minsInt.toString().padStart(2, '0')}m`;
 
+<<<<<<< HEAD
   // Metabolic Energy Expenditure & Consumables Model:
   let metabolicKcal: number;
   let oxygenExpenditureLiters: number;
@@ -421,6 +499,13 @@ export function calculateAStarRoute(
   if (crewConfig === 'buddy_pair') {
     safetyBreakdown.score = Math.min(100, safetyBreakdown.score + 5);
   }
+=======
+  // Metabolic Energy Expenditure (suited Marswalk ~ 280-550 kcal/h)
+  const metabolicKcal = Math.round(roundedTimeHours * (320 + avgSlope * 18));
+
+  // Compute Rigorous Safety Score (0-100) & Explanations:
+  const safetyBreakdown = computeSafetyScore(mode, maxSlope, avgSlope, roundedDistKm, roundedTimeHours);
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
   // Generate Plain Language Explanations (English and Bengali)
   const explanations = generateRouteExplanation(mode, roundedDistKm, roundedTimeHours, maxSlope, avgSlope, safetyBreakdown.score);
@@ -446,8 +531,11 @@ export function calculateAStarRoute(
     name: routeName,
     mode,
     color,
+<<<<<<< HEAD
     transportMode,
     crewConfig,
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     waypoints,
     totalDistanceKm: roundedDistKm,
     totalAscentM: Math.round(totalAscent),
@@ -457,9 +545,12 @@ export function calculateAStarRoute(
     estimatedWalkTimeHours: roundedTimeHours,
     estimatedWalkTimeFormatted: timeFormatted,
     metabolicKcal,
+<<<<<<< HEAD
     oxygenExpenditureLiters,
     batteryPowerKwh,
     crewProductivityMultiplier,
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     safetyScore: safetyBreakdown.score,
     safetyExplanation: safetyBreakdown.explanation,
     safetyFactors: safetyBreakdown.factors,

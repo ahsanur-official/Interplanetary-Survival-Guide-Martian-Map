@@ -9,8 +9,12 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
+<<<<<<< HEAD
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts"
+=======
+    "lint": "tsc --noEmit"
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

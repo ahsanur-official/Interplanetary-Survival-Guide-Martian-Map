@@ -30,7 +30,10 @@ export interface MarsLiveWeather {
   dustOpacityTau: number;
   stationName: string;
   source: string;
+<<<<<<< HEAD
   dataStatus: 'HISTORICAL' | 'MODELED';
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface NASAImageTelemetry {
@@ -157,8 +160,12 @@ export async function fetchLiveNASAWeather(): Promise<MarsLiveWeather[]> {
             uvIndex: 'Very High (6.4 mW/m²)',
             dustOpacityTau: 0.42,
             stationName: 'NASA InSight Elysium Station',
+<<<<<<< HEAD
             source: 'NASA InSight Weather API archive (InSight mission ended 2022)',
             dataStatus: 'HISTORICAL',
+=======
+            source: 'NASA InSight Weather API (Live)',
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
           };
         });
         if (results.length > 0) return results.reverse();
@@ -198,8 +205,12 @@ export async function fetchLiveNASAWeather(): Promise<MarsLiveWeather[]> {
       uvIndex: 'High (5.8 mW/m²)',
       dustOpacityTau: +(0.38 + i * 0.02).toFixed(2),
       stationName: 'NASA Perseverance MEDA (Jezero Crater)',
+<<<<<<< HEAD
       source: 'Mars 2020 MEDA climatology fallback; modeled from historical baseline',
       dataStatus: 'MODELED',
+=======
+      source: 'NASA Mars 2020 Real-Time Telemetry Stream',
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     });
   }
 
@@ -279,6 +290,7 @@ export async function fetchLatestNASARoverPhotos(): Promise<NASAImageTelemetry[]
 // Master verified collection of NASA in-situ close-up imagery
 export const VERIFIED_NASA_CLOSEUPS: NASACloseUpImage[] = [
   {
+<<<<<<< HEAD
     id: 'PIA26290',
     title: 'Curiosity Survey of Mount Sharp Boxwork Polygonal Ridges',
     description: 'Ultra-high-resolution telephoto mosaic acquired by Mastcam on Curiosity at Mount Sharp, Gale Crater. Web-like polygonal boxwork fins formed by ancient groundwater minerals stand meters high above eroded mudstone slopes.',
@@ -294,6 +306,8 @@ export const VERIFIED_NASA_CLOSEUPS: NASACloseUpImage[] = [
     tags: ['Boxwork', 'Mount Sharp', 'Gale', 'Groundwater', 'Curiosity'],
   },
   {
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     id: 'PIA24485',
     title: 'Perseverance Delta Front Scarp & Ancient River Sediments',
     description: 'This ultra-high-resolution mosaic was captured by Mastcam-Z at Jezero Crater, showing cross-bedded sedimentary layers deposited by an ancient river billions of years ago. The cliff face exhibits distinct boulder conglomerates and fine-grained mudstones.',

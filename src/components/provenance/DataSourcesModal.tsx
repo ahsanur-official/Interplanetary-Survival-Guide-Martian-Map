@@ -19,7 +19,11 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
   if (!isOpen) return null;
 
   return (
+<<<<<<< HEAD
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="data-sources-title">
+=======
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       <div className="w-full max-w-4xl bg-[#0c1017] border border-neutral-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-neutral-200">
         {/* Header */}
         <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/70">
@@ -28,7 +32,11 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
               <Database className="w-5 h-5" />
             </div>
             <div>
+<<<<<<< HEAD
               <h2 id="data-sources-title" className="text-base font-semibold text-white tracking-wide flex items-center gap-2">
+=======
+              <h2 className="text-base font-semibold text-white tracking-wide flex items-center gap-2">
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                 Scientific Data Provenance & Sources
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/60">
                   Transparency Protocol
@@ -42,8 +50,11 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
 
           <button
             onClick={onClose}
+<<<<<<< HEAD
             type="button"
             aria-label="Close data sources dialog"
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
           >
             <X className="w-5 h-5" />
@@ -96,6 +107,7 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
             </div>
           </div>
 
+<<<<<<< HEAD
           <div className="space-y-2 pt-2">
             <h3 className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold">
               Layer Status Summary
@@ -120,6 +132,8 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
             </div>
           </div>
 
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
           {/* Primary Datasets Catalog */}
           <div className="space-y-3 pt-2">
             <h3 className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold">

@@ -44,6 +44,7 @@ export interface ElevationGridPoint {
   roughness: number; // 0..1
 }
 
+<<<<<<< HEAD
 export type ScienceTargetCategory =
   | 'DELTAIC_SEDIMENT'
   | 'CARBONATE_MINERAL'
@@ -70,18 +71,27 @@ export type MarsTransportMode = 'FOOT_WALK' | 'UNPRESSURIZED_ROVER' | 'PRESSURIZ
 export type CrewBuddyConfig = 'SOLO_EXPLORER' | 'DUAL_BUDDY_PAIR';
 export type DisplayViewFormat = 'HABITAT_CONSOLE' | 'FIELD_TABLET' | 'VISOR_HUD';
 
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 export interface ScienceTarget {
   id: string;
   name: string;
   coordinate: MarsCoordinate;
+<<<<<<< HEAD
   category: ScienceTargetCategory;
+=======
+  category: 'DELTAIC_SEDIMENT' | 'CARBONATE_MINERAL' | 'IGNEOUS_BASEMENT' | 'CRATER_RIM' | 'CLAY_HYDRATION' | 'HYDROTHERMAL_SILICA';
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   scientificValueScore: number; // 1 to 10
   samplingTimeMinutes: number;
   description: string;
   hypothesizedSignificance: string;
   recommendedInstruments: string[];
   provenance: DataProvenance;
+<<<<<<< HEAD
   surfacePovImage?: NasaSurfacePovImage;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface RoverObservation {
@@ -95,7 +105,10 @@ export interface RoverObservation {
   observationSummary: string;
   sampleAcquired?: boolean;
   provenance: DataProvenance;
+<<<<<<< HEAD
   surfacePovImage?: NasaSurfacePovImage;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface HazardZone {
@@ -159,7 +172,10 @@ export interface RouteWaypoint extends MarsCoordinate {
   cumulativeTimeHours: number;
   hazardRisk: 'LOW' | 'MEDIUM' | 'HIGH';
   visitedScienceTarget?: ScienceTarget;
+<<<<<<< HEAD
   surfacePovImage?: NasaSurfacePovImage;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface CandidateRoute {
@@ -169,8 +185,11 @@ export interface CandidateRoute {
   color: string;
   dashPattern?: number[];
   waypoints: RouteWaypoint[];
+<<<<<<< HEAD
   transportMode?: MarsTransportMode;
   crewConfig?: CrewBuddyConfig;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   metrics: {
     totalDistanceKm: number;
     estimatedDurationHours: number;
@@ -181,9 +200,12 @@ export interface CandidateRoute {
     resourceInterestYield: number;  // 0 to 100
     metabolicEnergyCostKcal: number;
     isFeasible: boolean;            // within max duration
+<<<<<<< HEAD
     oxygenConsumptionLiters?: number;
     batteryPowerKwh?: number;
     crewProductivityMultiplier?: number;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   };
   whyThisRoute: {
     summary: string;
@@ -212,8 +234,11 @@ export interface MissionConstraints {
   };
   requiredScienceTargetIds: string[];
   avoidHazardTypes: string[];
+<<<<<<< HEAD
   transportMode?: MarsTransportMode;
   crewConfig?: CrewBuddyConfig;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export interface WhatIfScenario {
@@ -224,5 +249,8 @@ export interface WhatIfScenario {
   additionalHazard?: HazardZone;
   mandatedScienceTargetId?: string;
   slopeLimitAdjustment?: number;
+<<<<<<< HEAD
   transportModeAdjustment?: MarsTransportMode;
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }

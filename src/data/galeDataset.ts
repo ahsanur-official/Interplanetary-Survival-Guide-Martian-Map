@@ -79,6 +79,7 @@ export const GALE_NAMED_LOCATIONS: {
     type: 'SCIENCE_STATION',
     description: 'High-standing, iron-oxide hematite cemented ridge with dramatic views of Mount Sharp.',
   },
+<<<<<<< HEAD
   {
     id: 'gale_boxwork_ridge',
     name: 'Mount Sharp Boxwork Formations (2025 Discovery)',
@@ -88,10 +89,13 @@ export const GALE_NAMED_LOCATIONS: {
     description:
       'Dramatic polygonal boxwork ridge networks investigated by Curiosity in 2024–2025. Ancient groundwater deposited erosion-resistant mineral fins across fractured bedrock.',
   },
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 ];
 
 export const GALE_SCIENCE_TARGETS: ScienceTarget[] = [
   {
+<<<<<<< HEAD
     id: 'sci_gale_boxwork_formations',
     name: 'Mount Sharp Polygonal Boxwork Mineral Fins (2025 Study)',
     coordinate: { latitude: -4.7385, longitude: 137.3475 },
@@ -127,6 +131,8 @@ export const GALE_SCIENCE_TARGETS: ScienceTarget[] = [
     },
   },
   {
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     id: 'sci_gale_john_klein',
     name: 'John Klein Mudstone Drill Site',
     coordinate: { latitude: -4.5882, longitude: 137.4585 },
@@ -148,6 +154,7 @@ export const GALE_SCIENCE_TARGETS: ScienceTarget[] = [
       status: 'OBSERVED',
       limitations: 'Sample drilled in 2013; drill borehole remains open for inspection.',
     },
+<<<<<<< HEAD
     surfacePovImage: {
       id: 'POV-MSL-JOHN-KLEIN',
       title: 'MAHLI Close-up of John Klein Drill Hole & Gray Powder Tailings',
@@ -159,6 +166,8 @@ export const GALE_SCIENCE_TARGETS: ScienceTarget[] = [
       targetFeature: 'Yellowknife Bay Lacustrine Mudstone',
       fieldOfViewDeg: 35,
     },
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   },
   {
     id: 'sci_gale_hematite_crest',
@@ -185,6 +194,7 @@ export const GALE_SCIENCE_TARGETS: ScienceTarget[] = [
   },
 ];
 
+<<<<<<< HEAD
 export const GALE_ROVER_OBSERVATIONS: RoverObservation[] = [
   {
     id: 'obs_gale_boxwork_sol4120',
@@ -217,6 +227,8 @@ export const GALE_ROVER_OBSERVATIONS: RoverObservation[] = [
   },
 ];
 
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 export const GALE_HAZARD_ZONES: HazardZone[] = [
   {
     id: 'haz_gale_bagnold_dunes',
@@ -236,6 +248,7 @@ export const GALE_HAZARD_ZONES: HazardZone[] = [
       limitations: 'Active migration ~1 meter/Martian year.',
     },
   },
+<<<<<<< HEAD
   {
     id: 'haz_gale_boxwork_scree',
     name: 'Mount Sharp Boxwork Ridge Scree Slope',
@@ -275,4 +288,6 @@ export const GALE_HAZARD_ZONES: HazardZone[] = [
       limitations: 'Objects below the image detection threshold are not represented.',
     },
   },
+=======
+>>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 ];
