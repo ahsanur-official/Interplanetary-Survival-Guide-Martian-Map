@@ -43,10 +43,7 @@ import { MarsRegion } from '../../data/marsRegions';
 import { MarsSite } from './RealMarsMap';
 import { MarsOrbitalTelemetry, MarsLiveWeather, NASAImageTelemetry } from '../../engine/nasaMarsService';
 import { marsSonification } from '../../engine/marsSonification';
-<<<<<<< HEAD
 import { MarsSpaceWeatherState } from '../../engine/marsSpaceWeather';
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
 export type BottomSheetTab = 'missions' | 'layers' | 'landmarks' | 'tools' | 'weather' | null;
 
@@ -95,12 +92,9 @@ export interface MarsMissionBottomSheetProps {
   ephemeris: MarsOrbitalTelemetry;
   currentWeather: MarsLiveWeather | null;
   roverPhotos: NASAImageTelemetry[];
-<<<<<<< HEAD
   spaceWeather: MarsSpaceWeatherState;
   onToggleSpaceWeather: () => void;
   onEmergencyReturn: () => void;
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
@@ -141,12 +135,9 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
   ephemeris,
   currentWeather,
   roverPhotos,
-<<<<<<< HEAD
   spaceWeather,
   onToggleSpaceWeather,
   onEmergencyReturn,
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }) => {
   // Mission Explorer state inside bottom sheet
   const [selectedMission, setSelectedMission] = useState<MarsMission>(MARS_MISSIONS_DATA[0]);
@@ -931,7 +922,6 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
                   </div>
                 </div>
 
-<<<<<<< HEAD
                 {currentWeather && (
                   <div className="p-4 rounded-2xl bg-neutral-900/90 border border-amber-800/40 space-y-3">
                     <div className="flex items-center justify-between gap-2">
@@ -975,8 +965,6 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
                   </div>
                 </div>
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                 {/* Weather Station Selector */}
                 <div className="flex items-center gap-2">
                   <button

@@ -21,7 +21,6 @@ import {
   LifeBuoy,
   Plus,
   RotateCcw,
-<<<<<<< HEAD
   Languages,
   Camera,
   Battery,
@@ -29,27 +28,18 @@ import {
   User,
   Truck,
   Droplets,
-=======
-  Languages
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 } from 'lucide-react';
 import {
   PlannedRouteResult,
   RouteMode,
   PlannedWaypoint,
   ScienceStopSuggestion,
-<<<<<<< HEAD
   MarsTransportModeType,
   CrewBuddyConfigType,
   calculateAStarRoute,
   calculateEmergencyReturnRoute,
 } from '../../engine/marsAStarRouter';
 import { NasaSurfacePovImage } from '../../types/mars';
-=======
-  calculateAStarRoute,
-  calculateEmergencyReturnRoute,
-} from '../../engine/marsAStarRouter';
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 import { calculateMarsDistanceKm } from '../../engine/spatialMath';
 
 export interface MarsRoutePlannerModalProps {
@@ -65,7 +55,6 @@ export interface MarsRoutePlannerModalProps {
   onSelectMode: (mode: RouteMode) => void;
   onTriggerEmergencyReturn: () => void;
   onAddScienceStop: (stop: ScienceStopSuggestion) => void;
-<<<<<<< HEAD
   onLoadDemoScenario: (scenarioType?: 'jezero' | 'boxwork') => void;
   onFlyToRoute: () => void;
   onOpenPovImage?: (pov: NasaSurfacePovImage, waypointName?: string, elevationM?: number) => void;
@@ -73,10 +62,6 @@ export interface MarsRoutePlannerModalProps {
   onChangeTransportMode?: (mode: MarsTransportModeType) => void;
   crewConfig?: CrewBuddyConfigType;
   onChangeCrewConfig?: (config: CrewBuddyConfigType) => void;
-=======
-  onLoadDemoScenario: () => void;
-  onFlyToRoute: () => void;
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }
 
 export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
@@ -94,14 +79,11 @@ export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
   onAddScienceStop,
   onLoadDemoScenario,
   onFlyToRoute,
-<<<<<<< HEAD
   onOpenPovImage,
   transportMode = 'foot',
   onChangeTransportMode,
   crewConfig = 'buddy_pair',
   onChangeCrewConfig,
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'stops' | 'explainer' | 'comms' | 'export'>('overview');
   const [explainerLang, setExplainerLang] = useState<'en' | 'bn'>('en');
@@ -209,11 +191,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
   };
 
   return (
-<<<<<<< HEAD
     <div className="fixed inset-0 sm:inset-auto sm:top-14 sm:left-4 sm:bottom-4 z-40 pointer-events-auto bg-[#070b14]/96 backdrop-blur-2xl border border-cyan-500/40 rounded-none sm:rounded-2xl shadow-2xl shadow-black/95 flex flex-col text-neutral-200 w-full sm:w-[460px] lg:w-[500px] overflow-hidden font-sans text-xs" role="dialog" aria-modal="true" aria-labelledby="mars-route-planner-title">
-=======
-    <div className="fixed inset-0 sm:inset-auto sm:top-14 sm:left-4 sm:bottom-4 z-40 pointer-events-auto bg-[#070b14]/96 backdrop-blur-2xl border border-cyan-500/40 rounded-none sm:rounded-2xl shadow-2xl shadow-black/95 flex flex-col text-neutral-200 w-full sm:w-[460px] lg:w-[500px] overflow-hidden font-sans text-xs">
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       {/* Top Header */}
       <div className="p-3 sm:p-3.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
@@ -223,11 +201,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-white text-xs tracking-wide">
-<<<<<<< HEAD
                 <span id="mars-route-planner-title">Mars EVA A* Route Planner</span>
-=======
-                Mars EVA A* Route Planner
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               </h3>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 font-semibold">
                 3 Modes
@@ -239,7 +213,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
           </div>
         </div>
 
-<<<<<<< HEAD
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
           {/* Demo Scenario Selectors */}
           <div className="flex items-center gap-1">
@@ -263,18 +236,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
               <span>Boxwork (2025)</span>
             </button>
           </div>
-=======
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onLoadDemoScenario}
-            className="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-mono text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-            title="Load authentic Jezero Crater Delta sample fetch scenario"
-          >
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>Demo</span>
-          </button>
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
           <button
             type="button"
@@ -286,7 +247,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         </div>
       </div>
 
-<<<<<<< HEAD
       {/* Transport Mode & Crew Configuration Controls */}
       <div className="px-3 py-2 bg-neutral-900/90 border-b border-white/5 space-y-1.5 shrink-0">
         <div className="flex items-center justify-between text-[10px] text-neutral-400 font-mono">
@@ -372,8 +332,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         </div>
       </div>
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       {/* 3 Route Mode Switcher Tabs (Tier 2 Item 13) */}
       <div className="p-2 border-b border-white/10 bg-neutral-950/80 grid grid-cols-3 gap-1.5 shrink-0">
         <button
@@ -559,7 +517,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                   </span>
                 </div>
               </div>
-<<<<<<< HEAD
 
               {/* Consumables & Logistics Row */}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center font-mono">
@@ -586,8 +543,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                   </span>
                 </div>
               </div>
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             </div>
 
             {/* SAFETY SCORE CARD & EXPLANATION (Tier 2 Item 8) */}
@@ -725,7 +680,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                       <div className="text-[9px] text-neutral-400">
                         {w.lat.toFixed(3)}°N, {w.lng.toFixed(3)}°E
                       </div>
-<<<<<<< HEAD
                       {w.surfacePovImage && onOpenPovImage && (
                         <button
                           type="button"
@@ -736,8 +690,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                           <span>NASA Surface POV</span>
                         </button>
                       )}
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                     </div>
                   </div>
 
@@ -759,11 +711,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         {activeTab === 'stops' && activeRoute && (
           <div className="space-y-3">
             <div className="text-[11px] text-neutral-300">
-<<<<<<< HEAD
               The engine automatically detects high-value planetary science deposits (clays, ancient deltas, ground ice, and boxwork formations) along your route corridor.
-=======
-              The engine automatically detects high-value planetary science deposits (clays, ancient deltas, ground ice) along your route corridor.
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             </div>
 
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
@@ -784,7 +732,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                         </span>
                       </div>
 
-<<<<<<< HEAD
                       <div className="flex items-center gap-1.5 shrink-0">
                         {stop.surfacePovImage && onOpenPovImage && (
                           <button
@@ -806,16 +753,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                           <span>Add Stop</span>
                         </button>
                       </div>
-=======
-                      <button
-                        type="button"
-                        onClick={() => onAddScienceStop(stop)}
-                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer shadow"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Add Stop</span>
-                      </button>
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                     </div>
 
                     <p className="text-[10.5px] text-neutral-300">

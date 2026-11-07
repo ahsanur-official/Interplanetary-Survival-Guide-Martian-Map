@@ -236,11 +236,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
     status: 'completed',
     statusDisplay: 'Completed (2004–2018, 5,352 Sols)',
     lat: -1.95,
-<<<<<<< HEAD
     lng: -5.53,
-=======
-    lng: 354.47,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     elevationM: -1400,
     landingSiteName: 'Meridiani Planum (Eagle Crater)',
     objectives: [
@@ -259,11 +255,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
         sol: 0,
         name: 'Eagle Crater (Hole-in-One Landing)',
         lat: -1.946,
-<<<<<<< HEAD
         lng: -5.527,
-=======
-        lng: 354.473,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         elevationM: -1400,
         discovery: 'Directly hit an impact crater exposing sulfate-rich outcrop with hematite spherules.',
         instrumentsUsed: ['Pancam', 'Microscopic Imager', 'Mossbauer Spectrometer'],
@@ -272,11 +264,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
         sol: 130,
         name: 'Endurance Crater Basin',
         lat: -1.95,
-<<<<<<< HEAD
         lng: -5.495,
-=======
-        lng: 354.505,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         elevationM: -1415,
         discovery: 'Descended crater walls revealing multi-meter stratified layers formed by ancient water.',
         instrumentsUsed: ['APXS', 'RAT Rock Abrasion Tool'],
@@ -285,11 +273,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
         sol: 950,
         name: 'Victoria Crater Duck Bay',
         lat: -2.05,
-<<<<<<< HEAD
         lng: -5.51,
-=======
-        lng: 354.49,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         elevationM: -1380,
         discovery: 'Dramatic scallop-edged 800m crater showing massive eolian sand dune beds.',
         instrumentsUsed: ['Pancam', 'Microscopic Imager'],
@@ -298,11 +282,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
         sol: 2700,
         name: 'Endeavour Crater / Cape York',
         lat: -2.28,
-<<<<<<< HEAD
         lng: -5.32,
-=======
-        lng: 354.68,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         elevationM: -1320,
         discovery: 'Ancient Noachian bedrock rim containing pure gypsum veins deposited by neutral water.',
         instrumentsUsed: ['APXS', 'Pancam', 'Microscopic Imager'],
@@ -376,11 +356,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
     status: 'completed',
     statusDisplay: 'Completed (May–Nov 2008)',
     lat: 68.2188,
-<<<<<<< HEAD
     lng: -125.75,
-=======
-    lng: 234.2508,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     elevationM: -4120,
     landingSiteName: 'Vastitas Borealis (Green Valley)',
     objectives: [
@@ -407,11 +383,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
     status: 'completed',
     statusDisplay: 'Completed (1976–1982, 2,245 Sols)',
     lat: 22.48,
-<<<<<<< HEAD
     lng: -47.95,
-=======
-    lng: 312.05,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     elevationM: -2690,
     landingSiteName: 'Chryse Planitia (Thomas Mutch Memorial)',
     objectives: [
@@ -438,11 +410,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
     status: 'completed',
     statusDisplay: 'Completed (1976–1980, 1,281 Sols)',
     lat: 48.27,
-<<<<<<< HEAD
     lng: -134.03,
-=======
-    lng: 134.03,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     elevationM: -4050,
     landingSiteName: 'Utopia Planitia',
     objectives: [
@@ -467,11 +435,7 @@ export const MARS_MISSIONS_DATA: MarsMission[] = [
     status: 'completed',
     statusDisplay: 'Completed (July–Sept 1997)',
     lat: 19.33,
-<<<<<<< HEAD
     lng: -33.55,
-=======
-    lng: 326.45,
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     elevationM: -3680,
     landingSiteName: 'Ares Vallis (Carl Sagan Memorial Station)',
     objectives: [

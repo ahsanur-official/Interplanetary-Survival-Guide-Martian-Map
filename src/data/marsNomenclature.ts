@@ -58,7 +58,6 @@ export const ALL_MARS_FEATURES: MarsFeature[] = [
     featured: true,
   },
   {
-<<<<<<< HEAD
     id: 'boxwork_formations',
     name: 'Mount Sharp Boxwork Formations (2025 Discovery)',
     type: 'Robotic Rover/Lander',
@@ -72,8 +71,6 @@ export const ALL_MARS_FEATURES: MarsFeature[] = [
     featured: true,
   },
   {
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     id: 'opportunity',
     name: 'Opportunity Rover (Challenger Memorial Station)',
     type: 'Robotic Rover/Lander',

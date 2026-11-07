@@ -379,11 +379,7 @@ export function AskMarsWayModal({
   };
 
   return (
-<<<<<<< HEAD
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="ask-marsway-title">
-=======
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       <div className="w-full max-w-3xl bg-[#0c1017] border border-neutral-800 rounded-xl shadow-2xl overflow-hidden flex flex-col h-[640px] max-h-[90vh] text-neutral-200">
         {/* Header */}
         <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/70">
@@ -392,11 +388,7 @@ export function AskMarsWayModal({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-<<<<<<< HEAD
               <h2 id="ask-marsway-title" className="text-base font-semibold text-white tracking-wide flex items-center gap-2">
-=======
-              <h2 className="text-base font-semibold text-white tracking-wide flex items-center gap-2">
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                 Ask MarsWay AI
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-950 text-purple-400 border border-purple-800/60">
                   Spatial Intelligence
@@ -428,11 +420,8 @@ export function AskMarsWayModal({
 
             <button
               onClick={onClose}
-<<<<<<< HEAD
               type="button"
               aria-label="Close Ask MarsWay dialog"
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
             >
               <X className="w-5 h-5" />

@@ -55,11 +55,8 @@ import {
   Target,
 } from 'lucide-react';
 import { MARS_MISSIONS_DATA } from '../../data/marsMissions';
-<<<<<<< HEAD
 import { GALE_HAZARD_ZONES } from '../../data/galeDataset';
 import { JEZERO_HAZARD_ZONES } from '../../data/jezeroDataset';
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 import { analyzeMarsLocationScience } from '../../engine/marsEnvironmentalAnalysis';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import {
@@ -121,10 +118,7 @@ import { MarsPresentationMode } from '../common/MarsPresentationMode';
 import { AskMarsWayModal } from '../common/AskMarsWayModal';
 import { MarsLiveVoiceModal } from '../voice/MarsLiveVoiceModal';
 import { marsSonification } from '../../engine/marsSonification';
-<<<<<<< HEAD
 import { getMarsSpaceWeatherState, SpaceWeatherScenario } from '../../engine/marsSpaceWeather';
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 import {
   Ruler,
   Bookmark,
@@ -163,7 +157,6 @@ import {
   normalizeLongitude as normalizeAvailLongitude,
 } from '../../engine/marsElevationAvailability';
 import { MarsAstronautView } from './MarsAstronautView';
-<<<<<<< HEAD
 import {
   MarsNasaMissionsOverlayControl,
   NASA_HISTORIC_MISSIONS,
@@ -195,8 +188,6 @@ import {
   PlannedRouteResult,
   ScienceStopSuggestion,
 } from '../../engine/marsAStarRouter';
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
 export interface MarsSite extends MarsFeature {
   mission?: string;
@@ -276,10 +267,7 @@ export function RealMarsMap() {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
-<<<<<<< HEAD
   const routeHazardLayerRef = useRef<L.LayerGroup | null>(null);
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   const routeMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const sitesLayerRef = useRef<L.LayerGroup | null>(null);
   const roverTrackLayerRef = useRef<L.LayerGroup | null>(null);
@@ -379,10 +367,7 @@ export function RealMarsMap() {
   const [activeLayer, setActiveLayer] = useState<'themis' | 'viking' | 'mola' | 'opm'>('viking');
   const [surfaceFilter, setSurfaceFilter] = useState<'normal' | 'contrast' | 'sharp' | 'dark' | 'night'>('normal');
   const [showSites, setShowSites] = useState<boolean>(true);
-<<<<<<< HEAD
   const [isPlacesDockOpen, setIsPlacesDockOpen] = useState<boolean>(true);
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   const [showRoverTrack, setShowRoverTrack] = useState<boolean>(true);
   const [showGraticule, setShowGraticule] = useState<boolean>(false);
 
@@ -403,10 +388,7 @@ export function RealMarsMap() {
   const isMapPickDestinationModeRef = useRef<boolean>(false);
   const destinationMarkerLayerRef = useRef<L.LayerGroup | null>(null);
   const destinationTrajectoryLayerRef = useRef<L.Polyline | null>(null);
-<<<<<<< HEAD
   const fallbackSurfaceLayerRef = useRef<L.ImageOverlay | null>(null);
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
   useEffect(() => {
     isMapPickDestinationModeRef.current = isMapPickDestinationMode;
@@ -602,7 +584,6 @@ export function RealMarsMap() {
   const [selectedAtmosphereSiteId, setSelectedAtmosphereSiteId] = useState<string | undefined>(undefined);
   const atmosphereLayerRef = useRef<L.LayerGroup | null>(null);
 
-<<<<<<< HEAD
   // NASA Historic Missions Overlay Layer State
   const [showNasaMissionsOverlay, setShowNasaMissionsOverlay] = useState<boolean>(false);
   const showNasaMissionsOverlayRef = useRef<boolean>(false);
@@ -688,8 +669,6 @@ export function RealMarsMap() {
   // Astronaut Display Format (Habitat Console vs Field Tablet vs Spacesuit Visor HUD)
   const [displayViewFormat, setDisplayViewFormat] = useState<DisplayViewFormat>('HABITAT_CONSOLE');
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   // Quick GIS Tools Popover State
   const [isQuickToolsMenuOpen, setIsQuickToolsMenuOpen] = useState<boolean>(false);
 
@@ -753,24 +732,18 @@ export function RealMarsMap() {
   const [roverPhotos, setRoverPhotos] = useState<NASAImageTelemetry[]>([]);
   const [isLoadingNASA, setIsLoadingNASA] = useState<boolean>(false);
   const [activeWeatherStation, setActiveWeatherStation] = useState<'perseverance' | 'insight'>('perseverance');
-<<<<<<< HEAD
   const [spaceWeatherScenario, setSpaceWeatherScenario] = useState<SpaceWeatherScenario>('quiet');
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
   const currentWeather = useMemo(() => {
     if (liveWeather.length === 0) return null;
     return liveWeather[0];
   }, [liveWeather]);
 
-<<<<<<< HEAD
   const spaceWeather = useMemo(
     () => getMarsSpaceWeatherState(spaceWeatherScenario),
     [spaceWeatherScenario]
   );
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   // Features inside the currently selected region (Google Maps-style Area Content)
   const featuresInsideSelectedRegion = useMemo(() => {
     if (!selectedRegion) return [];
@@ -860,7 +833,6 @@ export function RealMarsMap() {
     }).length;
   }, [allMissionSites, isTimelineSliderOpen, timelineFilterMode, timelineSelectedYear, timelineSelectedEraId]);
 
-<<<<<<< HEAD
   // All primary dialogs share one opening gateway so a new modal never sits
   // underneath an older drawer or leaves two backdrops active at once.
   const closeAllPrimaryOverlays = () => {
@@ -983,8 +955,6 @@ export function RealMarsMap() {
     previousOverlaySignatureRef.current = overlaySignature;
   }, [overlaySignature]);
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
   // Initialize Map
   useEffect(() => {
@@ -1116,10 +1086,7 @@ export function RealMarsMap() {
     sitesLayerRef.current = L.layerGroup().addTo(map);
     roverTrackLayerRef.current = L.layerGroup().addTo(map);
     routeMarkersLayerRef.current = L.layerGroup().addTo(map);
-<<<<<<< HEAD
     routeHazardLayerRef.current = L.layerGroup().addTo(map);
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     graticuleLayerRef.current = L.layerGroup().addTo(map);
     measureLayerRef.current = L.layerGroup().addTo(map);
     earthComparisonLayerRef.current = L.layerGroup().addTo(map);
@@ -1127,10 +1094,7 @@ export function RealMarsMap() {
     dustStormLayerRef.current = L.layerGroup().addTo(map);
     molaAvailabilityLayerRef.current = L.layerGroup().addTo(map);
     atmosphereLayerRef.current = L.layerGroup().addTo(map);
-<<<<<<< HEAD
     nasaMissionsLayerRef.current = L.layerGroup().addTo(map);
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
     // Mouse / Touch tracker: Updates DOM refs directly without triggering React re-renders, enabling true 120fps smoothness
     let lastCoordTime = 0;
@@ -1394,10 +1358,7 @@ export function RealMarsMap() {
       sitesLayerRef.current = null;
       roverTrackLayerRef.current = null;
       routeMarkersLayerRef.current = null;
-<<<<<<< HEAD
       routeHazardLayerRef.current = null;
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       graticuleLayerRef.current = null;
       measureLayerRef.current = null;
       earthComparisonLayerRef.current = null;
@@ -1405,10 +1366,7 @@ export function RealMarsMap() {
       dustStormLayerRef.current = null;
       molaAvailabilityLayerRef.current = null;
       atmosphereLayerRef.current = null;
-<<<<<<< HEAD
       nasaMissionsLayerRef.current = null;
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       try {
         map.remove();
       } catch {
@@ -2393,14 +2351,11 @@ export function RealMarsMap() {
     const map = mapInstance || mapInstanceRef.current;
     if (!map) return;
 
-<<<<<<< HEAD
     if (fallbackSurfaceLayerRef.current) {
       map.removeLayer(fallbackSurfaceLayerRef.current);
       fallbackSurfaceLayerRef.current = null;
     }
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     map.eachLayer((layer) => {
       if (layer instanceof L.TileLayer) {
         map.removeLayer(layer);
@@ -2460,7 +2415,6 @@ export function RealMarsMap() {
       );
     }
 
-<<<<<<< HEAD
     let tileErrors = 0;
     let fallbackActivated = false;
     const activateLocalFallback = () => {
@@ -2497,11 +2451,6 @@ export function RealMarsMap() {
         fallbackSurfaceLayerRef.current = null;
       }
     };
-=======
-    newTileLayer.on('loading', () => setIsTilesLoading(true));
-    newTileLayer.on('load', () => setIsTilesLoading(false));
-    newTileLayer.addTo(map);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   }, [activeLayer, mapInstance]);
 
   // Update Graticule (Lat/Long Grid)
@@ -2839,7 +2788,6 @@ export function RealMarsMap() {
 
       // Check mission category filters
       const isMissionSite =
-<<<<<<< HEAD
         site.type?.includes('Rover') ||
         site.type?.includes('Lander') ||
         site.category?.includes('Mission') ||
@@ -2864,13 +2812,6 @@ export function RealMarsMap() {
       if (showNasaMissionsOverlay && isMissionSite && !isSelected) {
         return;
       }
-=======
-        site.type.includes('Rover') ||
-        site.type.includes('Lander') ||
-        site.category?.includes('Mission') ||
-        site.category?.includes('Lander') ||
-        site.category?.includes('Rover');
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
       if (isMissionSite) {
         // Mission Timeline Slider Filter (Cumulative Year or Specific Era)
@@ -3126,10 +3067,7 @@ export function RealMarsMap() {
     Mic,
     mapBoundsKey,
     mapInstance,
-<<<<<<< HEAD
     showNasaMissionsOverlay,
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   ]);
 
   // Render Rover Historical Traverse Tracks (Perseverance, Curiosity, Opportunity, etc.)
@@ -3209,7 +3147,6 @@ export function RealMarsMap() {
 
   // Render User Planned Route & Waypoints
   useEffect(() => {
-<<<<<<< HEAD
     const layer = routeHazardLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
@@ -3254,8 +3191,6 @@ export function RealMarsMap() {
 
   // Render User Planned Route & Waypoints
   useEffect(() => {
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     const map = mapInstanceRef.current;
     const markersGroup = routeMarkersLayerRef.current;
     if (!map || !markersGroup) return;
@@ -3585,7 +3520,6 @@ export function RealMarsMap() {
     mapInstanceRef.current?.flyTo([18.46, 77.41], 7, { duration: 1.5 });
   };
 
-<<<<<<< HEAD
   // Helper: compute ellipse points on spherical Mars (3389.5 km radius)
   const getMarsEllipsePoints = (
     centerLat: number,
@@ -3798,8 +3732,6 @@ export function RealMarsMap() {
     }
   };
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   // Select Basemap - AUTO-CLOSES MODAL
   const handleSelectLayer = (layer: 'themis' | 'viking' | 'mola' | 'opm') => {
     setActiveLayer(layer);
@@ -3812,7 +3744,6 @@ export function RealMarsMap() {
     setActiveTab(null); // Auto-close modal
   };
 
-<<<<<<< HEAD
   // Keep the many map-owned dialogs consistent: Escape closes the active layer,
   // and the page behind a blocking dialog must not scroll.
   const hasBlockingOverlay = Boolean(
@@ -3932,8 +3863,6 @@ export function RealMarsMap() {
     activeSurfacePovImage,
   ]);
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   // Surface filter CSS style - Ultra-clear detail and high-pass topography definition
   const getFilterStyle = () => {
     if (surfaceFilter === 'sharp') {
@@ -3970,12 +3899,9 @@ export function RealMarsMap() {
             <span className="hidden sm:inline-block text-[9px] font-mono tracking-wider px-1.5 py-0.5 rounded bg-orange-950/80 text-orange-400 border border-orange-700/60 font-semibold whitespace-nowrap">
               NASA GIS
             </span>
-<<<<<<< HEAD
             <span className="hidden lg:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950/70 text-red-300 border border-red-800/60 whitespace-nowrap" title="Educational decision-support prototype; not certified for operational EVA flight.">
               NOT FLIGHT-CERTIFIED
             </span>
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
           </div>
         </div>
 
@@ -4029,11 +3955,7 @@ export function RealMarsMap() {
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Universal Search Modal Button (Both Desktop & Mobile) */}
           <button
-<<<<<<< HEAD
             onClick={() => openPrimaryOverlay(setIsSearchModalOpen)}
-=======
-            onClick={() => setIsSearchModalOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
             title="Search Martian features, rovers & coordinates"
             aria-label="Search"
@@ -4045,11 +3967,7 @@ export function RealMarsMap() {
           {/* Desktop-only secondary buttons */}
           <div className="hidden lg:flex items-center gap-1.5">
             <button
-<<<<<<< HEAD
               onClick={() => openPrimaryOverlay(setIsMissionExplorerOpen)}
-=======
-              onClick={() => setIsMissionExplorerOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
               title="Browse missions"
             >
@@ -4057,11 +3975,7 @@ export function RealMarsMap() {
               <span>Missions</span>
             </button>
             <button
-<<<<<<< HEAD
               onClick={() => openPrimaryOverlay(setIsHumanMissionModeOpen)}
-=======
-              onClick={() => setIsHumanMissionModeOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
               title="Base Planning"
             >
@@ -4072,11 +3986,7 @@ export function RealMarsMap() {
 
           {/* Ask AI button (Desktop header only; on mobile it is in the bottom bar) */}
           <button
-<<<<<<< HEAD
             onClick={() => openPrimaryOverlay(setIsAskMarsWayOpen)}
-=======
-            onClick={() => setIsAskMarsWayOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             className="hidden sm:flex px-2 sm:px-2.5 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900/80 border border-purple-600/50 text-xs text-purple-200 hover:text-white items-center gap-1.5 transition cursor-pointer active:scale-95"
             title="Ask MarsWay AI"
           >
@@ -4213,10 +4123,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       closeAllPrimaryOverlays();
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setActiveTab(activeTab === 'landmarks' ? null : 'landmarks');
                       setIsHamburgerOpen(false);
                     }}
@@ -4237,10 +4144,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       closeAllPrimaryOverlays();
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setActiveTab(activeTab === 'tools' ? null : 'tools');
                       setIsHamburgerOpen(false);
                     }}
@@ -4261,10 +4165,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       closeAllPrimaryOverlays();
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setActiveTab(activeTab === 'layers' ? null : 'layers');
                       setIsHamburgerOpen(false);
                     }}
@@ -4293,11 +4194,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsMissionExplorerOpen);
-=======
-                      setIsMissionExplorerOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-cyan-900/40 hover:border-cyan-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4317,11 +4214,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsMissionLayersPanelOpen);
-=======
-                      setIsMissionLayersPanelOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-orange-900/40 hover:border-orange-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4341,11 +4234,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsHumanMissionModeOpen);
-=======
-                      setIsHumanMissionModeOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-blue-900/40 hover:border-blue-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4365,11 +4254,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsTimelineOpen);
-=======
-                      setIsTimelineOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-amber-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4389,11 +4274,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsCompareModalOpen);
-=======
-                      setIsCompareModalOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-indigo-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4421,11 +4302,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsMeasureToolOpen);
-=======
-                      setIsMeasureToolOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-cyan-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4447,11 +4324,7 @@ export function RealMarsMap() {
                     onClick={() => {
                       setIsHamburgerOpen(false);
                       if (elevationProfile) {
-<<<<<<< HEAD
                         openPrimaryOverlay(setIsElevationProfileOpen);
-=======
-                        setIsElevationProfileOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       } else {
                         setIsDrawingElevationLine(true);
                       }
@@ -4473,11 +4346,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsBookmarksModalOpen);
-=======
-                      setIsBookmarksModalOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-amber-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4497,11 +4366,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsPresentationModeOpen);
-=======
-                      setIsPresentationModeOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-purple-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4521,11 +4386,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsDataSourcesModalOpen);
-=======
-                      setIsDataSourcesModalOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-neutral-800 hover:border-emerald-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -4553,11 +4414,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsLiveVoiceOpen);
-=======
-                      setIsLiveVoiceOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-gradient-to-r from-purple-950/90 to-indigo-950/90 hover:from-purple-900/90 hover:to-indigo-900/90 border border-purple-600/70 hover:border-purple-400 flex items-center justify-between text-left transition-all cursor-pointer group shadow-lg shadow-purple-950/40"
@@ -4582,11 +4439,7 @@ export function RealMarsMap() {
                   <button
                     type="button"
                     onClick={() => {
-<<<<<<< HEAD
                       openPrimaryOverlay(setIsAskMarsWayOpen);
-=======
-                      setIsAskMarsWayOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                       setIsHamburgerOpen(false);
                     }}
                     className="p-3 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/90 border border-purple-900/40 hover:border-purple-500/50 flex items-center justify-between text-left transition-all cursor-pointer group"
@@ -5190,11 +5043,7 @@ export function RealMarsMap() {
 
             {/* Google Maps Directions & Route Navigation */}
             <button
-<<<<<<< HEAD
               onClick={() => openPrimaryOverlay(setIsDestinationToolOpen)}
-=======
-              onClick={() => setIsDestinationToolOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 ${
                 activeDestination
                   ? 'bg-cyan-500 text-neutral-950 font-bold shadow-md shadow-cyan-950/60'
@@ -5206,7 +5055,6 @@ export function RealMarsMap() {
               <Navigation className="w-4 h-4 text-cyan-400" />
             </button>
 
-<<<<<<< HEAD
             {/* Marswalk EVA Route Planner (A* Multimodal Rover/Foot Engine) */}
             <button
               onClick={() => openPrimaryOverlay(setIsRoutePlannerModalOpen)}
@@ -5241,8 +5089,6 @@ export function RealMarsMap() {
               )}
             </button>
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             {/* Google Maps My Location / Base Camp (Jezero Crater) */}
             <button
               onClick={() => {
@@ -5311,14 +5157,10 @@ export function RealMarsMap() {
 
             {/* Layers Drawer Trigger */}
             <button
-<<<<<<< HEAD
               onClick={() => {
                 closeAllPrimaryOverlays();
                 if (activeTab !== 'layers') setActiveTab('layers');
               }}
-=======
-              onClick={() => setActiveTab(activeTab === 'layers' ? null : 'layers')}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 ${
                 activeTab === 'layers'
                   ? 'bg-emerald-600 text-white shadow-md'
@@ -5332,11 +5174,7 @@ export function RealMarsMap() {
 
             {/* Live Voice Navigation (Web Speech API) */}
             <button
-<<<<<<< HEAD
               onClick={() => openPrimaryOverlay(setIsLiveVoiceOpen)}
-=======
-              onClick={() => setIsLiveVoiceOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 relative ${
                 isLiveVoiceOpen
                   ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/50'
@@ -5525,7 +5363,6 @@ export function RealMarsMap() {
                       <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-orange-500 text-white font-bold">Active</span>
                     )}
                   </button>
-<<<<<<< HEAD
 
                   {/* Marswalk EVA Route Planner (A* Multimodal Engine) */}
                   <button
@@ -5551,8 +5388,6 @@ export function RealMarsMap() {
                       <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-orange-500 text-white font-bold">Active</span>
                     )}
                   </button>
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                 </div>
 
                 <div className="h-[1px] bg-white/10 my-0.5" />
@@ -5560,7 +5395,6 @@ export function RealMarsMap() {
                 {/* Section 2: Overlays */}
                 <div className="space-y-1">
                   <div className="text-[10px] uppercase font-mono text-neutral-400 px-2 pt-0.5">
-<<<<<<< HEAD
                     NASA Science & Planetary Overlays
                   </div>
 
@@ -5590,11 +5424,6 @@ export function RealMarsMap() {
                     </div>
                   </button>
 
-=======
-                    Atmospheric & Topographic Overlays
-                  </div>
-
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                   {/* MOLA Availability Overlay */}
                   <button
                     type="button"
@@ -5679,7 +5508,6 @@ export function RealMarsMap() {
           )}
 
           {/* Right-Side Vertical Category Dock */}
-<<<<<<< HEAD
           {isPlacesDockOpen ? (
           <div className="relative z-40 flex flex-col gap-1 p-1 rounded-2xl bg-[#070b14]/94 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/85 min-w-[124px]">
             <div className="flex items-center justify-between px-2 py-1 border-b border-white/10">
@@ -5694,9 +5522,6 @@ export function RealMarsMap() {
                 <X className="w-3 h-3" />
               </button>
             </div>
-=======
-          <div className="relative z-40 flex flex-col gap-1 p-1 rounded-2xl bg-[#070b14]/94 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/85 min-w-[124px]">
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
             {[
               { id: 'all', label: 'All Places', icon: '📍' },
               { id: 'mons', label: 'Volcanoes', icon: '🌋' },
@@ -5749,7 +5574,6 @@ export function RealMarsMap() {
               </div>
             </button>
           </div>
-<<<<<<< HEAD
           ) : (
             <button
               type="button"
@@ -5761,8 +5585,6 @@ export function RealMarsMap() {
               Places
             </button>
           )}
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         </div>
       </div>
 
@@ -6616,14 +6438,10 @@ export function RealMarsMap() {
       {/* COLLAPSIBLE BOTTOM SHEET & TOUCH-FRIENDLY MISSION TOOLS DOCK */}
       <MarsMissionBottomSheet
         activeTab={activeTab}
-<<<<<<< HEAD
         onTabChange={(tab) => {
           closeAllPrimaryOverlays();
           if (tab) setActiveTab(tab);
         }}
-=======
-        onTabChange={(tab) => setActiveTab(tab)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         activeLayer={activeLayer}
         onSelectLayer={(l) => setActiveLayer(l)}
         surfaceFilter={surfaceFilter}
@@ -6661,11 +6479,7 @@ export function RealMarsMap() {
           handleFlyToLocation(site.lat, site.lng, 7, site.name);
         }}
         onSwitchToAstronaut={() => setViewMode('astronaut')}
-<<<<<<< HEAD
         onOpenEarthScale={() => openPrimaryOverlay(setIsEarthComparisonOpen)}
-=======
-        onOpenEarthScale={() => setIsEarthComparisonOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         onOpenElevationProfile={() => {
           if (isElevationProfileOpen) {
             setIsElevationProfileOpen(false);
@@ -6694,26 +6508,15 @@ export function RealMarsMap() {
             setIsScienceDossierOpen(true);
           }
         }}
-<<<<<<< HEAD
         onOpenHumanBasePlan={() => openPrimaryOverlay(setIsHumanMissionModeOpen)}
         onOpenMeasureTool={() => openPrimaryOverlay(setIsMeasureToolOpen)}
-=======
-        onOpenHumanBasePlan={() => setIsHumanMissionModeOpen(true)}
-        onOpenMeasureTool={() => setIsMeasureToolOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         onOpenNASACloseUp={(targetName) => {
           setCloseUpSearchTarget(targetName);
           setIsCloseUpModalOpen(true);
         }}
-<<<<<<< HEAD
         onOpenSearch={() => openPrimaryOverlay(setIsSearchModalOpen)}
         onOpenAI={() => openPrimaryOverlay(setIsAskMarsWayOpen)}
         onOpenVoice={() => openPrimaryOverlay(setIsLiveVoiceOpen)}
-=======
-        onOpenSearch={() => setIsSearchModalOpen(true)}
-        onOpenAI={() => setIsAskMarsWayOpen(true)}
-        onOpenVoice={() => setIsLiveVoiceOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         isRoutePlanningActive={isRoutePlanningActive}
         onToggleRoutePlanning={() => {
           const nextVal = !isRoutePlanningActive;
@@ -6727,7 +6530,6 @@ export function RealMarsMap() {
         ephemeris={ephemeris}
         currentWeather={currentWeather}
         roverPhotos={roverPhotos}
-<<<<<<< HEAD
         spaceWeather={spaceWeather}
         onToggleSpaceWeather={() => {
           setSpaceWeatherScenario((current) =>
@@ -6738,8 +6540,6 @@ export function RealMarsMap() {
           openPrimaryOverlay(setIsRoutePlannerModalOpen);
           handleEmergencyReturn();
         }}
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       />
 
       {/* GOOGLE MAPS STYLE REGION DOSSIER MODAL */}
@@ -7057,21 +6857,12 @@ export function RealMarsMap() {
         isOpen={isTourModalOpen}
         onClose={() => setIsTourModalOpen(false)}
         onSelectAction={(action) => {
-<<<<<<< HEAD
           closeAllPrimaryOverlays();
           if (action === 'globe') setViewMode('3d');
           else if (action === 'missions') openPrimaryOverlay(setIsMissionExplorerOpen);
           else if (action === 'human') openPrimaryOverlay(setIsHumanMissionModeOpen);
           else if (action === 'layers') setActiveTab('layers');
           else if (action === 'ai') openPrimaryOverlay(setIsAskMarsWayOpen);
-=======
-          setIsTourModalOpen(false);
-          if (action === 'globe') setViewMode('3d');
-          else if (action === 'missions') setIsMissionExplorerOpen(true);
-          else if (action === 'human') setIsHumanMissionModeOpen(true);
-          else if (action === 'layers') setActiveTab('layers');
-          else if (action === 'ai') setIsAskMarsWayOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         }}
       />
 
@@ -7100,7 +6891,6 @@ export function RealMarsMap() {
         }}
         onOpenMissions={(missionId) => {
           setSelectedMissionId(missionId);
-<<<<<<< HEAD
           openPrimaryOverlay(setIsMissionExplorerOpen);
         }}
         onOpenHumanMode={() => openPrimaryOverlay(setIsHumanMissionModeOpen)}
@@ -7111,18 +6901,6 @@ export function RealMarsMap() {
         }}
         onSelectLayer={(layer) => setActiveLayer(layer)}
         onOpenLiveVoice={() => openPrimaryOverlay(setIsLiveVoiceOpen)}
-=======
-          setIsMissionExplorerOpen(true);
-        }}
-        onOpenHumanMode={() => setIsHumanMissionModeOpen(true)}
-        onOpenCompare={(s1, s2) => {
-          if (s1) setCompareSite1Id(s1);
-          if (s2) setCompareSite2Id(s2);
-          setIsCompareModalOpen(true);
-        }}
-        onSelectLayer={(layer) => setActiveLayer(layer)}
-        onOpenLiveVoice={() => setIsLiveVoiceOpen(true)}
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       />
 
       {/* WEB SPEECH API & VOICE COMMS */}
@@ -7167,11 +6945,7 @@ export function RealMarsMap() {
         }}
         onSelectMission={(missionId) => {
           setSelectedMissionId(missionId);
-<<<<<<< HEAD
           openPrimaryOverlay(setIsMissionExplorerOpen);
-=======
-          setIsMissionExplorerOpen(true);
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
         }}
         onToggleLayer={(layerId) => {
           setActiveLayer(layerId as any);
@@ -7307,8 +7081,6 @@ export function RealMarsMap() {
         </div>
       )}
 
-<<<<<<< HEAD
-=======
       {/* Floating HUD Indicator when Dust Storm Overlay is Active but Panel is Closed */}
       {showDustStormOverlay && !isDustStormPanelOpen && (
         <div className="absolute top-[345px] sm:top-[360px] right-2.5 sm:right-3.5 z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
@@ -7332,7 +7104,6 @@ export function RealMarsMap() {
         </div>
       )}
 
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       {/* MGS MOLA ELEVATION DATA AVAILABILITY & HIGH-RES DTM HEATMAP CONTROL PANEL */}
       {isMolaAvailabilityPanelOpen && (
         <div className="fixed sm:absolute top-16 sm:top-16 inset-x-2 sm:inset-x-auto sm:right-24 z-40 pointer-events-auto max-w-[96vw] sm:max-w-md max-h-[calc(100vh-120px)] animate-in fade-in zoom-in-95 duration-200">
@@ -7355,8 +7126,6 @@ export function RealMarsMap() {
         </div>
       )}
 
-<<<<<<< HEAD
-=======
       {/* Floating HUD Indicator when MOLA Availability Overlay is Active but Panel is Closed */}
       {showMolaAvailabilityOverlay && !isMolaAvailabilityPanelOpen && (
         <div className="absolute top-[410px] sm:top-[425px] right-2.5 sm:right-3.5 z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
@@ -7380,7 +7149,6 @@ export function RealMarsMap() {
         </div>
       )}
 
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       {/* ATMOSPHERIC PRESSURE & TEMPERATURE OVERLAY CONTROL PANEL */}
       {isAtmospherePanelOpen && (
         <div className="fixed sm:absolute top-16 sm:top-16 inset-x-2 sm:inset-x-auto sm:right-28 z-40 pointer-events-auto max-w-[96vw] sm:max-w-md max-h-[calc(100vh-120px)] animate-in fade-in zoom-in-95 duration-200">
@@ -7409,7 +7177,6 @@ export function RealMarsMap() {
         </div>
       )}
 
-<<<<<<< HEAD
       {/* NASA HISTORIC MISSIONS OVERLAY CONTROL PANEL */}
       {isNasaMissionsPanelOpen && (
         <div className="fixed sm:absolute top-16 sm:top-16 inset-x-2 sm:inset-x-auto sm:right-28 z-40 pointer-events-auto max-w-[96vw] sm:max-w-md max-h-[calc(100vh-120px)] animate-in fade-in zoom-in-95 duration-200">
@@ -7545,33 +7312,6 @@ export function RealMarsMap() {
         onResetBearing={handleResetOrientation}
       />
 
-=======
-      {/* Floating HUD Indicator when Atmosphere Overlay is Active but Panel is Closed */}
-      {showAtmosphereOverlay && !isAtmospherePanelOpen && (
-        <div className="absolute top-[475px] sm:top-[490px] right-2.5 sm:right-3.5 z-20 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
-          <button
-            type="button"
-            onClick={() => setIsAtmospherePanelOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800/95 border border-blue-500/80 shadow-2xl text-white text-xs font-mono transition-all hover:scale-105 cursor-pointer backdrop-blur-md group"
-            title="Open Atmospheric Pressure & Surface Temperature Controls"
-          >
-            <div className="relative flex items-center justify-center">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping opacity-75" />
-              <Gauge className="w-3.5 h-3.5 text-blue-400 absolute" />
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="text-[10px] text-blue-300 font-bold uppercase tracking-wider">
-                {atmosphereMode === 'pressure' ? 'Pressure Isobars Active' : atmosphereMode === 'temperature' ? 'Thermal Isotherms Active' : 'Dual Weather Active'}
-              </span>
-              <span className="text-[11px] text-neutral-300 font-sans">
-                {selectedAtmosphereSiteId ? `${selectedAtmosphereSiteId}` : '13 Landing Site Stations'}
-              </span>
-            </div>
-          </button>
-        </div>
-      )}
-
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     </div>
   );
 }

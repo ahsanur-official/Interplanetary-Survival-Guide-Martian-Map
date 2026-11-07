@@ -121,7 +121,6 @@ export const JEZERO_SCIENCE_TARGETS: ScienceTarget[] = [
       status: 'OBSERVED',
       limitations: 'Distal cliff face observations; physical sample requires lower scree slope access.',
     },
-<<<<<<< HEAD
     surfacePovImage: {
       id: 'POV-JEZERO-KODIAK',
       title: 'Mastcam-Z Long-Range Stereo View of Kodiak Butte Delta Strata',
@@ -134,8 +133,6 @@ export const JEZERO_SCIENCE_TARGETS: ScienceTarget[] = [
       fieldOfViewDeg: 6,
       azimuthDeg: 195,
     },
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   },
   {
     id: 'sci_enchanted_lake',
@@ -159,7 +156,6 @@ export const JEZERO_SCIENCE_TARGETS: ScienceTarget[] = [
       status: 'OBSERVED',
       limitations: 'Micro-abrasions required to penetrate superficial weathered dust patina.',
     },
-<<<<<<< HEAD
     surfacePovImage: {
       id: 'POV-JEZERO-ENCHANTED',
       title: 'Perseverance Navcam & Mastcam-Z Mosaic of Enchanted Lake Scarp',
@@ -171,8 +167,6 @@ export const JEZERO_SCIENCE_TARGETS: ScienceTarget[] = [
       targetFeature: 'Enchanted Lake Smectite Mudstone',
       fieldOfViewDeg: 45,
     },
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   },
   {
     id: 'sci_seitah_olivine',

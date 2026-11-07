@@ -1,10 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
-<<<<<<< HEAD
 import fs from 'fs';
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
@@ -27,11 +24,7 @@ import {
   GALE_HAZARD_ZONES,
 } from './src/data/galeDataset';
 import { NASA_DATASET_CATALOG } from './src/data/provenanceData';
-<<<<<<< HEAD
 import { calculateAStarRoute, RouteMode } from './src/engine/marsAStarRouter';
-=======
-import { generateCandidateRoutes } from './src/engine/multiObjectiveRouter';
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 import { calculateMarsDistanceKm } from './src/engine/spatialMath';
 
 let aiClient: GoogleGenAI | null = null;
@@ -402,7 +395,6 @@ async function startServer() {
       const hazardZones = regionId === 'gale' ? GALE_HAZARD_ZONES : JEZERO_HAZARD_ZONES;
       const resourceSites = regionId === 'gale' ? [] : JEZERO_RESOURCE_SITES;
 
-<<<<<<< HEAD
       const routeModes: RouteMode[] = ['shortest', 'science', 'safest'];
       const routes = routeModes.map((mode) =>
         calculateAStarRoute(
@@ -422,18 +414,6 @@ async function startServer() {
             customName: `${mode[0].toUpperCase()}${mode.slice(1)} Marswalk Route`,
           }
         )
-=======
-      const routes = generateCandidateRoutes(
-        cleanStart,
-        startName || 'Departure Base',
-        cleanDest,
-        destName || 'Primary Science Target',
-        selectedRegion,
-        scienceTargets,
-        hazardZones,
-        resourceSites,
-        constraints
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       );
 
       const directDistKm = Number(calculateMarsDistanceKm(cleanStart, cleanDest).toFixed(3));
@@ -445,19 +425,12 @@ async function startServer() {
         routesCount: routes.length,
         routes,
         solverMetadata: {
-<<<<<<< HEAD
           algorithm: 'MarsWay A* corridor routing with shared frontend/backend implementation',
           gravityRatio: '0.38g (Mars)',
           bioenergeticModel: 'Margaria-Minetti Metabolic Walking Speed Formulation (150 W/kg baseline)',
           elevationDatum: 'MGS MOLA Areoid 0 km Reference Surface',
           elevationStatus: 'MODELED: deterministic MOLA-calibrated approximation; NASA Trek MOLA raster is the observed basemap',
           hazardStatus: 'DERIVED: mapped HiRISE and rover hazard footprints used for route avoidance',
-=======
-          algorithm: 'Pareto Multi-Objective Graph Traversal (C(e) = w_d·D + w_s·S + w_h·H - w_v·V)',
-          gravityRatio: '0.38g (Mars)',
-          bioenergeticModel: 'Margaria-Minetti Metabolic Walking Speed Formulation (150 W/kg baseline)',
-          elevationDatum: 'MGS MOLA Areoid 0 km Reference Surface',
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
           dataTimestamp: new Date().toISOString(),
           statusDisclaimer: 'Research planning prototype for 2026 NASA Space Apps Challenge; not certified for operational EVA flight.',
         },
@@ -500,7 +473,6 @@ async function startServer() {
     },
   };
 
-<<<<<<< HEAD
   const missionStorePath = path.join(process.cwd(), 'data', 'missions.json');
   try {
     if (fs.existsSync(missionStorePath)) {
@@ -521,8 +493,6 @@ async function startServer() {
   };
   persistMissions();
 
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
   // 7. Saved Missions: GET /api/missions
   app.get('/api/missions', (req, res) => {
     res.json({
@@ -570,10 +540,7 @@ async function startServer() {
       };
 
       inMemoryMissions[id] = newMission;
-<<<<<<< HEAD
       persistMissions();
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       res.status(201).json({ success: true, mission: newMission });
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to create mission', details: err?.message });
@@ -606,10 +573,7 @@ async function startServer() {
       updatedAt: new Date().toISOString(),
     };
     inMemoryMissions[mission_id] = updated;
-<<<<<<< HEAD
     persistMissions();
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     res.json({ success: true, mission: updated });
   });
 
@@ -652,18 +616,12 @@ Effective Column Shielding: ${env.effectiveShieldingIndex * 100}%
 AUTHENTIC DATA SOURCES & CITATIONS:
 ------------------------------------
 - Elevation Datum: NASA MGS MOLA MEGDR (Areoid 0 km)
-<<<<<<< HEAD
 - Numeric route elevation status: MODELED MOLA-calibrated approximation; observed NASA Trek raster is used for the map basemap.
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 - High-Resolution Orbital Imagery: NASA MRO HiRISE Orthomosaics
 - Mineralogical Composition: NASA MRO CRISM Hyperspectral Parameters
 - Surface Weather Telemetry: NASA Mars 2020 MEDA In-Situ Baseline
 - Radiation Environment: NASA MSL RAD Telemetry & Atmospheric Attenuation
-<<<<<<< HEAD
 - Hazard zones: DERIVED from HiRISE DTMs, rover traverse observations, and mapped terrain interpretation.
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
 
 SCIENTIFIC HONESTY DISCLAIMER:
 -------------------------------

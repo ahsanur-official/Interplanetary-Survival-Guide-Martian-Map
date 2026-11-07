@@ -12,10 +12,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
     label: string;
     icon: any;
     source: string;
-<<<<<<< HEAD
     status: 'OBSERVED' | 'HISTORICAL' | 'DERIVED' | 'MODELED' | 'SIMULATED';
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
     color: string;
   }[] = [
     {
@@ -23,10 +20,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Elevation Topography',
       icon: Mountain,
       source: 'MGS MOLA & HRSC',
-<<<<<<< HEAD
       status: 'OBSERVED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-amber-400',
     },
     {
@@ -34,10 +28,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'MOLA Data Availability',
       icon: Mountain,
       source: 'MOLA vs HiRISE/HRSC Heatmap',
-<<<<<<< HEAD
       status: 'DERIVED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-cyan-400',
     },
     {
@@ -45,10 +36,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Dust Storm & Atmosphere',
       icon: Wind,
       source: 'MGS TES & MRO Opacity',
-<<<<<<< HEAD
       status: 'MODELED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-orange-400',
     },
     {
@@ -56,10 +44,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Slope Risk Gradient',
       icon: Activity,
       source: 'HiRISE & MOLA Derived',
-<<<<<<< HEAD
       status: 'DERIVED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-red-400',
     },
     {
@@ -67,10 +52,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Terrain Hazards & Scarps',
       icon: AlertTriangle,
       source: 'MRO HiRISE & Rover Hazcams',
-<<<<<<< HEAD
       status: 'DERIVED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-orange-400',
     },
     {
@@ -78,10 +60,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Scientific Targets',
       icon: Disc,
       source: 'PDS Science Archives',
-<<<<<<< HEAD
       status: 'OBSERVED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-amber-300',
     },
     {
@@ -89,10 +68,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Rover Traverse & Sols',
       icon: Radio,
       source: 'NASA In-Situ Traverse Logs',
-<<<<<<< HEAD
       status: 'HISTORICAL',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-purple-400',
     },
     {
@@ -100,10 +76,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Water/Clay Resources',
       icon: Droplets,
       source: 'MRO CRISM Hyperspectral',
-<<<<<<< HEAD
       status: 'DERIVED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-cyan-400',
     },
     {
@@ -111,10 +84,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
       label: 'Marswalk Candidate Routes',
       icon: MapPin,
       source: 'MARSWAY Multi-Objective Engine',
-<<<<<<< HEAD
       status: 'MODELED',
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
       color: 'text-emerald-400',
     },
   ];
@@ -149,10 +119,7 @@ export function MapLayerControls({ layers, onToggleLayer }: MapLayerControlsProp
                 <div className="truncate">
                   <div className="truncate font-medium">{item.label}</div>
                   <div className="text-[9px] text-neutral-500 truncate">{item.source}</div>
-<<<<<<< HEAD
                   <div className="text-[8px] uppercase tracking-wide text-neutral-600">{item.status}</div>
-=======
->>>>>>> 1809cdbd6f24b128d8041df8ce7cf6fc528aad47
                 </div>
               </div>
               <div
