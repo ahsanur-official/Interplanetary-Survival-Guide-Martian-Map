@@ -1,0 +1,42 @@
+{
+  "mission-jezero-alpha": {
+    "id": "mission-jezero-alpha",
+    "name": "Jezero Delta Western Scarp Astrobiology Traverse",
+    "regionId": "jezero",
+    "startName": "Octavia E. Butler Landing Site",
+    "startCoord": {
+      "latitude": 18.4447,
+      "longitude": 77.4508
+    },
+    "destName": "Hawkes Bay Delta Bottomsets",
+    "destCoord": {
+      "latitude": 18.4382,
+      "longitude": 77.4128
+    },
+    "selectedRouteId": "route-b",
+    "strategy": "SCIENCE",
+    "notes": "Investigate ancient fine-grained mudstones with high clay mineral signatures for preserved biosignatures.",
+    "createdAt": "2026-10-01T08:00:00.000Z",
+    "updatedAt": "2026-10-01T08:00:00.000Z"
+  },
+  "mission-kodiak-recon": {
+    "id": "mission-kodiak-recon",
+    "name": "Kodiak Butte Isolated Mesa Stratigraphic Transect",
+    "regionId": "jezero",
+    "startName": "Octavia E. Butler Landing Site",
+    "startCoord": {
+      "latitude": 18.4447,
+      "longitude": 77.4508
+    },
+    "destName": "Kodiak Butte Uplift",
+    "destCoord": {
+      "latitude": 18.4055,
+      "longitude": 77.4395
+    },
+    "selectedRouteId": "route-c",
+    "strategy": "SAFETY",
+    "notes": "Bypass soft sand ripples to assess foreset delta beds proving catastrophic past paleolake highstands.",
+    "createdAt": "2026-10-03T11:30:00.000Z",
+    "updatedAt": "2026-10-03T11:30:00.000Z"
+  }
+}
