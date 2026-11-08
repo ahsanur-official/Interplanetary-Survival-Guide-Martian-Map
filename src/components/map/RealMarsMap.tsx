@@ -5800,7 +5800,7 @@ export function RealMarsMap() {
         <div
           className={`absolute z-20 pointer-events-auto transition-all duration-300 ${
             selectedSite || inspectedPoint || selectedRegion
-              ? 'hidden sm:flex sm:bottom-16 sm:left-[404px]'
+              ? 'hidden sm:flex sm:bottom-16 sm:left-[430px]'
               : 'bottom-22 left-2 sm:bottom-16 sm:left-4'
           }`}
         >
@@ -5967,7 +5967,7 @@ export function RealMarsMap() {
         <div
           className={`absolute z-20 pointer-events-auto transition-all duration-300 ${
             selectedSite || inspectedPoint || selectedRegion
-              ? 'hidden sm:block sm:bottom-4 sm:left-[404px]'
+              ? 'hidden sm:block sm:bottom-4 sm:left-[430px]'
               : 'bottom-18 left-2 sm:bottom-4 sm:left-4'
           }`}
         >
@@ -5983,8 +5983,8 @@ export function RealMarsMap() {
 
         {/* FLOATING SELECTED SITE CARD (Mobile & Desktop Place Card) */}
         {selectedSite && !inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-18 left-2 right-2 sm:bottom-6 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-25 pointer-events-auto bg-[#070b14]/95 backdrop-blur-2xl border border-white/15 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/90 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto transition-all">
-            <div className="flex items-start justify-between gap-2">
+          <div className="fixed bottom-[74px] left-2 right-2 sm:bottom-[76px] sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] z-50 pointer-events-auto bg-[#070b14]/98 backdrop-blur-2xl border border-cyan-500/50 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[calc(100vh-140px)] overflow-y-auto transition-all ring-1 ring-cyan-500/30">
+            <div className="flex items-start justify-between gap-2 shrink-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/30">
@@ -6007,7 +6007,91 @@ export function RealMarsMap() {
               </button>
             </div>
 
-            <p className="text-neutral-300 text-[11.5px] leading-relaxed line-clamp-2">
+            {/* Direct 1-Click Route Plan Button (Immediately Visible!) */}
+            <button
+              onClick={() => {
+                const endPt = {
+                  lat: selectedSite.lat,
+                  lng: selectedSite.lng,
+                  name: selectedSite.name,
+                  elevation: selectedSite.elevation,
+                };
+                const startPt = routeStartPoint || {
+                  lat: 18.38,
+                  lng: 77.58,
+                  name: 'Perseverance Base (Jezero)',
+                };
+                setRouteStartPoint(startPt);
+                setRouteEndPoint(endPt);
+                setIsRouteSafetyHUDOpen(true);
+                setShowRouteComparisonOnMap(true);
+                openPrimaryOverlay(setIsRoutePlannerModalOpen);
+                setSelectedSite(null);
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950/60 ring-1 ring-cyan-400/50 active:scale-95 shrink-0"
+              title="Plan Route to this site & evaluate Martian hazards"
+            >
+              <Navigation className="w-4 h-4 fill-white/20 text-white" />
+              <span>🧭 এই স্থানে রুট প্ল্যান করুন (Plan Route Here)</span>
+            </button>
+
+            {/* Quick Action Tools Bar */}
+            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap shrink-0">
+              <button
+                onClick={() => {
+                  setViewMode('astronaut');
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/50 text-cyan-200 font-semibold text-center text-[11px] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-sm"
+                title="Step onto Martian surface in First-Person Astronaut EVA View"
+              >
+                <Footprints className="w-3.5 h-3.5 text-cyan-300" />
+                <span>360° EVA</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const ptA = {
+                    lat: selectedSite.lat,
+                    lng: selectedSite.lng,
+                    name: `Point A (${selectedSite.name})`,
+                  };
+                  setElevationPoints([ptA]);
+                  setElevationProfile(null);
+                  setIsDrawingElevationLine(true);
+                  setSelectedSite(null);
+                }}
+                className="py-1.5 px-2.5 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-600/40 text-orange-200 hover:text-white font-semibold text-center text-[11px] flex items-center justify-center gap-1 transition-all cursor-pointer"
+                title="Start MGS MOLA elevation transect starting from this site"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                <span>Profile</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setCloseUpSearchTarget(selectedSite.name);
+                  setIsCloseUpModalOpen(true);
+                }}
+                className="py-1.5 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white font-bold text-center text-[11px] flex items-center justify-center gap-1 transition-colors cursor-pointer border border-neutral-700"
+              >
+                <Camera className="w-3.5 h-3.5 text-orange-400" />
+                <span>Photos</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setPlaceIdentifierFeature(selectedSite);
+                  setIsPlaceIdentifierOpen(true);
+                }}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 hover:text-white font-semibold text-center text-[11px] flex items-center justify-center gap-1 transition-all cursor-pointer"
+                title="Geological and IAU Nomenclature Place Dossier"
+              >
+                <MapPin className="w-3.5 h-3.5 text-orange-400" />
+                <span>Info</span>
+              </button>
+            </div>
+
+            <p className="text-neutral-300 text-[11.5px] leading-relaxed line-clamp-2 shrink-0">
               {selectedSite.significance || selectedSite.description}
             </p>
 
@@ -6037,18 +6121,6 @@ export function RealMarsMap() {
               );
             })()}
 
-            {/* Step onto Surface - Astronaut EVA View */}
-            <button
-              onClick={() => {
-                setViewMode('astronaut');
-              }}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-900/90 to-blue-900/90 hover:from-cyan-800 hover:to-blue-800 border border-cyan-400/60 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950/40"
-              title="Step onto Martian surface in First-Person Astronaut EVA View"
-            >
-              <Footprints className="w-4 h-4 text-cyan-300" />
-              <span>Step onto Surface (Astronaut EVA View)</span>
-            </button>
-
             {/* Environmental & Science Dossier Button */}
             <button
               onClick={() => {
@@ -6061,103 +6133,34 @@ export function RealMarsMap() {
                 });
                 setIsScienceDossierOpen(true);
               }}
-              className="w-full py-2 px-3 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-200 font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-cyan-950/30"
+              className="w-full py-2 px-3 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-200 font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-cyan-950/30 shrink-0 mb-1"
             >
               <Droplets className="w-3.5 h-3.5 text-cyan-400" />
               <span>Full Water, Gas & Planetary Dossier</span>
             </button>
-
-            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-              <button
-                onClick={() => {
-                  setPlaceIdentifierFeature(selectedSite);
-                  setIsPlaceIdentifierOpen(true);
-                }}
-                className="flex-1 py-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 hover:text-white font-semibold text-center text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                title="Geological and IAU Nomenclature Place Dossier"
-              >
-                <MapPin className="w-3.5 h-3.5 text-orange-400" />
-                <span>Place Info</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  const match = EARTH_MARS_COMPARISONS.find(
-                    (c) => c.marsFeatureId === selectedSite.id || c.id === selectedSite.id
-                  );
-                  if (match) {
-                    setSelectedEarthComparisonId(match.id);
-                    setActiveEarthComparison(match);
-                  }
-                  setIsEarthComparisonOpen(true);
-                }}
-                className="flex-1 py-1.5 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-200 hover:text-white font-semibold text-center text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                title="Compare Scale against Earth Features"
-              >
-                <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Earth Scale</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  const ptA = {
-                    lat: selectedSite.lat,
-                    lng: selectedSite.lng,
-                    name: `Point A (${selectedSite.name})`,
-                  };
-                  setElevationPoints([ptA]);
-                  setElevationProfile(null);
-                  setIsDrawingElevationLine(true);
-                  setSelectedSite(null);
-                }}
-                className="py-1.5 px-2.5 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-600/40 text-orange-200 hover:text-white font-semibold text-center text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                title="Start MGS MOLA elevation transect starting from this site"
-              >
-                <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
-                <span>Profile</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setCloseUpSearchTarget(selectedSite.name);
-                  setIsCloseUpModalOpen(true);
-                }}
-                className="py-1.5 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white font-bold text-center text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-neutral-700"
-              >
-                <Camera className="w-3.5 h-3.5 text-orange-400" />
-                <span>Photos</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  handleAddSiteToRoute(selectedSite);
-                }}
-                className="py-1.5 px-2 rounded-xl bg-neutral-800 hover:bg-neutral-750 text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer border border-neutral-700"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Route</span>
-              </button>
-            </div>
           </div>
         )}
 
         {/* INSPECTED POINT CARD (Exploration Mode - Does NOT create routes) */}
         {inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="absolute bottom-18 left-2 right-2 sm:bottom-6 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-25 pointer-events-auto bg-[#070b14]/95 backdrop-blur-2xl border border-white/15 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/90 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2 text-orange-400 font-semibold">
-                <Crosshair className="w-4 h-4 text-orange-400" />
-                <span className="text-white tracking-tight">Inspected Coordinates</span>
+          <div className="fixed bottom-[74px] left-2 right-2 sm:bottom-[76px] sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] z-50 pointer-events-auto bg-[#070b14]/98 backdrop-blur-2xl border border-cyan-500/50 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[calc(100vh-140px)] overflow-y-auto transition-all ring-1 ring-cyan-500/30">
+            {/* Header */}
+            <div className="flex items-start justify-between shrink-0">
+              <div className="flex items-center gap-2 text-cyan-400 font-semibold">
+                <Crosshair className="w-4 h-4 text-cyan-400" />
+                <span className="text-white tracking-tight font-bold text-sm">Inspected Coordinates</span>
               </div>
               <button
                 onClick={() => setInspectedPoint(null)}
                 className="text-neutral-400 hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer transition-colors"
+                title="Dismiss"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 bg-black/40 p-2.5 rounded-2xl border border-white/5 font-mono text-[11px]">
+            {/* Coordinates Box */}
+            <div className="grid grid-cols-2 gap-2 bg-black/50 p-2.5 rounded-2xl border border-white/5 font-mono text-[11px] shrink-0">
               <div>
                 <span className="text-neutral-500 text-[9px] block">COORDINATES</span>
                 <span className="text-white font-semibold">{inspectedPoint.lat}°, {inspectedPoint.lng}°</span>
@@ -6168,22 +6171,114 @@ export function RealMarsMap() {
               </div>
             </div>
 
+            {/* Nearest Named Site */}
             {inspectedPoint.nearestFeature && (
-              <div className="text-[11px] bg-neutral-950/60 p-2 rounded-lg border border-neutral-800 flex items-center justify-between">
-                <div>
+              <div className="text-[11px] bg-neutral-950/70 p-2 rounded-xl border border-neutral-800 flex items-center justify-between shrink-0">
+                <div className="min-w-0 pr-2">
                   <span className="text-neutral-400 block text-[9px]">NEAREST NAMED SITE</span>
-                  <span className="text-white font-semibold">{inspectedPoint.nearestFeature.name}</span>
+                  <span className="text-white font-semibold truncate block">{inspectedPoint.nearestFeature.name}</span>
                   <span className="text-[10px] text-orange-400/90 block">({inspectedPoint.nearestFeature.type})</span>
                 </div>
-                <span className="text-cyan-300 font-mono text-[10px] font-bold">
+                <span className="text-cyan-300 font-mono text-[10px] font-bold shrink-0">
                   ~{inspectedPoint.distToNearestKm} km away
                 </span>
               </div>
             )}
 
+            {/* PRIMARY ACTION 1: 1-Click Route Plan Button (Immediately Visible!) */}
+            <button
+              onClick={() => {
+                const endPt = {
+                  lat: inspectedPoint.lat,
+                  lng: inspectedPoint.lng,
+                  name: inspectedPoint.nearestFeature ? inspectedPoint.nearestFeature.name : `Martian Sector (${inspectedPoint.lat}°, ${inspectedPoint.lng}°)`,
+                };
+                const startPt = routeStartPoint || {
+                  lat: 18.38,
+                  lng: 77.58,
+                  name: 'Perseverance Base (Jezero)',
+                };
+                setRouteStartPoint(startPt);
+                setRouteEndPoint(endPt);
+                setIsRouteSafetyHUDOpen(true);
+                setShowRouteComparisonOnMap(true);
+                openPrimaryOverlay(setIsRoutePlannerModalOpen);
+                setInspectedPoint(null);
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950/60 ring-1 ring-cyan-400/50 active:scale-95 shrink-0"
+            >
+              <Navigation className="w-4 h-4 fill-white/20 text-white" />
+              <span>🧭 এই স্থানে রুট প্ল্যান করুন (Plan Route Here)</span>
+            </button>
+
+            {/* Quick Action Tools Bar (Immediately Visible!) */}
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => {
+                  const ptA = {
+                    lat: inspectedPoint.lat,
+                    lng: inspectedPoint.lng,
+                    name: inspectedPoint.nearestFeature ? `Point A (${inspectedPoint.nearestFeature.name})` : `Point A (${inspectedPoint.lat}°, ${inspectedPoint.lng}°)`,
+                  };
+                  setElevationPoints([ptA]);
+                  setElevationProfile(null);
+                  setIsDrawingElevationLine(true);
+                  setInspectedPoint(null);
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-600/40 text-orange-200 hover:text-white font-semibold cursor-pointer transition-all text-[11px] flex items-center justify-center gap-1 shadow-sm"
+                title="Start MGS MOLA elevation transect from this location"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={() => {
+                  setCloseUpSearchTarget(inspectedPoint.nearestFeature?.name || `${inspectedPoint.lat}°, ${inspectedPoint.lng}°`);
+                  setIsCloseUpModalOpen(true);
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-semibold cursor-pointer transition-all text-[11px] flex items-center justify-center gap-1 shadow-md shadow-orange-950/50"
+                title="View real NASA in-situ close-up photos"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Close-Up</span>
+              </button>
+              <button
+                onClick={() => {
+                  setRouteWaypoints((prev) => [
+                    ...prev,
+                    {
+                      lat: inspectedPoint.lat,
+                      lng: inspectedPoint.lng,
+                      name: inspectedPoint.nearestFeature ? `Near ${inspectedPoint.nearestFeature.name}` : `WP ${prev.length + 1}`,
+                    },
+                  ]);
+                  setInspectedPoint(null);
+                }}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-center cursor-pointer transition-all text-[11px] shadow-md shadow-cyan-950/50"
+              >
+                + Traverse
+              </button>
+              {inspectedPoint.nearestFeature && (
+                <button
+                  onClick={() => {
+                    const feat = FAMOUS_MARS_SITES.find((s) => s.id === inspectedPoint.nearestFeature?.id);
+                    if (feat) {
+                      setSelectedSite(feat);
+                      mapInstanceRef.current?.flyTo([feat.lat, feat.lng], 6, { duration: 1.2 });
+                    }
+                    setInspectedPoint(null);
+                  }}
+                  className="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-200 border border-white/10 font-semibold cursor-pointer transition-all text-[11px]"
+                >
+                  Feature
+                </button>
+              )}
+            </div>
+
+            {/* Containing Area Boundary */}
             {inspectedPoint.containingRegion && (
               <div
-                className="text-[11px] p-2 rounded-lg border flex items-center justify-between gap-2"
+                className="text-[11px] p-2.5 rounded-xl border flex items-center justify-between gap-2 shrink-0"
                 style={{
                   backgroundColor: `${inspectedPoint.containingRegion.borderColor}18`,
                   borderColor: inspectedPoint.containingRegion.borderColor,
@@ -6268,6 +6363,7 @@ export function RealMarsMap() {
               );
             })()}
 
+            {/* Environmental & Planetary Science Dossier Button */}
             <button
               onClick={() => {
                 setScienceDossierTarget({
@@ -6279,80 +6375,17 @@ export function RealMarsMap() {
                 });
                 setIsScienceDossierOpen(true);
               }}
-              className="w-full py-2 px-2.5 rounded-xl bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-700/80 text-cyan-200 font-bold text-center text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              className="w-full py-2 px-2.5 rounded-xl bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-700/80 text-cyan-200 font-bold text-center text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm shrink-0 mb-1"
             >
               <Droplets className="w-3.5 h-3.5 text-cyan-400" />
               <span>💧 Open Complete Scientific Dossier & Gas Table</span>
             </button>
-
-            <div className="flex gap-2 pt-0.5">
-              <button
-                onClick={() => {
-                  const ptA = {
-                    lat: inspectedPoint.lat,
-                    lng: inspectedPoint.lng,
-                    name: inspectedPoint.nearestFeature ? `Point A (${inspectedPoint.nearestFeature.name})` : `Point A (${inspectedPoint.lat}°, ${inspectedPoint.lng}°)`,
-                  };
-                  setElevationPoints([ptA]);
-                  setElevationProfile(null);
-                  setIsDrawingElevationLine(true);
-                  setInspectedPoint(null);
-                }}
-                className="px-2.5 py-1.5 rounded-xl bg-orange-950/60 hover:bg-orange-900/70 border border-orange-600/40 text-orange-200 hover:text-white font-semibold cursor-pointer transition-all text-xs flex items-center gap-1.5"
-                title="Start MGS MOLA elevation transect from this location"
-              >
-                <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
-                <span>Profile</span>
-              </button>
-              <button
-                onClick={() => {
-                  setCloseUpSearchTarget(inspectedPoint.nearestFeature?.name || `${inspectedPoint.lat}°, ${inspectedPoint.lng}°`);
-                  setIsCloseUpModalOpen(true);
-                }}
-                className="px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-semibold cursor-pointer transition-all text-xs flex items-center gap-1.5 shadow-md shadow-orange-950/50"
-                title="View real NASA in-situ close-up photos"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>Close-Up</span>
-              </button>
-              <button
-                onClick={() => {
-                  setRouteWaypoints((prev) => [
-                    ...prev,
-                    {
-                      lat: inspectedPoint.lat,
-                      lng: inspectedPoint.lng,
-                      name: inspectedPoint.nearestFeature ? `Near ${inspectedPoint.nearestFeature.name}` : `WP ${prev.length + 1}`,
-                    },
-                  ]);
-                  setInspectedPoint(null);
-                }}
-                className="flex-1 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-center cursor-pointer transition-all text-xs shadow-md shadow-cyan-950/50"
-              >
-                + Traverse
-              </button>
-              {inspectedPoint.nearestFeature && (
-                <button
-                  onClick={() => {
-                    const feat = FAMOUS_MARS_SITES.find((s) => s.id === inspectedPoint.nearestFeature?.id);
-                    if (feat) {
-                      setSelectedSite(feat);
-                      mapInstanceRef.current?.flyTo([feat.lat, feat.lng], 6, { duration: 1.2 });
-                    }
-                    setInspectedPoint(null);
-                  }}
-                  className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-200 border border-white/10 font-semibold cursor-pointer transition-all text-xs"
-                >
-                  Feature
-                </button>
-              )}
-            </div>
           </div>
         )}
 
         {/* GOOGLE MAPS FLOATING PLACE / AREA DOSSIER CARD */}
         {selectedRegion && !activeTab && (
-          <div className="absolute bottom-18 left-2 right-2 sm:bottom-6 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] max-h-[46vh] sm:max-h-[72vh] bg-[#0c101a]/95 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/90 p-3.5 z-25 flex flex-col gap-2.5 animate-in slide-in-from-bottom-4 duration-200 overflow-y-auto">
+          <div className="fixed bottom-[74px] left-2 right-2 sm:bottom-[76px] sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-140px)] bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 p-3.5 z-50 flex flex-col gap-2.5 animate-in slide-in-from-bottom-4 duration-200 overflow-y-auto pointer-events-auto ring-1 ring-white/10 pb-4">
             {/* Header with Google Red Area Outline Tag & Close Button */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -6384,6 +6417,33 @@ export function RealMarsMap() {
             <p className="text-[11px] text-neutral-300 leading-relaxed line-clamp-2">
               {selectedRegion.description}
             </p>
+
+            {/* Direct 1-Click Route Plan Button */}
+            <button
+              onClick={() => {
+                const endPt = {
+                  lat: selectedRegion.center[0],
+                  lng: selectedRegion.center[1],
+                  name: selectedRegion.name,
+                };
+                const startPt = routeStartPoint || {
+                  lat: 18.38,
+                  lng: 77.58,
+                  name: 'Perseverance Base (Jezero)',
+                };
+                setRouteStartPoint(startPt);
+                setRouteEndPoint(endPt);
+                setIsRouteSafetyHUDOpen(true);
+                setShowRouteComparisonOnMap(true);
+                openPrimaryOverlay(setIsRoutePlannerModalOpen);
+                setSelectedRegion(null);
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950/60 ring-1 ring-cyan-400/50 active:scale-95"
+              title="Plan Route to this region center & evaluate Martian hazards"
+            >
+              <Navigation className="w-4 h-4 fill-white/20 text-white" />
+              <span>🧭 এই অঞ্চলে রুট প্ল্যান করুন (Plan Route Here)</span>
+            </button>
 
             {/* Google Maps Style Metric Row */}
             <div className="grid grid-cols-2 gap-2 bg-neutral-900/80 p-2 rounded-xl border border-neutral-800/80 text-[10px]">
@@ -6584,11 +6644,18 @@ export function RealMarsMap() {
                   const targetName = contextMenu.nearestFeature
                     ? `Sector: ${contextMenu.nearestFeature.name}`
                     : `Target (${contextMenu.lat.toFixed(2)}°, ${contextMenu.lng.toFixed(2)}°)`;
+                  const startPt = routeStartPoint || {
+                    lat: 18.38,
+                    lng: 77.58,
+                    name: 'Perseverance Base (Jezero)',
+                  };
+                  setRouteStartPoint(startPt);
                   setRouteEndPoint({
                     lat: contextMenu.lat,
                     lng: contextMenu.lng,
                     name: targetName,
                   });
+                  openPrimaryOverlay(setIsRoutePlannerModalOpen);
                   setIsRouteSafetyHUDOpen(true);
                   setShowRouteComparisonOnMap(true);
                   setContextMenu(null);
@@ -6596,7 +6663,7 @@ export function RealMarsMap() {
                 className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-emerald-500/20 text-emerald-300 hover:text-white font-medium transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>🎯 Plan Route Here & Check Safety</span>
+                <span>🎯 Plan Route Here & Check Safety (রুট ও নিরাপত্তা প্ল্যান)</span>
               </button>
 
               <button
@@ -6764,6 +6831,12 @@ export function RealMarsMap() {
         onOpenSearch={() => openPrimaryOverlay(setIsSearchModalOpen)}
         onOpenAI={() => openPrimaryOverlay(setIsAskMarsWayOpen)}
         onOpenVoice={() => openPrimaryOverlay(setIsLiveVoiceOpen)}
+        onOpenRoutePlanner={() => {
+          if (!routeStartPoint || !routeEndPoint) {
+            handleLoadDemoScenario('jezero');
+          }
+          openPrimaryOverlay(setIsRoutePlannerModalOpen);
+        }}
         isRoutePlanningActive={isRoutePlanningActive}
         onToggleRoutePlanning={() => {
           const nextVal = !isRoutePlanningActive;

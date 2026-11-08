@@ -83,6 +83,7 @@ export interface MarsMissionBottomSheetProps {
   onOpenSearch: () => void;
   onOpenAI: () => void;
   onOpenVoice: () => void;
+  onOpenRoutePlanner?: () => void;
   // Route planning
   isRoutePlanningActive: boolean;
   onToggleRoutePlanning: () => void;
@@ -128,6 +129,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
   onOpenSearch,
   onOpenAI,
   onOpenVoice,
+  onOpenRoutePlanner,
   isRoutePlanningActive,
   onToggleRoutePlanning,
   routeWaypointsCount,
@@ -1131,6 +1133,21 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
               <Thermometer className="w-4 h-4" />
             </div>
             <span className="text-[10px] mt-0.5 tracking-tight font-medium">Weather</span>
+          </button>
+
+          {/* Tab 6: Route Plan (Google Maps Style Directions) */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenRoutePlanner) onOpenRoutePlanner();
+            }}
+            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer min-h-[46px] text-cyan-300 hover:text-white active:scale-95 group"
+            title="Google Maps Style Route Planner (রুট প্ল্যান করুন)"
+          >
+            <div className="p-1 rounded-lg bg-gradient-to-tr from-cyan-600/40 to-blue-600/40 border border-cyan-400/60 shadow-md shadow-cyan-950/60 group-hover:scale-105 transition-transform">
+              <Navigation className="w-4 h-4 text-cyan-300 fill-cyan-300/30" />
+            </div>
+            <span className="text-[10px] mt-0.5 tracking-tight font-bold text-cyan-300">Route</span>
           </button>
 
           {/* Divider */}

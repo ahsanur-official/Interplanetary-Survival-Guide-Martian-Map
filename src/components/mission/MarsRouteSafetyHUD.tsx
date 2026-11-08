@@ -107,7 +107,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
 
   return (
     <div
-      className={`fixed z-[500] bottom-4 left-3 right-3 sm:left-auto sm:right-4 sm:w-[460px] max-h-[85vh] flex flex-col rounded-2xl glass-panel ${statusTheme.border} ${statusTheme.glow} transition-all duration-300 font-sans select-none backdrop-blur-xl bg-[#090e17]/95 border shadow-2xl overflow-hidden`}
+      className={`fixed z-[500] bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-20 sm:w-[460px] max-h-[calc(100vh-170px)] flex flex-col rounded-2xl glass-panel ${statusTheme.border} ${statusTheme.glow} transition-all duration-300 font-sans select-none backdrop-blur-xl bg-[#090e17]/95 border shadow-2xl overflow-hidden`}
     >
       {/* Top Header Bar */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10 bg-black/40">
