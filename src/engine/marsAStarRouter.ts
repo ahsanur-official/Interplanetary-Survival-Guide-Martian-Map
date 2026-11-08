@@ -485,7 +485,7 @@ export function calculateEmergencyReturnRoute(
 
   route.color = '#ef4444'; // Emergency Crimson Red
   route.whyThisRoute.summary = `Emergency EVA Abort Vector to ${shelterName}. Minimizes hazardous scarp drops and terrain choke points to achieve fastest pressurized shelter ingress.`;
-  route.whyThisRoute.summaryBn = `${shelterName}-এ দ্রুততম জরুরি প্রত্যাহার রুট। খাড়া ঢাল এবং বিপজ্জনক খাদ পরিহার করে সরাসরি নিরাপদ আশ্রয়স্থলে প্রবেশের জন্য এই রুটটি তৈরি করা হয়েছে।`;
+  route.whyThisRoute.summaryBn = route.whyThisRoute.summary;
   return route;
 }
 
@@ -547,7 +547,7 @@ function computeSafetyScore(
 }
 
 /**
- * Generates Plain Language Rationale ("Why this route?") in English and Bengali
+ * Generates Plain Language Rationale ("Why this route?") in English
  */
 function generateRouteExplanation(
   mode: RouteMode,
@@ -558,9 +558,10 @@ function generateRouteExplanation(
   safetyScore: number
 ): PlannedRouteResult['whyThisRoute'] {
   if (mode === 'safest') {
+    const summary = `This route prioritizes crew survivability by hugging low-gradient Martian terrain (max slope ${maxSlope}°). It bypasses treacherous dune traps, boulder scree fields, and vertical crater scarps while maintaining optimal line-of-sight to the base.`;
     return {
-      summary: `This route prioritizes crew survivability by hugging low-gradient Martian terrain (max slope ${maxSlope}°). It bypasses treacherous dune traps, boulder scree fields, and vertical crater scarps while maintaining optimal line-of-sight to the base.`,
-      summaryBn: `এই রুটটি নভোচারীদের সর্বোচ্চ সুরক্ষাকে প্রাধান্য দেয়। এটি খাড়া ঢাল (সর্বোচ্চ ${maxSlope}°), বিপজ্জনক বালিয়াড়ি ফাঁদ এবং বোল্ডার শিলাখণ্ড এড়িয়ে মসৃণ পথ দিয়ে পরিচালিত হয়, যাতে স্পেসস্যুটের বিপাকীয় শক্তি ও অক্সিজেন সাশ্রয় হয়।`,
+      summary,
+      summaryBn: summary,
       advantages: [
         `Maintains gentle slope gradient (avg ${avgSlope}° vs steep cliff hazards)`,
         `Minimizes rover wheel slip and spacesuit metabolic fatigue (${Math.round(timeHours * 340)} kcal)`,
@@ -578,9 +579,10 @@ function generateRouteExplanation(
   }
 
   if (mode === 'shortest') {
+    const summary = `This is the direct geodesic shortest path between points (${distKm} km). It cuts straight through terrain to minimize elapsed travel time (${timeHours}h), but encounters steeper elevation changes and higher physical effort.`;
     return {
-      summary: `This is the direct geodesic shortest path between points (${distKm} km). It cuts straight through terrain to minimize elapsed travel time (${timeHours}h), but encounters steeper elevation changes and higher physical effort.`,
-      summaryBn: `এটি দুটি অবস্থানের মধ্যে সরাসরি সংক্ষিপ্ততম পথ (${distKm} কিমি)। এটি দ্রুততম সময়ে গন্তব্যে পৌঁছানোর জন্য পরিকল্পিত, তবে এতে খাড়া উঁচু-নিচু ভূখণ্ড এবং অপেক্ষাকৃত বেশি শারীরিক শক্তির প্রয়োজন হয়।`,
+      summary,
+      summaryBn: summary,
       advantages: [
         `Absolute minimum traverse distance (${distKm} km)`,
         `Fastest direct travel time (${timeHours} hours)`,
@@ -597,9 +599,10 @@ function generateRouteExplanation(
   }
 
   // Science-rich
+  const summary = `This route actively routes through geological points of interest including deltaic river fans, hydrated clay deposits, and crater rims. It yields the highest planetary science return per kilometer while staying safely inside the EVA return boundary.`;
   return {
-    summary: `This route actively routes through geological points of interest including deltaic river fans, hydrated clay deposits, and crater rims. It yields the highest planetary science return per kilometer while staying safely inside the EVA return boundary.`,
-    summaryBn: `এই রুটটি বৈজ্ঞানিক গবেষণাকে সর্বোচ্চ গুরুত্ব দিয়ে তৈরি। এটি প্রাচীন নদীর ডেল্টা পলি, হাইড্রেটেড কাদা মাটি (Clay) এবং প্রভাব খাদগুলোর পাশ দিয়ে যায়, যা প্রাচীন মার্টিয়ান প্রাণের জীবাশ্ম খোঁজার জন্য সবচেয়ে উপযুক্ত।`,
+    summary,
+    summaryBn: summary,
     advantages: [
       'Intercepts high-priority astrobiological sample locations (clays & delta fans)',
       'Provides high scientific value return per sol',

@@ -172,8 +172,7 @@ export function MarsLiveVoiceModal({
         q.includes('navigate north') ||
         q.includes('scroll north') ||
         q === 'north' ||
-        q === 'up' ||
-        q.includes('উত্তরে')
+        q === 'up'
       ) {
         onPanDirection?.('north');
         speakCapcom('Panning map north 15 degrees.');
@@ -188,8 +187,7 @@ export function MarsLiveVoiceModal({
         q.includes('navigate south') ||
         q.includes('scroll south') ||
         q === 'south' ||
-        q === 'down' ||
-        q.includes('দক্ষিণে')
+        q === 'down'
       ) {
         onPanDirection?.('south');
         speakCapcom('Panning map south 15 degrees.');
@@ -204,8 +202,7 @@ export function MarsLiveVoiceModal({
         q.includes('navigate east') ||
         q.includes('scroll east') ||
         q === 'east' ||
-        q === 'right' ||
-        q.includes('পূর্বে')
+        q === 'right'
       ) {
         onPanDirection?.('east');
         speakCapcom('Panning map east 15 degrees.');
@@ -220,8 +217,7 @@ export function MarsLiveVoiceModal({
         q.includes('navigate west') ||
         q.includes('scroll west') ||
         q === 'west' ||
-        q === 'left' ||
-        q.includes('পশ্চিমে')
+        q === 'left'
       ) {
         onPanDirection?.('west');
         speakCapcom('Panning map west 15 degrees.');
@@ -235,8 +231,7 @@ export function MarsLiveVoiceModal({
         q.includes('zoom closer') ||
         q.includes('enhance') ||
         q.includes('magnify') ||
-        q === 'in' ||
-        q.includes('জুম ইন')
+        q === 'in'
       ) {
         onZoomAction?.('in');
         speakCapcom('Zooming in closer to surface.');
@@ -248,8 +243,7 @@ export function MarsLiveVoiceModal({
         q.includes('zoom out') ||
         q.includes('wider') ||
         q.includes('pull back') ||
-        q === 'out' ||
-        q.includes('জুম আউট')
+        q === 'out'
       ) {
         onZoomAction?.('out');
         speakCapcom('Zooming out to broader regional view.');

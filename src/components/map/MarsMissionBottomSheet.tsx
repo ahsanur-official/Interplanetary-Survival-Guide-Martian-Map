@@ -740,11 +740,11 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
                             NEW
                           </span>
                         </div>
-                        <span className="text-[10px] text-cyan-300 font-mono">Real Tactical Satellite Map • 6-DOF Movement • Bilingual Voice Control</span>
+                        <span className="text-[10px] text-cyan-300 font-mono">Real Tactical Satellite Map • 6-DOF Movement • Voice Control</span>
                       </div>
                     </div>
                     <p className="text-[11px] text-neutral-300 leading-snug">
-                      Step onto the Martian surface with realistic spacesuit visor HUD, live tactical satellite map, 6-DOF movement (সামনে, ডানে, বামে, পেছনে, উপরে, নিচে), laser LIBS spectrometer, rock sample caching, and voice recognition in English & Bengali.
+                      Step onto the Martian surface with realistic spacesuit visor HUD, live tactical satellite map, 6-DOF movement (Forward, Backward, Left, Right, Thruster, Crouch), laser LIBS spectrometer, rock sample caching, and voice navigation.
                     </p>
                   </button>
                 )}
@@ -1142,7 +1142,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
               if (onOpenRoutePlanner) onOpenRoutePlanner();
             }}
             className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all cursor-pointer min-h-[46px] text-cyan-300 hover:text-white active:scale-95 group"
-            title="Google Maps Style Route Planner (রুট প্ল্যান করুন)"
+            title="Route Planner & Directions: Plan exploration path and evaluate terrain hazards"
           >
             <div className="p-1 rounded-lg bg-gradient-to-tr from-cyan-600/40 to-blue-600/40 border border-cyan-400/60 shadow-md shadow-cyan-950/60 group-hover:scale-105 transition-transform">
               <Navigation className="w-4 h-4 text-cyan-300 fill-cyan-300/30" />

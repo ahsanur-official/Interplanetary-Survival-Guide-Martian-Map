@@ -95,12 +95,12 @@ export function AskMarsWayModal({
   const generateLocalResponse = (query: string): ChatMessage => {
     const q = query.toLowerCase();
 
-    // 1. Olympus Mons (English & Bengali)
-    if (q.includes('olympus') || q.includes('অলিম্পাস') || q.includes('আগ্নেয়গিরি')) {
+    // 1. Olympus Mons
+    if (q.includes('olympus') || q.includes('volcano')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'Olympus Mons (অলিম্পাস মনস) is the largest shield volcano in the Solar System, towering 21,229 meters above the Mars zero-elevation datum with a basal diameter of approximately 600 kilometers. Coordinates: 18.65°N, 133.8°W.',
+        text: 'Olympus Mons is the largest shield volcano in the Solar System, towering 21,229 meters above the Mars zero-elevation datum with a basal diameter of approximately 600 kilometers. Coordinates: 18.65°N, 133.8°W.',
         action: {
           type: 'fly_to',
           label: 'Fly to Olympus Mons',
@@ -110,12 +110,12 @@ export function AskMarsWayModal({
       };
     }
 
-    // 2. Valles Marineris Grand Canyon (English & Bengali)
-    if (q.includes('valles') || q.includes('canyon') || q.includes('marineris') || q.includes('মেরিনারিস') || q.includes('ক্যানিয়ন')) {
+    // 2. Valles Marineris Grand Canyon
+    if (q.includes('valles') || q.includes('canyon') || q.includes('marineris')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'Valles Marineris (ভ্যালিস মেরিনারিস) is the grand canyon of Mars, stretching over 4,000 kilometers along the Martian equator and plunging 7-10 km deep into the crust. Coordinates: 13.9°S, 59.2°W.',
+        text: 'Valles Marineris is the grand canyon of Mars, stretching over 4,000 kilometers along the Martian equator and plunging 7-10 km deep into the crust. Coordinates: 13.9°S, 59.2°W.',
         action: {
           type: 'fly_to',
           label: 'Fly to Valles Marineris',
@@ -125,12 +125,12 @@ export function AskMarsWayModal({
       };
     }
 
-    // 3. Perseverance / Jezero (English & Bengali)
-    if (q.includes('perseverance') || q.includes('jezero') || q.includes('ingenuity') || q.includes('জেজেরো') || q.includes('পারসিভিয়ারেন্স')) {
+    // 3. Perseverance / Jezero
+    if (q.includes('perseverance') || q.includes('jezero') || q.includes('ingenuity')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'NASA Mars 2020 Perseverance and Ingenuity landed at Jezero Crater (জেজেরো ক্রেটার: 18.38°N, 77.58°E) on February 18, 2021, exploring an ancient river delta that fed into a crater paleolake.',
+        text: 'NASA Mars 2020 Perseverance and Ingenuity landed at Jezero Crater (18.38°N, 77.58°E) on February 18, 2021, exploring an ancient river delta that fed into a crater paleolake.',
         action: {
           type: 'select_mission',
           label: 'Open Perseverance Mission & Traverse',
@@ -140,12 +140,12 @@ export function AskMarsWayModal({
       };
     }
 
-    // 4. Curiosity / Gale (English & Bengali)
-    if (q.includes('curiosity') || q.includes('gale') || q.includes('sharp') || q.includes('গেল') || q.includes('কিউরিওসিটি')) {
+    // 4. Curiosity / Gale
+    if (q.includes('curiosity') || q.includes('gale') || q.includes('sharp')) {
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: 'Curiosity rover landed at Gale Crater (গেল ক্রেটার: 4.59°S, 137.44°E) on August 6, 2012, exploring the 5.5 km high sedimentary layers of Mount Sharp (Aeolis Mons).',
+        text: 'Curiosity rover landed at Gale Crater (4.59°S, 137.44°E) on August 6, 2012, exploring the 5.5 km high sedimentary layers of Mount Sharp (Aeolis Mons).',
         action: {
           type: 'select_mission',
           label: 'Open Curiosity Mission & Traverse',

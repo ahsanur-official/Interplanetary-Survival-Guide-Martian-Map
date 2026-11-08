@@ -475,14 +475,11 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     const text = raw.toLowerCase().trim();
     setVoiceTranscript(raw);
 
-    // Movement: Forward ("samne", "forward", "ahead", "সামনে", "সামনে যাও", "এগিয়ে যাও")
+    // Movement: Forward ("forward", "ahead", "straight")
     if (
       text.includes('forward') ||
       text.includes('ahead') ||
-      text.includes('samne') ||
-      text.includes('straight') ||
-      text.includes('সামনে') ||
-      text.includes('এগিয়ে')
+      text.includes('straight')
     ) {
       keysDown.current['w'] = true;
       setTimeout(() => { keysDown.current['w'] = false; }, 2600);
@@ -490,15 +487,11 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Movement: Backward ("pichone", "back", "reverse", "পেছনে", "পিছনে", "পেছনে যাও", "পিছাও")
+    // Movement: Backward ("back", "backward", "reverse")
     if (
       text.includes('back') ||
       text.includes('backward') ||
-      text.includes('reverse') ||
-      text.includes('pichone') ||
-      text.includes('পেছনে') ||
-      text.includes('পিছনে') ||
-      text.includes('পিছাও')
+      text.includes('reverse')
     ) {
       keysDown.current['s'] = true;
       setTimeout(() => { keysDown.current['s'] = false; }, 2600);
@@ -506,32 +499,28 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Movement: Left ("bame", "left", "turn left", "বামে", "বামে যাও", "বামে ঘোরো")
-    if (text.includes('left') || text.includes('bame') || text.includes('বামে')) {
+    // Movement: Left ("left", "turn left")
+    if (text.includes('left') || text.includes('turn left')) {
       cameraEuler.current.y += Math.PI / 4;
       if (cameraRef.current) cameraRef.current.quaternion.setFromEuler(cameraEuler.current);
       speakEvaComms('Turned 45 degrees left.');
       return;
     }
 
-    // Movement: Right ("dane", "right", "turn right", "ডানে", "ডানে যাও", "ডানে ঘোরো")
-    if (text.includes('right') || text.includes('dane') || text.includes('ডানে')) {
+    // Movement: Right ("right", "turn right")
+    if (text.includes('right') || text.includes('turn right')) {
       cameraEuler.current.y -= Math.PI / 4;
       if (cameraRef.current) cameraRef.current.quaternion.setFromEuler(cameraEuler.current);
       speakEvaComms('Turned 45 degrees right.');
       return;
     }
 
-    // Movement: Up / Jetpack / Jump ("upore", "up", "fly", "jump", "thruster", "উপরে", "উপরে ওঠো", "উড়ো", "লাফ দাও")
+    // Movement: Up / Jetpack / Jump ("up", "fly", "jump", "thruster")
     if (
       text.includes('up') ||
       text.includes('jump') ||
       text.includes('fly') ||
-      text.includes('thruster') ||
-      text.includes('upore') ||
-      text.includes('উপরে') ||
-      text.includes('উড়ো') ||
-      text.includes('লাফ')
+      text.includes('thruster')
     ) {
       astronautAltitude.current = Math.min(30, astronautAltitude.current + 8);
       marsEvaAudio.playThrusterBurst();
@@ -539,28 +528,21 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Movement: Down / Land ("niche", "down", "crouch", "land", "নিচে", "নিচে নামো", "নামো")
+    // Movement: Down / Land ("down", "crouch", "land")
     if (
       text.includes('down') ||
       text.includes('land') ||
-      text.includes('crouch') ||
-      text.includes('niche') ||
-      text.includes('নিচে') ||
-      text.includes('নামো')
+      text.includes('crouch')
     ) {
       astronautAltitude.current = 1.75;
       speakEvaComms('Landing on surface regolith.');
       return;
     }
 
-    // Movement: Stop ("thamo", "stop", "halt", "থামো", "দাঁড়াও", "স্টপ")
+    // Movement: Stop ("stop", "halt")
     if (
       text.includes('stop') ||
-      text.includes('halt') ||
-      text.includes('thamo') ||
-      text.includes('থামো') ||
-      text.includes('দাঁড়াও') ||
-      text.includes('স্টপ')
+      text.includes('halt')
     ) {
       keysDown.current['w'] = false;
       keysDown.current['s'] = false;
@@ -570,8 +552,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Speed Boost ("boost", "fast", "speed", "বুস্ট", "স্পিড")
-    if (text.includes('boost') || text.includes('fast') || text.includes('speed') || text.includes('বুস্ট') || text.includes('স্পিড')) {
+    // Speed Boost ("boost", "fast", "speed", "sprint")
+    if (text.includes('boost') || text.includes('fast') || text.includes('speed') || text.includes('sprint')) {
       setIsSprintActive((prev) => {
         const next = !prev;
         speakEvaComms(next ? 'Turbo thruster sprint activated.' : 'Standard walking pace resumed.');
@@ -580,13 +562,11 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Flashlight / Light ("light", "torch", "flashlight", "লাইট", "আলো", "আলো জ্বালাও")
+    // Flashlight / Light ("light", "torch", "flashlight")
     if (
       text.includes('light') ||
       text.includes('torch') ||
-      text.includes('flashlight') ||
-      text.includes('লাইট') ||
-      text.includes('আলো')
+      text.includes('flashlight')
     ) {
       setIsFlashlightOn((prev) => {
         const next = !prev;
@@ -598,51 +578,42 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Scan ("scan", "analyze", "laser", "স্ক্যান", "লেজার", "বিশ্লেষণ")
+    // Scan ("scan", "analyze", "laser")
     if (
       text.includes('scan') ||
       text.includes('analyze') ||
-      text.includes('laser') ||
-      text.includes('স্ক্যান') ||
-      text.includes('লেজার') ||
-      text.includes('বিশ্লেষণ')
+      text.includes('laser')
     ) {
       handlePerformScan();
       speakEvaComms('Laser LIBS Spectrometer firing.');
       return;
     }
 
-    // Sample ("sample", "collect", "bag", "স্যাম্পল", "পাথর নাও", "নমুনা")
+    // Sample ("sample", "collect", "bag")
     if (
       text.includes('sample') ||
       text.includes('collect') ||
-      text.includes('bag') ||
-      text.includes('স্যাম্পল') ||
-      text.includes('পাথর') ||
-      text.includes('নমুনা')
+      text.includes('bag')
     ) {
       handleCollectSample();
       return;
     }
 
-    // Photo ("photo", "picture", "camera", "ছবি", "ফটো")
+    // Photo ("photo", "picture", "camera")
     if (
       text.includes('photo') ||
       text.includes('picture') ||
-      text.includes('camera') ||
-      text.includes('ছবি') ||
-      text.includes('ফটো')
+      text.includes('camera')
     ) {
       triggerPhotoCapture();
       return;
     }
 
-    // Tactical Real Map ("map", "radar", "recon", "ম্যাপ", "ম্যাপ দেখাও")
+    // Tactical Real Map ("map", "radar", "recon")
     if (
       text.includes('map') ||
       text.includes('radar') ||
-      text.includes('recon') ||
-      text.includes('ম্যাপ')
+      text.includes('recon')
     ) {
       setIsTacticalMapOpen((prev) => {
         const next = !prev;
@@ -652,13 +623,13 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       return;
     }
 
-    // Visor Filters ("thermal", "crism", "night", "optical", "uv", "নাইট", "থার্মাল", "অপটিকাল")
-    if (text.includes('thermal') || text.includes('infrared') || text.includes('থার্মাল')) {
+    // Visor Filters ("thermal", "crism", "night", "optical", "uv")
+    if (text.includes('thermal') || text.includes('infrared')) {
       setVisorFilter('thermal');
       speakEvaComms('Visor switched to FLIR Thermal Infrared.');
       return;
     }
-    if (text.includes('night') || text.includes('dark') || text.includes('নাইট')) {
+    if (text.includes('night') || text.includes('dark')) {
       setVisorFilter('night');
       speakEvaComms('Visor switched to Phosphor Night Vision.');
       return;
@@ -673,7 +644,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       speakEvaComms('Visor switched to UV Fluorescence.');
       return;
     }
-    if (text.includes('optical') || text.includes('normal') || text.includes('অপটিকাল')) {
+    if (text.includes('optical') || text.includes('normal') || text.includes('color')) {
       setVisorFilter('optical');
       speakEvaComms('Visor returned to True Optical Color.');
       return;
@@ -1829,7 +1800,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
               <div className="flex items-center gap-2">
                 {/* 2D Horizontal Compass D-Pad */}
                 <div className="flex flex-col items-center gap-1">
-                  {/* Forward (সামনে / W) */}
+                  {/* Forward (W) */}
                   <button
                     type="button"
                     onMouseDown={() => startContinuousMove('forward')}
@@ -1837,13 +1808,13 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     onTouchStart={() => startContinuousMove('forward')}
                     onTouchEnd={stopContinuousMove}
                     className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
-                    title="Forward (সামনে / W)"
+                    title="Forward (W)"
                   >
                     <ArrowUp className="w-4 h-4" />
                   </button>
 
                   <div className="flex items-center gap-1">
-                    {/* Strafe Left (বামে / A) */}
+                    {/* Strafe Left (A) */}
                     <button
                       type="button"
                       onMouseDown={() => startContinuousMove('left')}
@@ -1851,7 +1822,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       onTouchStart={() => startContinuousMove('left')}
                       onTouchEnd={stopContinuousMove}
                       className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
-                      title="Strafe Left (বামে / A)"
+                      title="Strafe Left (A)"
                     >
                       <ArrowLeft className="w-4 h-4" />
                     </button>
@@ -1861,12 +1832,12 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       type="button"
                       onClick={resetCameraHorizon}
                       className="w-9 h-8 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-cyan-800/60 flex items-center justify-center text-cyan-300 text-[9px] font-bold active:scale-90 transition cursor-pointer"
-                      title="Reset Level Horizon (লেভেল)"
+                      title="Reset Level Horizon"
                     >
                       LEV
                     </button>
 
-                    {/* Strafe Right (ডানে / D) */}
+                    {/* Strafe Right (D) */}
                     <button
                       type="button"
                       onMouseDown={() => startContinuousMove('right')}
@@ -1874,13 +1845,13 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       onTouchStart={() => startContinuousMove('right')}
                       onTouchEnd={stopContinuousMove}
                       className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
-                      title="Strafe Right (ডানে / D)"
+                      title="Strafe Right (D)"
                     >
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
 
-                  {/* Backward (পেছনে / S) */}
+                  {/* Backward (S) */}
                   <button
                     type="button"
                     onMouseDown={() => startContinuousMove('back')}
@@ -1888,15 +1859,15 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     onTouchStart={() => startContinuousMove('back')}
                     onTouchEnd={stopContinuousMove}
                     className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
-                    title="Backward (পেছনে / S)"
+                    title="Backward (S)"
                   >
                     <ArrowDown className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Vertical Altitude & Thruster Flight (উপরে / নিচে) */}
+                {/* Vertical Altitude & Thruster Flight */}
                 <div className="flex flex-col items-center gap-1 border-l border-neutral-800 pl-2">
-                  {/* Ascend / Jetpack UP (উপরে / Space) */}
+                  {/* Ascend / Jetpack UP (Space) */}
                   <button
                     type="button"
                     onMouseDown={() => startContinuousMove('up')}
@@ -1904,13 +1875,13 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     onTouchStart={() => startContinuousMove('up')}
                     onTouchEnd={stopContinuousMove}
                     className="w-14 h-8 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer shadow-md"
-                    title="MMU Thruster Ascend (উপরে / Space / E)"
+                    title="MMU Thruster Ascend (Space / E)"
                   >
                     <Flame className="w-3.5 h-3.5" />
                     <span>UP</span>
                   </button>
 
-                  {/* Descend / Land DOWN (নিচে / C) */}
+                  {/* Descend / Land DOWN (C) */}
                   <button
                     type="button"
                     onMouseDown={() => startContinuousMove('down')}
@@ -1918,7 +1889,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     onTouchStart={() => startContinuousMove('down')}
                     onTouchEnd={stopContinuousMove}
                     className="w-14 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer"
-                    title="Descend / Land (নিচে / C / Q)"
+                    title="Descend / Land (C / Q)"
                   >
                     <ArrowDown className="w-3.5 h-3.5 text-neutral-400" />
                     <span>DOWN</span>
@@ -1933,7 +1904,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       onTouchStart={() => startContinuousMove('turnLeft')}
                       onTouchEnd={stopContinuousMove}
                       className="flex-1 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-[10px] font-mono text-cyan-300 border border-neutral-800 active:scale-90"
-                      title="Turn Left (বামে ঘোরো / Z)"
+                      title="Turn Left (Z)"
                     >
                       ↺
                     </button>
@@ -1944,7 +1915,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       onTouchStart={() => startContinuousMove('turnRight')}
                       onTouchEnd={stopContinuousMove}
                       className="flex-1 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-[10px] font-mono text-cyan-300 border border-neutral-800 active:scale-90"
-                      title="Turn Right (ডানে ঘোরো / X)"
+                      title="Turn Right (X)"
                     >
                       ↻
                     </button>
@@ -2287,7 +2258,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                 <Mic className="w-5 h-5 text-cyan-400" />
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white">EVA Voice Command System</h3>
-                  <p className="text-xs text-neutral-400">Supports English & Bengali (বাংলা) voice commands</p>
+                  <p className="text-xs text-neutral-400">NASA EVA speech command interface</p>
                 </div>
               </div>
               <button
@@ -2300,42 +2271,6 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
             </div>
 
             <div className="py-4 overflow-y-auto space-y-4 text-xs">
-              {/* Bengali Commands Section */}
-              <div className="bg-black/40 rounded-2xl p-3 border border-cyan-900/40">
-                <div className="text-xs font-bold text-cyan-300 mb-2 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                  <span>বাংলা ভয়েস কমান্ড (Bengali Voice Commands)</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { cmd: 'সামনে', desc: 'Forward walk', test: 'samne' },
-                    { cmd: 'পেছনে', desc: 'Backward walk', test: 'pichone' },
-                    { cmd: 'বামে', desc: 'Turn / Strafe Left', test: 'bame' },
-                    { cmd: 'ডানে', desc: 'Turn / Strafe Right', test: 'dane' },
-                    { cmd: 'উপরে', desc: 'Jetpack Ascend', test: 'upore' },
-                    { cmd: 'নিচে', desc: 'Descend / Land', test: 'niche' },
-                    { cmd: 'থামো', desc: 'Halt all movement', test: 'thamo' },
-                    { cmd: 'ম্যাপ', desc: 'Open Real Map', test: 'map' },
-                    { cmd: 'লাইট', desc: 'Toggle Spotlights', test: 'light' },
-                    { cmd: 'স্ক্যান', desc: 'Laser LIBS Scan', test: 'scan' },
-                    { cmd: 'স্যাম্পল', desc: 'Collect Rock Sample', test: 'sample' },
-                    { cmd: 'ছবি', desc: 'Capture Photo', test: 'photo' },
-                  ].map((item) => (
-                    <button
-                      key={item.cmd}
-                      type="button"
-                      onClick={() => {
-                        processVoiceCommand(item.test);
-                      }}
-                      className="p-2 rounded-xl bg-neutral-900/80 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex flex-col justify-between"
-                      title={`Click to test command: "${item.cmd}"`}
-                    >
-                      <div className="font-bold text-cyan-300 text-xs">{item.cmd}</div>
-                      <div className="text-[10px] text-neutral-400">{item.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* English Commands Section */}
               <div className="bg-black/40 rounded-2xl p-3 border border-neutral-800">

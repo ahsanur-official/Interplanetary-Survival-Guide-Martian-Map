@@ -239,7 +239,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 </span>
               </div>
               <div className="text-[10.5px] text-neutral-400">
-                গুগল ম্যাপ স্টাইল মঙ্গল গ্রহ রুট প্ল্যানার ও সেফটি অ্যানালাইজার
+                Google Maps style Martian route planning and terrain safety analysis
               </div>
             </div>
           </div>
@@ -250,7 +250,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 type="button"
                 onClick={handleCancelRoute}
                 className="px-2.5 py-1 rounded-lg bg-red-950/80 hover:bg-red-900/90 text-red-200 border border-red-500/50 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                title="Cancel route planning and clear path from map (রুট বাতিল করুন)"
+                title="Cancel route planning and clear path from map"
               >
                 <X className="w-3 h-3 text-red-400" />
                 <span>Cancel Route</span>
@@ -261,7 +261,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
               type="button"
               onClick={onClose}
               className="p-1.5 rounded-xl hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-              title="Close window (উইন্ডো বন্ধ করুন)"
+              title="Close window"
             >
               <X className="w-4 h-4" />
             </button>
@@ -277,7 +277,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                 <div className="flex-1 min-w-0">
                   <div className="text-[9.5px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
-                    Departure Base (যাত্রা শুরু)
+                    Departure Base
                   </div>
                   <div className="text-xs font-bold text-white truncate">
                     {startPoint?.name || (startPoint ? `${startPoint.lat.toFixed(3)}°N, ${startPoint.lng.toFixed(3)}°E` : 'Select Departure Base')}
@@ -290,7 +290,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
                 <div className="flex-1 min-w-0">
                   <div className="text-[9.5px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
-                    Destination Target (গন্তব্য)
+                    Destination Target
                   </div>
                   <div className="text-xs font-bold text-cyan-200 truncate">
                     {endPoint?.name || (endPoint ? `${endPoint.lat.toFixed(3)}°N, ${endPoint.lng.toFixed(3)}°E` : 'Select Destination Point')}
@@ -306,7 +306,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                   type="button"
                   onClick={onSwapPoints}
                   className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 hover:text-cyan-300 transition cursor-pointer shadow-sm"
-                  title="Swap Departure & Destination (যাত্রা শুরু ও গন্তব্য অদলবদল)"
+                  title="Swap Departure & Destination"
                 >
                   <ArrowRightLeft className="w-4 h-4 text-cyan-400 rotate-90" />
                 </button>
@@ -317,7 +317,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                   type="button"
                   onClick={onPickOnMap}
                   className="p-2 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/50 transition cursor-pointer shadow-sm"
-                  title="Pick destination directly on Mars map (ম্যাপে ক্লিক করে গন্তব্য নির্ধারণ)"
+                  title="Pick destination directly on Mars map"
                 >
                   <Crosshair className="w-4 h-4" />
                 </button>
@@ -556,10 +556,10 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
             </div>
             <div>
               <h4 className="text-sm font-bold text-white tracking-wide">
-                Select Mars Exploration Route (রুট নির্ধারণ করুন)
+                Select Mars Exploration Route
               </h4>
               <p className="text-xs text-neutral-400 mt-1 max-w-md mx-auto">
-                গুগল ম্যাপের মতো যাত্রা শুরুর স্থান ও গন্তব্য নির্বাচন করুন অথবা নিচে থেকে রেডিমেড বৈজ্ঞানিক দৃশ্যকল্প লোড করুন।
+                Select departure base and destination target, or load a certified scientific exploration scenario below.
               </p>
             </div>
 
@@ -590,7 +590,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                   className="px-3.5 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-cyan-300 border border-cyan-500/40 text-xs font-semibold flex items-center gap-1.5 mx-auto transition cursor-pointer"
                 >
                   <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>🎯 Pick Departure or Destination on Map (ম্যাপে ক্লিক করুন)</span>
+                  <span>🎯 Pick Points Directly on Mars Map</span>
                 </button>
               </div>
             )}
@@ -620,15 +620,15 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-red-300 flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4 text-red-400" />
-                    <span>⚠️ সরাসরি রুটে বিপদ সনাক্ত হয়েছে (Hazard Alert)</span>
+                    <span>⚠️ Direct Route Hazard Detected</span>
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold font-mono">
                     Score: {activeRoute.safetyScore}/100
                   </span>
                 </div>
                 <p className="text-[11px] text-neutral-300 leading-snug">
-                  এই রুটে সর্বোচ্চ ঢাল <strong>{activeRoute.maxSlopeDeg}°</strong> তে পৌঁছেছে যা স্পেসস্যুট বা রোভারের জন্য ঝুঁকিপূর্ণ। 
-                  প্রস্তাবিত বিকল্প নিরাপদ রুট ব্যবহার করলে ঢাল নেমে আসবে মাত্র <strong>{candidateRoutes.safest.maxSlopeDeg}°</strong> তে।
+                  This direct line encounters maximum slopes of <strong>{activeRoute.maxSlopeDeg}°</strong> which presents hazardous slip risks.
+                  The recommended safer bypass reduces the slope to <strong>{candidateRoutes.safest.maxSlopeDeg}°</strong>.
                 </p>
                 <button
                   type="button"
@@ -636,7 +636,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                   className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow"
                 >
                   <Shield className="w-3.5 h-3.5" />
-                  <span>🛡️ প্রস্তাবিত নিরাপদ রুট গ্রহণ করুন (Switch to Safest Bypass Corridor)</span>
+                  <span>🛡️ Apply Recommended Safer Bypass Corridor</span>
                 </button>
               </div>
             )}
@@ -959,24 +959,15 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 Explainable Decision Rationale
               </span>
 
-              {/* Language Switcher (EN vs BN) */}
-              <button
-                type="button"
-                onClick={() => setExplainerLang(explainerLang === 'en' ? 'bn' : 'en')}
-                className="px-2 py-0.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-[10.5px] font-mono font-bold text-cyan-300 flex items-center gap-1 cursor-pointer border border-neutral-700"
-              >
-                <Languages className="w-3 h-3" />
-                <span>{explainerLang === 'en' ? 'বাংলায় দেখুন' : 'View in English'}</span>
-              </button>
             </div>
 
             {/* Plain-Language Explanation */}
             <div className="p-3.5 rounded-xl bg-neutral-950 border border-emerald-500/40 space-y-2">
               <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                {explainerLang === 'en' ? 'Tactical Optimization Summary' : 'কৌশলগত রুট পর্যালোচনা'}
+                Tactical Optimization Summary
               </div>
               <p className="text-xs text-neutral-200 leading-relaxed font-sans">
-                {explainerLang === 'en' ? activeRoute.whyThisRoute.summary : activeRoute.whyThisRoute.summaryBn}
+                {activeRoute.whyThisRoute.summary}
               </p>
             </div>
 
@@ -1132,10 +1123,10 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
               type="button"
               onClick={handleCancelRoute}
               className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-500/50 flex items-center gap-1.5 transition font-sans font-bold cursor-pointer shadow-sm active:scale-95"
-              title="Cancel and reset this route (রুট বাতিল ও রিসেট করুন)"
+              title="Cancel and reset this route"
             >
               <X className="w-3.5 h-3.5 text-red-400" />
-              <span>রুট বাতিল (Cancel Route)</span>
+              <span>Cancel Route</span>
             </button>
           )}
 
@@ -1154,7 +1145,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
           onClick={onClose}
           className="px-3.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white transition font-sans font-semibold cursor-pointer shadow-sm"
         >
-          বন্ধ করুন (Close)
+          Close
         </button>
       </div>
     </div>

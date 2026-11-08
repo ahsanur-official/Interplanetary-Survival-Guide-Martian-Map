@@ -130,24 +130,24 @@ export function analyzeRouteSafety(
         let remedyEn = '';
 
         if (hazard.type === 'STEEP_SLOPE') {
-          issueSummaryBn = `${hazard.name}: খাড়া ক্লিফ স্কার্প (ঢাল ~${hazard.slopeAngle || 20}°)। স্পেসস্যুট পা পিছলে পড়া এবং শিলাখণ্ডের ধসের তীব্র ঝুঁকি।`;
+          issueSummaryBn = `${hazard.name}: Steep cliff scarp (${hazard.slopeAngle || 20}° slope). High risk of suit tumble, abrasion, and rockfall.`;
           issueSummaryEn = `${hazard.name}: Steep cliff scarp (${hazard.slopeAngle || 20}° slope). High risk of suit tumble, abrasion, and rockfall.`;
-          remedyBn = 'কম ঢালের সমতল করিডোর দিয়ে ঘুরে যাওয়া সুপারিশকৃত।';
+          remedyBn = 'Rerouting along low-gradient contours is strongly advised.';
           remedyEn = 'Rerouting along low-gradient contours is strongly advised.';
         } else if (hazard.type === 'SOFT_SAND_DRIFT') {
-          issueSummaryBn = `${hazard.name}: গভীর আলগা ব্যাসাল্ট বালিয়াড়ি (Dune Trap)। রোভারের চাকা আটকে যাওয়া এবং পায়ে হাঁটলে তীব্র ক্লান্তি।`;
+          issueSummaryBn = `${hazard.name}: Deep uncompacted basaltic sand drift. High wheel-entrapment and severe metabolic fatigue risk.`;
           issueSummaryEn = `${hazard.name}: Deep uncompacted basaltic sand drift. High wheel-entrapment and severe metabolic fatigue risk.`;
-          remedyBn = 'দৃঢ় বেডরক বা সমতল বালিয়াড়িহীন পথ বেছে নিন।';
+          remedyBn = 'Bypass via hard bedrock and stable inter-dune corridors.';
           remedyEn = 'Bypass via hard bedrock and stable inter-dune corridors.';
         } else if (hazard.type === 'BOULDER_FIELD') {
-          issueSummaryBn = `${hazard.name}: ঘন বৃহদাকার বোল্ডার ক্ষেত্র (ব্যাস ০.৮-৩.৫ মি)। স্পেসস্যুট আম্বিলিকাল তার আটকে যাওয়া বা রোভার আটকে যাওয়ার ঝুঁকি।`;
+          issueSummaryBn = `${hazard.name}: Dense megaboulder ejecta field. High snagging and chassis collision hazard.`;
           issueSummaryEn = `${hazard.name}: Dense megaboulder ejecta field. High snagging and chassis collision hazard.`;
-          remedyBn = 'পাথুরে বাধা এড়িয়ে পাশের মসৃণ পথ গ্রহণ করুন।';
+          remedyBn = 'Circumnavigate outside the boulder perimeter.';
           remedyEn = 'Circumnavigate outside the boulder perimeter.';
         } else {
-          issueSummaryBn = `${hazard.name}: ভূতাত্ত্বিক বিপদজনক অঞ্চল (${hazard.riskLevel})।`;
+          issueSummaryBn = `${hazard.name}: Geological hazard area (${hazard.riskLevel}).`;
           issueSummaryEn = `${hazard.name}: Geological hazard area (${hazard.riskLevel}).`;
-          remedyBn = 'সুরক্ষিত বাফার দূরত্ব বজায় রেখে চলুন।';
+          remedyBn = 'Maintain safe standoff distance.';
           remedyEn = 'Maintain safe standoff distance.';
         }
 
@@ -175,16 +175,16 @@ export function analyzeRouteSafety(
   if (maxDirectSlope >= 16 && !issues.some((iss) => iss.hazardType === 'STEEP_SLOPE')) {
     issues.push({
       id: 'high_incline_detected',
-      hazardName: 'অতিরিক্ত খাড়া প্রাকৃতিক ভূখণ্ড (High Natural Slope)',
+      hazardName: 'High Natural Slope (>15° Incline)',
       hazardType: 'STEEP_SLOPE',
       riskLevel: maxDirectSlope >= 20 ? 'CRITICAL' : 'HIGH',
       distanceToPathMeters: 0,
       maxSlopeDeg: maxDirectSlope,
-      description: `সরাসরি পথের ঢাল সর্বোচ্চ ${maxDirectSlope}° তে পৌঁছেছে, যা মঙ্গল গ্রহে সাধারণ হাঁটা ও সাধারণ রোভারের জন্য ঝুঁকিপূর্ণ।`,
-      issueSummaryBn: `সরাসরি পথে অতিরিক্ত খাড়া চড়াই (${maxDirectSlope}° ঢাল)। মহাকাশচারী পড়ে যাওয়ার সম্ভাবনা রয়েছে।`,
-      issueSummaryEn: `Steep terrain detected (${maxDirectSlope}° slope). Exceeds nominal safe incline limits.`,
-      remedySuggestionBn: 'সমান্তরাল নিম্ন-ঢালের রাস্তা ব্যবহার করুন।',
-      remedySuggestionEn: 'Use gentle winding contour routes.',
+      description: `Direct path slope reaches ${maxDirectSlope}°, exceeding nominal safe slope limits for human EVA walk and rovers.`,
+      issueSummaryBn: `Steep terrain detected (${maxDirectSlope}° slope). High risk of suit tumble and traction loss.`,
+      issueSummaryEn: `Steep terrain detected (${maxDirectSlope}° slope). High risk of suit tumble and traction loss.`,
+      remedySuggestionBn: 'Use parallel low-gradient contour routes.',
+      remedySuggestionEn: 'Use parallel low-gradient contour routes.',
     });
   }
 
@@ -213,19 +213,19 @@ export function analyzeRouteSafety(
   let detailedAnalysisEn = '';
 
   if (safetyStatus === 'DANGEROUS') {
-    warningHeadlineBn = `⚠️ সতর্কতা: আপনার নির্ধারিত সরাসরি পথে ${issues.length} টি মারাত্মক বিপজ্জনক এলাকা রয়েছে!`;
+    warningHeadlineBn = `⚠️ Danger: Direct corridor intersects ${issues.length} critical hazard zone(s)!`;
     warningHeadlineEn = `⚠️ Danger: Direct corridor intersects ${issues.length} critical hazard zone(s)!`;
-    detailedAnalysisBn = `আপনি যেদিকে যাওয়ার পরিকল্পনা করছেন, সেই সরাসরি লাইনে খাড়া স্কার্প বা বালিয়াড়ির মারাত্মক ফাঁদ রয়েছে (সর্বোচ্চ ঢাল ${maxDirectSlope}°)। এর মধ্য দিয়ে সরাসরি যাওয়া স্পেসস্যুট বা রোভারের জন্য অনিরাপদ। নিচে প্রদর্শিত নিরাপদ বিকল্প রুটটি বেছে নেওয়ার পরামর্শ দেওয়া হচ্ছে।`;
+    detailedAnalysisBn = `The direct path crosses critical scarps or soft sand traps with slopes reaching ${maxDirectSlope}°. Traversal along this corridor risks rover wheel immobilization or spacesuit falls. The recommended bypass corridor safely circumnavigates these obstacles.`;
     detailedAnalysisEn = `The direct path crosses critical scarps or soft sand traps with slopes reaching ${maxDirectSlope}°. Traversal along this corridor risks rover wheel immobilization or spacesuit falls. The recommended bypass corridor safely circumnavigates these obstacles.`;
   } else if (safetyStatus === 'CAUTION') {
-    warningHeadlineBn = `⚡ সতর্কতা: নির্ধারিত পথে মাঝারি মাত্রার সতর্কতা ও ঢাল পরিলক্ষিত হয়েছে।`;
+    warningHeadlineBn = `⚡ Caution: Moderate terrain inclines and warning zones detected.`;
     warningHeadlineEn = `⚡ Caution: Moderate terrain inclines and warning zones detected.`;
-    detailedAnalysisBn = `সরাসরি পথে কিছু মাঝারি ঢাল ও হালকা বালুর অঞ্চল রয়েছে (গড় ঢাল ${avgDirectSlope}°)। সাবধানে এগুলে যাওয়া সম্ভব, তবে বিকল্প নিরাপদ পথটি আরও আরামদায়ক ও নিরাপদ।`;
+    detailedAnalysisBn = `Terrain exhibits moderate slopes (average ${avgDirectSlope}°). Walkable with vigilance, though the recommended detour provides smoother footing.`;
     detailedAnalysisEn = `Terrain exhibits moderate slopes (average ${avgDirectSlope}°). Walkable with vigilance, though the recommended detour provides smoother footing.`;
   } else {
-    warningHeadlineBn = `✅ রুটটি সম্পূর্ণ নিরাপদ ও চলাচলের উপযোগী (Nominal Surface Corridor)`;
+    warningHeadlineBn = `✅ Route corridor is safe and nominal (No hazards detected)`;
     warningHeadlineEn = `✅ Route corridor is safe and nominal (No hazards detected)`;
-    detailedAnalysisBn = `আপনার নির্ধারিত গন্তব্যে পৌঁছানোর সরাসরি পথে কোনো বড় খাদ, খাড়া স্কার্প বা বালিয়াড়ি নেই (সর্বোচ্চ ঢাল মাত্র ${maxDirectSlope}°)। আপনি নিরাপদে এগিয়ে যেতে পারেন।`;
+    detailedAnalysisBn = `No critical scarps, loose sand drifts, or boulder fields intersect your path (max slope ${maxDirectSlope}°). Nominal traverse clearance.`;
     detailedAnalysisEn = `No critical scarps, loose sand drifts, or boulder fields intersect your path (max slope ${maxDirectSlope}°). Nominal traverse clearance.`;
   }
 

@@ -57,7 +57,6 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [showIssuesList, setShowIssuesList] = useState(true);
-  const [lang, setLang] = useState<'bn' | 'en'>('bn');
 
   if (!assessment) return null;
 
@@ -129,7 +128,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xs tracking-wider text-white uppercase font-mono">
-                {lang === 'bn' ? 'রুট সেফটি হাব' : 'Route Safety Hub'}
+                Route Safety Hub
               </span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider ${statusTheme.badge}`}>
                 {safetyStatus}
@@ -146,14 +145,6 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
 
         {/* Header Controls */}
         <div className="flex items-center gap-1">
-          {/* Language toggle */}
-          <button
-            onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-            className="px-2 py-1 rounded-md text-[10px] font-bold font-mono bg-white/5 hover:bg-white/15 text-neutral-300 border border-white/10 transition"
-            title="Toggle Language (বাংলা / English)"
-          >
-            {lang === 'bn' ? 'বাংলা' : 'EN'}
-          </button>
 
           {/* Minimize / Expand */}
           <button
@@ -193,14 +184,14 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
                 className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10.5px] shadow-sm flex items-center gap-1 transition"
               >
                 <Sparkles className="w-3 h-3" />
-                {lang === 'bn' ? 'নিরাপদ রুট' : 'Safer Way'}
+                Safer Route
               </button>
             )}
             <button
               onClick={() => setIsMinimized(false)}
               className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-neutral-200 text-[10.5px] transition"
             >
-              {lang === 'bn' ? 'বিস্তারিত' : 'Details'}
+              Details
             </button>
           </div>
         </div>
@@ -212,14 +203,14 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
             <div className="flex items-center justify-between text-neutral-400 text-[10.5px]">
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <strong>{lang === 'bn' ? 'শুরুর স্থান (Base)' : 'Departure'}</strong>
+                <strong>Departure Base</strong>
               </span>
               <button
                 onClick={onSwapPoints}
-                className="text-[10px] text-orange-400 hover:text-orange-300 hover:underline flex items-center gap-1"
+                className="text-[10px] text-orange-400 hover:text-orange-300 hover:underline flex items-center gap-1 cursor-pointer"
                 title="Swap Start & Destination"
               >
-                <RotateCcw className="w-3 h-3" /> {lang === 'bn' ? 'অদলবদল' : 'Swap'}
+                <RotateCcw className="w-3 h-3" /> Swap
               </button>
             </div>
             <div className="text-white font-semibold text-xs truncate pl-3">
@@ -229,13 +220,13 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
             <div className="border-t border-white/5 pt-1.5 flex items-center justify-between text-neutral-400 text-[10.5px]">
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-red-400"></span>
-                <strong>{lang === 'bn' ? 'গন্তব্য (Destination)' : 'Target'}</strong>
+                <strong>Target Destination</strong>
               </span>
               <button
                 onClick={onPickNewDestination}
-                className="text-[10px] text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1"
+                className="text-[10px] text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <Crosshair className="w-3 h-3" /> {lang === 'bn' ? 'নতুন গন্তব্য' : 'Pick Target'}
+                <Crosshair className="w-3 h-3" /> Pick Target
               </button>
             </div>
             <div className="text-cyan-300 font-semibold text-xs truncate pl-3 flex items-center justify-between">
@@ -260,10 +251,10 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               </div>
               <div className="space-y-1">
                 <h4 className="font-bold text-white text-xs leading-snug">
-                  {lang === 'bn' ? warningHeadlineBn : warningHeadlineEn}
+                  {warningHeadlineEn}
                 </h4>
                 <p className="text-[11px] text-neutral-300 leading-relaxed font-sans">
-                  {lang === 'bn' ? detailedAnalysisBn : detailedAnalysisEn}
+                  {detailedAnalysisEn}
                 </p>
               </div>
             </div>
@@ -273,13 +264,11 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               <div className="mt-2 pt-2 border-t border-white/10 space-y-1.5">
                 <button
                   onClick={() => setShowIssuesList(!showIssuesList)}
-                  className="w-full flex items-center justify-between text-[11px] font-bold text-neutral-200 hover:text-white"
+                  className="w-full flex items-center justify-between text-[11px] font-bold text-neutral-200 hover:text-white cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                    {lang === 'bn'
-                      ? `সনাক্তকৃত বিপদসমূহ (${issues.length} টি)`
-                      : `Identified Hazards (${issues.length})`}
+                    Identified Hazards ({issues.length})
                   </span>
                   {showIssuesList ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
@@ -309,11 +298,11 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
                           </span>
                         </div>
                         <p className="text-neutral-300 text-[10px] font-sans leading-tight">
-                          {lang === 'bn' ? issue.issueSummaryBn : issue.issueSummaryEn}
+                          {issue.issueSummaryEn}
                         </p>
                         <div className="text-emerald-400 text-[9.5px] flex items-center gap-1 font-sans">
                           <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                          <span>{lang === 'bn' ? issue.remedySuggestionBn : issue.remedySuggestionEn}</span>
+                          <span>{issue.remedySuggestionEn}</span>
                         </div>
                       </div>
                     ))}
@@ -329,11 +318,11 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
                 <span className="font-bold text-xs text-white">
-                  {lang === 'bn' ? 'প্রস্তাবিত নিরাপদ সমাধান' : 'Suggested Safer Solution'}
+                  Suggested Safer Solution
                 </span>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold font-mono">
-                {lang === 'bn' ? '০ টি ঝুঁকি • ১০০% ক্লিয়ার' : '0 Hazards • Safe Clearance'}
+                0 Hazards • Safe Clearance
               </span>
             </div>
 
@@ -342,18 +331,18 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               {/* Direct Path Column */}
               <div className="bg-black/40 border border-white/5 rounded-lg p-2 space-y-1">
                 <div className="text-neutral-400 font-semibold flex items-center gap-1">
-                  <span>❌ {lang === 'bn' ? 'সরাসরি রুট' : 'Direct Line'}</span>
+                  <span>❌ Direct Line</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">{lang === 'bn' ? 'ঢাল' : 'Slope'}:</span>
+                  <span className="text-neutral-400">Slope:</span>
                   <span className="text-red-400 font-bold">{comparison.directSlope}°</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">{lang === 'bn' ? 'বিপদ' : 'Hazards'}:</span>
+                  <span className="text-neutral-400">Hazards:</span>
                   <span className="text-red-400 font-bold">{comparison.directHazardsCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">{lang === 'bn' ? 'সুরক্ষা' : 'Safety'}:</span>
+                  <span className="text-neutral-400">Safety:</span>
                   <span className="text-red-400 font-bold">{comparison.safetyScoreDirect}/100</span>
                 </div>
               </div>
@@ -361,18 +350,18 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               {/* Suggested Safe Path Column */}
               <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-lg p-2 space-y-1">
                 <div className="text-emerald-300 font-semibold flex items-center gap-1">
-                  <span>✨ {lang === 'bn' ? 'নিরাপদ রুট' : 'Safer Corridor'}</span>
+                  <span>✨ Safer Corridor</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">{lang === 'bn' ? 'ঢাল' : 'Slope'}:</span>
+                  <span className="text-neutral-400">Slope:</span>
                   <span className="text-emerald-400 font-bold">{comparison.saferSlope}°</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">{lang === 'bn' ? 'দূরত্ব' : 'Detour'}:</span>
+                  <span className="text-neutral-400">Detour:</span>
                   <span className="text-neutral-300">+{comparison.detourExtraDistanceKm} km</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">{lang === 'bn' ? 'সুরক্ষা' : 'Safety'}:</span>
+                  <span className="text-neutral-400">Safety:</span>
                   <span className="text-emerald-400 font-bold">{comparison.safetyScoreSafer}/100</span>
                 </div>
               </div>
@@ -391,11 +380,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
                 <ShieldCheck className="w-4 h-4" />
                 <span>
                   {activeMode === 'safest'
-                    ? lang === 'bn'
-                      ? '✅ নিরাপদ রুট সক্রিয় রয়েছে'
-                      : '✅ Safe Corridor Active'
-                    : lang === 'bn'
-                    ? '🛡️ প্রস্তাবিত নিরাপদ রুট প্রয়োগ করুন'
+                    ? '✅ Safe Corridor Active'
                     : '🛡️ Apply Recommended Safer Route'}
                 </span>
               </button>
@@ -411,13 +396,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span className="whitespace-nowrap">
-                  {showComparisonOnMap
-                    ? lang === 'bn'
-                      ? 'তুলনা দৃশ্যমান'
-                      : 'Comparison On'
-                    : lang === 'bn'
-                    ? 'ম্যাপে তুলনা'
-                    : 'Compare on Map'}
+                  {showComparisonOnMap ? 'Comparison On' : 'Compare on Map'}
                 </span>
               </button>
             </div>
@@ -426,12 +405,12 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
           {/* Strategy Modes & Transport Quick Bar */}
           <div className="bg-black/30 border border-white/5 rounded-xl p-2.5 space-y-2">
             <div className="flex items-center justify-between text-[10.5px] text-neutral-400">
-              <span className="font-semibold">{lang === 'bn' ? 'রুটের ধরন ও বাহন' : 'Strategy & Vehicle'}</span>
+              <span className="font-semibold">Strategy & Vehicle</span>
               <button
                 onClick={onFlyToRoute}
-                className="text-cyan-400 hover:underline flex items-center gap-1"
+                className="text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <Compass className="w-3 h-3" /> {lang === 'bn' ? 'ক্যামেরা ফোকাস' : 'Fit to Map'}
+                <Compass className="w-3 h-3" /> Fit to Map
               </button>
             </div>
 
@@ -439,38 +418,38 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
             <div className="grid grid-cols-3 gap-1 text-[11px] font-mono">
               <button
                 onClick={() => onSelectMode('safest')}
-                className={`py-1.5 px-1 rounded-lg font-bold flex items-center justify-center gap-1 transition ${
+                className={`py-1.5 px-1 rounded-lg font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                   activeMode === 'safest'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'bg-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
                 <Shield className="w-3 h-3" />
-                <span>{lang === 'bn' ? 'নিরাপদ' : 'Safest'}</span>
+                <span>Safest</span>
               </button>
 
               <button
                 onClick={() => onSelectMode('shortest')}
-                className={`py-1.5 px-1 rounded-lg font-bold flex items-center justify-center gap-1 transition ${
+                className={`py-1.5 px-1 rounded-lg font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                   activeMode === 'shortest'
                     ? 'bg-amber-600 text-white shadow-sm'
                     : 'bg-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
                 <Navigation className="w-3 h-3" />
-                <span>{lang === 'bn' ? 'সরাসরি' : 'Direct'}</span>
+                <span>Direct</span>
               </button>
 
               <button
                 onClick={() => onSelectMode('science')}
-                className={`py-1.5 px-1 rounded-lg font-bold flex items-center justify-center gap-1 transition ${
+                className={`py-1.5 px-1 rounded-lg font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                   activeMode === 'science'
                     ? 'bg-purple-600 text-white shadow-sm'
                     : 'bg-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
                 <Sparkles className="w-3 h-3" />
-                <span>{lang === 'bn' ? 'সায়েন্স' : 'Science'}</span>
+                <span>Science</span>
               </button>
             </div>
 
@@ -479,7 +458,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               <span className="text-neutral-500 text-[10px] font-mono mr-1">Vehicle:</span>
               <button
                 onClick={() => onChangeTransportMode('foot')}
-                className={`px-2 py-1 rounded-md flex items-center gap-1 transition ${
+                className={`px-2 py-1 rounded-md flex items-center gap-1 transition cursor-pointer ${
                   transportMode === 'foot'
                     ? 'bg-orange-500/30 text-orange-200 border border-orange-500/50'
                     : 'bg-white/5 text-neutral-400 hover:text-neutral-200'
@@ -492,7 +471,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
 
               <button
                 onClick={() => onChangeTransportMode('unpressurized_rover')}
-                className={`px-2 py-1 rounded-md flex items-center gap-1 transition ${
+                className={`px-2 py-1 rounded-md flex items-center gap-1 transition cursor-pointer ${
                   transportMode === 'unpressurized_rover'
                     ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-500/50'
                     : 'bg-white/5 text-neutral-400 hover:text-neutral-200'
@@ -505,7 +484,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
 
               <button
                 onClick={() => onChangeTransportMode('pressurized_rover')}
-                className={`px-2 py-1 rounded-md flex items-center gap-1 transition ${
+                className={`px-2 py-1 rounded-md flex items-center gap-1 transition cursor-pointer ${
                   transportMode === 'pressurized_rover'
                     ? 'bg-purple-500/30 text-purple-200 border border-purple-500/50'
                     : 'bg-white/5 text-neutral-400 hover:text-neutral-200'
@@ -524,7 +503,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
               onClick={onOpenFullModal}
               className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-neutral-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 border border-white/10 transition cursor-pointer"
             >
-              <span>{lang === 'bn' ? 'পূর্ণাঙ্গ ট্রাভার্স প্ল্যানার ও এলিভেশন প্রোফাইল' : 'Full Mission Traverse & Elevation Profile'}</span>
+              <span>Full Mission Traverse & Elevation Profile</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

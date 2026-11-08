@@ -493,6 +493,13 @@ export function RealMarsMap() {
   const [isAskMarsWayOpen, setIsAskMarsWayOpen] = useState<boolean>(false);
   const [isLiveVoiceOpen, setIsLiveVoiceOpen] = useState<boolean>(false);
 
+  // Interactive 2-click map route plotting ('start' -> 'dest' -> null)
+  const [interactiveRoutePlotStep, setInteractiveRoutePlotStep] = useState<'start' | 'dest' | null>(null);
+  const interactiveRoutePlotStepRef = useRef<'start' | 'dest' | null>(null);
+  useEffect(() => {
+    interactiveRoutePlotStepRef.current = interactiveRoutePlotStep;
+  }, [interactiveRoutePlotStep]);
+
   // GIS Distance & Area Measurement Tool State
   const [isMeasureToolOpen, setIsMeasureToolOpen] = useState<boolean>(false);
   const isMeasureToolOpenRef = useRef<boolean>(false);
@@ -507,13 +514,13 @@ export function RealMarsMap() {
 
   useEffect(() => {
     if (mapContainerRef.current) {
-      if (isMeasureToolOpen || isMapPickDestinationMode) {
+      if (isMeasureToolOpen || isMapPickDestinationMode || interactiveRoutePlotStep !== null) {
         mapContainerRef.current.style.cursor = 'crosshair';
       } else {
         mapContainerRef.current.style.cursor = '';
       }
     }
-  }, [isMeasureToolOpen, isMapPickDestinationMode]);
+  }, [isMeasureToolOpen, isMapPickDestinationMode, interactiveRoutePlotStep]);
 
   // MGS MOLA Elevation Profile Transect Tool State
   const [isElevationProfileOpen, setIsElevationProfileOpen] = useState<boolean>(false);
@@ -617,6 +624,37 @@ export function RealMarsMap() {
     lng: 77.395,
     name: 'Kodiak Delta Remnant',
   });
+
+  const handleStartMapRoutePlanning = () => {
+    setIsRoutePlannerModalOpen(false);
+    setIsSearchModalOpen(false);
+    setIsHamburgerOpen(false);
+    setActiveTab(null);
+    setInspectedPoint(null);
+    setSelectedSite(null);
+    setSelectedRegion(null);
+    setInteractiveRoutePlotStep('start');
+  };
+
+  const handleCancelAndClearRoute = () => {
+    setRouteStartPoint(null);
+    setRouteEndPoint(null);
+    setInteractiveRoutePlotStep(null);
+    setIsRouteSafetyHUDOpen(false);
+    setShowRouteComparisonOnMap(false);
+    setIsRoutePlannerModalOpen(false);
+    if (routePolylineRef.current && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(routePolylineRef.current);
+      routePolylineRef.current = null;
+    }
+    if (routeComparisonPolylineRef.current && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(routeComparisonPolylineRef.current);
+      routeComparisonPolylineRef.current = null;
+    }
+    if (routeMarkersLayerRef.current) {
+      routeMarkersLayerRef.current.clearLayers();
+    }
+  };
 
   const routeHazardZones = useMemo(() => {
     const point = routeStartPoint || routeEndPoint;
@@ -1229,7 +1267,49 @@ export function RealMarsMap() {
       lng = ((((lng + 180) % 360) + 360) % 360) - 180;
       const lat = Number(e.latlng.lat.toFixed(4));
       const cleanLng = Number(lng.toFixed(4));
-      const eastLng = Number(((cleanLng + 360) % 360).toFixed(4));
+      const eastLng = Number((cleanLng < 0 ? cleanLng + 360 : cleanLng).toFixed(4));
+      if (interactiveRoutePlotStepRef.current === 'start') {
+        const elev = getMolaElevation(lat, cleanLng);
+        let nearestName = `Base (${lat >= 0 ? `${lat}°N` : `${Math.abs(lat)}°S`}, ${cleanLng >= 0 ? `${cleanLng}°E` : `${Math.abs(cleanLng)}°W`})`;
+        let minDist = Infinity;
+        for (const f of ALL_MARS_FEATURES) {
+          const dist = calculateMarsDistanceMeters(
+            { latitude: lat, longitude: cleanLng },
+            { latitude: f.lat, longitude: f.lng }
+          );
+          if (dist < minDist && dist < 350000) {
+            minDist = dist;
+            nearestName = `${f.name} Base`;
+          }
+        }
+        setRouteStartPoint({ lat, lng: cleanLng, name: nearestName });
+        setInteractiveRoutePlotStep('dest');
+        marsSonification.sonifyLocation(elev, 1);
+        return;
+      }
+
+      if (interactiveRoutePlotStepRef.current === 'dest') {
+        const elev = getMolaElevation(lat, cleanLng);
+        let nearestName = `Target (${lat >= 0 ? `${lat}°N` : `${Math.abs(lat)}°S`}, ${cleanLng >= 0 ? `${cleanLng}°E` : `${Math.abs(cleanLng)}°W`})`;
+        let minDist = Infinity;
+        for (const f of ALL_MARS_FEATURES) {
+          const dist = calculateMarsDistanceMeters(
+            { latitude: lat, longitude: cleanLng },
+            { latitude: f.lat, longitude: f.lng }
+          );
+          if (dist < minDist && dist < 350000) {
+            minDist = dist;
+            nearestName = `${f.name} Target`;
+          }
+        }
+        setRouteEndPoint({ lat, lng: cleanLng, name: nearestName });
+        setInteractiveRoutePlotStep(null);
+        setIsRouteSafetyHUDOpen(true);
+        setShowRouteComparisonOnMap(true);
+        marsSonification.sonifyLocation(elev, 2);
+        return;
+      }
+
       if (isMapPickDestinationModeRef.current) {
         // Destination map pick active!
         const elev = getMolaElevation(lat, cleanLng);
@@ -3236,9 +3316,9 @@ export function RealMarsMap() {
 
         directLine.bindTooltip(
           `<div style="font-family:system-ui,sans-serif;line-height:1.35;max-width:260px;">
-            <strong style="color:#ef4444;">⚠️ সরাসরি রুট (ঝুঁকিপূর্ণ / Direct Path)</strong><br/>
-            <span>সর্বোচ্চ ঢাল: <strong>${routeSafetyAssessment.maxDirectSlopeDeg}°</strong></span><br/>
-            <span style="color:#fca5a5;">${routeSafetyAssessment.issues.length} টি সম্ভাব্য বিপদ সনাক্ত হয়েছে</span>
+            <strong style="color:#ef4444;">⚠️ Direct Line (Hazardous Path)</strong><br/>
+            <span>Max Slope: <strong>${routeSafetyAssessment.maxDirectSlopeDeg}°</strong></span><br/>
+            <span style="color:#fca5a5;">${routeSafetyAssessment.issues.length} Potential Hazards Detected</span>
           </div>`,
           { className: 'mars-tooltip', sticky: true }
         );
@@ -3254,9 +3334,9 @@ export function RealMarsMap() {
 
         saferLine.bindTooltip(
           `<div style="font-family:system-ui,sans-serif;line-height:1.35;max-width:260px;">
-            <strong style="color:#10b981;">✨ প্রস্তাবিত নিরাপদ রুট (Recommended Safe Corridor)</strong><br/>
-            <span>সর্বোচ্চ ঢাল মাত্র: <strong>${routeSafetyAssessment.comparison.saferSlope}°</strong></span><br/>
-            <span style="color:#86efac;">১০০% নিরাপদ বাইপাস • ০ টি বিপদ</span>
+            <strong style="color:#10b981;">✨ Recommended Safe Bypass Corridor</strong><br/>
+            <span>Max Slope Only: <strong>${routeSafetyAssessment.comparison.saferSlope}°</strong></span><br/>
+            <span style="color:#86efac;">100% Safe Bypass • 0 Hazards</span>
           </div>`,
           { className: 'mars-tooltip', sticky: true }
         );
@@ -3281,7 +3361,7 @@ export function RealMarsMap() {
             });
             const marker = L.marker([matchingWp.lat, matchingWp.lng], { icon: cautionIcon });
             marker.bindTooltip(
-              `<strong style="color:#ef4444;">${issue.hazardName}</strong><br/><span>${issue.issueSummaryBn}</span>`,
+              `<strong style="color:#ef4444;">${issue.hazardName}</strong><br/><span>${issue.issueSummaryEn}</span>`,
               { className: 'mars-tooltip' }
             );
             markersGroup.addLayer(marker);
@@ -3301,8 +3381,8 @@ export function RealMarsMap() {
         polyline.bindTooltip(
           `<div style="font-family:system-ui,sans-serif;line-height:1.35;">
             <strong style="color:${routeColor};">${activePlannedRoute.name}</strong><br/>
-            <span>দূরত্ব: ${activePlannedRoute.totalDistanceKm} km • সময়: ${activePlannedRoute.estimatedWalkTimeFormatted}</span><br/>
-            <span>সুরক্ষা স্কোর: ${activePlannedRoute.safetyScore}/100</span>
+            <span>Distance: ${activePlannedRoute.totalDistanceKm} km • Walk Time: ${activePlannedRoute.estimatedWalkTimeFormatted}</span><br/>
+            <span>Safety Score: ${activePlannedRoute.safetyScore}/100</span>
           </div>`,
           { className: 'mars-tooltip', sticky: true }
         );
@@ -4107,22 +4187,35 @@ export function RealMarsMap() {
           {/* Header Route Plan Button */}
           <button
             onClick={() => {
-              if (!routeStartPoint || !routeEndPoint) {
-                handleLoadDemoScenario('jezero');
+              if (interactiveRoutePlotStep) {
+                setInteractiveRoutePlotStep(null);
+              } else if (activePlannedRoute) {
+                openPrimaryOverlay(setIsRoutePlannerModalOpen);
+              } else {
+                handleStartMapRoutePlanning();
               }
-              openPrimaryOverlay(setIsRoutePlannerModalOpen);
             }}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              isRoutePlannerModalOpen || activePlannedRoute
-                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 shadow-md shadow-cyan-950/60 ring-1 ring-cyan-400/50'
-                : 'bg-cyan-950/40 hover:bg-cyan-950/70 text-cyan-300 border-cyan-500/40 hover:text-white'
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-md active:scale-95 ${
+              isRoutePlannerModalOpen || activePlannedRoute || interactiveRoutePlotStep !== null
+                ? 'bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white border-cyan-400 shadow-cyan-950/60 ring-2 ring-cyan-400/50'
+                : 'bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-200 border-cyan-500/50 hover:text-white'
             }`}
-            title="Google Maps Style Route Planner (রুট প্ল্যান করুন)"
+            title="Interactive Route Planner: Click on map from where to where to evaluate hazards"
           >
-            <Navigation className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/20" />
-            <span className="hidden sm:inline">রুট প্ল্যান</span>
-            <span className="sm:hidden text-[11px]">Route</span>
+            <Navigation className="w-3.5 h-3.5 text-cyan-200 fill-cyan-300/40" />
+            <span className="font-semibold text-xs">Route Plan</span>
           </button>
+
+          {/* Quick Clear / Reset Route Button if route is active */}
+          {(activePlannedRoute || routeStartPoint || routeEndPoint) && (
+            <button
+              onClick={handleCancelAndClearRoute}
+              className="p-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 border border-red-500/50 text-red-300 hover:text-white transition-all cursor-pointer shadow-sm"
+              title="Clear / Cancel Current Route"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Universal Search Modal Button (Both Desktop & Mobile) */}
           <button
@@ -5007,25 +5100,45 @@ export function RealMarsMap() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!routeStartPoint || !routeEndPoint) {
-                    handleLoadDemoScenario('jezero');
+                  if (activePlannedRoute) {
+                    openPrimaryOverlay(setIsRoutePlannerModalOpen);
+                  } else {
+                    handleStartMapRoutePlanning();
                   }
-                  openPrimaryOverlay(setIsRoutePlannerModalOpen);
                 }}
                 className={`px-3.5 py-2 rounded-full flex items-center gap-2 text-xs font-bold transition-all shadow-xl cursor-pointer active:scale-95 shrink-0 border ${
-                  isRoutePlannerModalOpen || activePlannedRoute
+                  isRoutePlannerModalOpen || activePlannedRoute || interactiveRoutePlotStep !== null
                     ? 'bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white border-cyan-400 shadow-cyan-950/70 ring-2 ring-cyan-400/40'
                     : 'bg-[#080e1b]/95 hover:bg-[#0c152a] text-cyan-300 border-cyan-500/50 hover:border-cyan-400'
                 }`}
-                title="Open Google Maps Style Route Planner (রুট প্ল্যান করুন)"
+                title="Interactive Route Planner: Click on map from where to where"
               >
                 <Navigation className="w-4 h-4 text-cyan-300 fill-cyan-400/30" />
-                <span className="font-mono tracking-tight">রুট প্ল্যান</span>
+                <span className="font-mono tracking-tight">Route Plan</span>
               </button>
             </div>
 
             {/* UNIFIED TOP NOTIFICATION & ACTIVE MODE BANNER (Clean, Non-Colliding) */}
-            {isMapPickDestinationMode ? (
+            {interactiveRoutePlotStep ? (
+              <div className="pointer-events-auto relative z-35 bg-[#070b14]/98 backdrop-blur-md border border-cyan-400 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 max-w-[94vw] ring-2 ring-cyan-500/30">
+                <div className="relative flex items-center justify-center shrink-0">
+                  <div className={`w-3 h-3 rounded-full ${interactiveRoutePlotStep === 'start' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  <div className={`absolute w-6 h-6 rounded-full animate-ping ${interactiveRoutePlotStep === 'start' ? 'bg-emerald-400/40' : 'bg-red-400/40'}`} />
+                </div>
+                <span className="text-xs font-bold text-white">
+                  {interactiveRoutePlotStep === 'start'
+                    ? '📍 Step 1 of 2: Click on Mars map to set Departure Base (Point A)'
+                    : '🎯 Step 2 of 2: Click on Mars map to set Destination Target (Point B)'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setInteractiveRoutePlotStep(null)}
+                  className="px-2.5 py-1 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-[11px] font-bold transition-colors cursor-pointer shrink-0 border border-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : isMapPickDestinationMode ? (
               <div className="pointer-events-auto relative z-20 bg-[#070b14]/95 backdrop-blur-md border border-cyan-400 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 max-w-[92vw]">
                 <div className="relative flex items-center justify-center shrink-0">
                   <Target className="w-4 h-4 text-cyan-400 animate-pulse" />
@@ -5235,19 +5348,23 @@ export function RealMarsMap() {
             </button>
 
             {/* Google Maps Directions & Route Navigation */}
+            {/* Directions & Route Navigation */}
             <button
               onClick={() => {
-                if (!routeStartPoint || !routeEndPoint) {
-                  handleLoadDemoScenario('jezero');
+                if (interactiveRoutePlotStep) {
+                  setInteractiveRoutePlotStep(null);
+                } else if (activePlannedRoute) {
+                  openPrimaryOverlay(setIsRoutePlannerModalOpen);
+                } else {
+                  handleStartMapRoutePlanning();
                 }
-                openPrimaryOverlay(setIsRoutePlannerModalOpen);
               }}
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 ${
-                isRoutePlannerModalOpen || activePlannedRoute
+                isRoutePlannerModalOpen || activePlannedRoute || interactiveRoutePlotStep !== null
                   ? 'bg-cyan-500 text-neutral-950 font-bold shadow-md shadow-cyan-950/60 ring-2 ring-cyan-400'
                   : 'text-cyan-400 hover:text-white hover:bg-cyan-500/20'
               }`}
-              title="Directions & Route Planner (Google Maps Style রুট প্ল্যানার)"
+              title="Directions & Route Planner: Click two points on Mars to plan route"
               aria-label="Directions"
             >
               <Navigation className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
@@ -5256,9 +5373,6 @@ export function RealMarsMap() {
             {/* Marswalk EVA Route Planner & Safety Hub */}
             <button
               onClick={() => {
-                if (!routeStartPoint || !routeEndPoint) {
-                  handleLoadDemoScenario('jezero');
-                }
                 openPrimaryOverlay(setIsRoutePlannerModalOpen);
               }}
               className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all cursor-pointer active:scale-95 relative ${
@@ -5266,7 +5380,7 @@ export function RealMarsMap() {
                   ? 'bg-orange-600 text-white font-bold shadow-md shadow-orange-950/60 ring-1 ring-orange-400'
                   : 'text-orange-400 hover:text-white hover:bg-orange-500/20'
               }`}
-              title="Marswalk EVA Route Planner & Real-Time Safety Hub (রুট প্ল্যান ও সেফটি)"
+              title="Marswalk EVA Route Planner & Real-Time Safety Hub"
               aria-label="Marswalk Route Planner & Safety Hub"
             >
               <Footprints className="w-4 h-4 text-white" />
@@ -5983,7 +6097,7 @@ export function RealMarsMap() {
 
         {/* FLOATING SELECTED SITE CARD (Mobile & Desktop Place Card) */}
         {selectedSite && !inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="fixed bottom-[74px] left-2 right-2 sm:bottom-[76px] sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] z-50 pointer-events-auto bg-[#070b14]/98 backdrop-blur-2xl border border-cyan-500/50 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[calc(100vh-140px)] overflow-y-auto transition-all ring-1 ring-cyan-500/30">
+          <div className="fixed top-14 sm:top-18 left-2 right-2 sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] z-50 pointer-events-auto bg-[#070b14]/98 backdrop-blur-2xl border border-cyan-500/50 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-xs flex flex-col gap-2.5 animate-in slide-in-from-top-3 duration-200 max-h-[calc(100vh-140px)] overflow-y-auto transition-all ring-1 ring-cyan-500/30">
             <div className="flex items-start justify-between gap-2 shrink-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -6032,7 +6146,7 @@ export function RealMarsMap() {
               title="Plan Route to this site & evaluate Martian hazards"
             >
               <Navigation className="w-4 h-4 fill-white/20 text-white" />
-              <span>🧭 এই স্থানে রুট প্ল্যান করুন (Plan Route Here)</span>
+              <span>🧭 Plan Route to This Site</span>
             </button>
 
             {/* Quick Action Tools Bar */}
@@ -6141,9 +6255,9 @@ export function RealMarsMap() {
           </div>
         )}
 
-        {/* INSPECTED POINT CARD (Exploration Mode - Does NOT create routes) */}
+        {/* INSPECTED POINT CARD (Top-anchored so bottom bar NEVER overlaps it!) */}
         {inspectedPoint && !isRoutePlanningActive && !activeTab && (
-          <div className="fixed bottom-[74px] left-2 right-2 sm:bottom-[76px] sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] z-50 pointer-events-auto bg-[#070b14]/98 backdrop-blur-2xl border border-cyan-500/50 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-xs flex flex-col gap-2.5 animate-in slide-in-from-bottom-3 duration-200 max-h-[calc(100vh-140px)] overflow-y-auto transition-all ring-1 ring-cyan-500/30">
+          <div className="fixed top-14 sm:top-18 left-2 right-2 sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] z-50 pointer-events-auto bg-[#070b14]/98 backdrop-blur-2xl border border-cyan-500/50 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 text-xs flex flex-col gap-2.5 animate-in slide-in-from-top-3 duration-200 max-h-[calc(100vh-140px)] overflow-y-auto transition-all ring-1 ring-cyan-500/30">
             {/* Header */}
             <div className="flex items-start justify-between shrink-0">
               <div className="flex items-center gap-2 text-cyan-400 font-semibold">
@@ -6208,7 +6322,7 @@ export function RealMarsMap() {
               className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-center text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950/60 ring-1 ring-cyan-400/50 active:scale-95 shrink-0"
             >
               <Navigation className="w-4 h-4 fill-white/20 text-white" />
-              <span>🧭 এই স্থানে রুট প্ল্যান করুন (Plan Route Here)</span>
+              <span>🧭 Plan Route to These Coordinates</span>
             </button>
 
             {/* Quick Action Tools Bar (Immediately Visible!) */}
@@ -6383,9 +6497,9 @@ export function RealMarsMap() {
           </div>
         )}
 
-        {/* GOOGLE MAPS FLOATING PLACE / AREA DOSSIER CARD */}
+        {/* GOOGLE MAPS FLOATING PLACE / AREA DOSSIER CARD (Top-anchored so bottom bar NEVER overlaps it!) */}
         {selectedRegion && !activeTab && (
-          <div className="fixed bottom-[74px] left-2 right-2 sm:bottom-[76px] sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-140px)] bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 p-3.5 z-50 flex flex-col gap-2.5 animate-in slide-in-from-bottom-4 duration-200 overflow-y-auto pointer-events-auto ring-1 ring-white/10 pb-4">
+          <div className="fixed top-14 sm:top-18 left-2 right-2 sm:left-4 sm:right-auto sm:w-[410px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-140px)] bg-[#0c101a]/98 backdrop-blur-2xl border border-neutral-700/90 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 p-3.5 z-50 flex flex-col gap-2.5 animate-in slide-in-from-top-3 duration-200 overflow-y-auto pointer-events-auto ring-1 ring-white/10 pb-4">
             {/* Header with Google Red Area Outline Tag & Close Button */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -6442,7 +6556,7 @@ export function RealMarsMap() {
               title="Plan Route to this region center & evaluate Martian hazards"
             >
               <Navigation className="w-4 h-4 fill-white/20 text-white" />
-              <span>🧭 এই অঞ্চলে রুট প্ল্যান করুন (Plan Route Here)</span>
+              <span>🧭 Plan Route to Region Center</span>
             </button>
 
             {/* Google Maps Style Metric Row */}
@@ -6663,7 +6777,7 @@ export function RealMarsMap() {
                 className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-emerald-500/20 text-emerald-300 hover:text-white font-medium transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>🎯 Plan Route Here & Check Safety (রুট ও নিরাপত্তা প্ল্যান)</span>
+                <span>🎯 Plan Route Here & Check Safety</span>
               </button>
 
               <button
@@ -6832,10 +6946,12 @@ export function RealMarsMap() {
         onOpenAI={() => openPrimaryOverlay(setIsAskMarsWayOpen)}
         onOpenVoice={() => openPrimaryOverlay(setIsLiveVoiceOpen)}
         onOpenRoutePlanner={() => {
-          if (!routeStartPoint || !routeEndPoint) {
-            handleLoadDemoScenario('jezero');
+          if (activePlannedRoute || (routeStartPoint && routeEndPoint)) {
+            openPrimaryOverlay(setIsRoutePlannerModalOpen);
+            setIsRouteSafetyHUDOpen(true);
+          } else {
+            handleStartMapRoutePlanning();
           }
-          openPrimaryOverlay(setIsRoutePlannerModalOpen);
         }}
         isRoutePlanningActive={isRoutePlanningActive}
         onToggleRoutePlanning={() => {
