@@ -396,13 +396,13 @@ export function AskMarsWayModal({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 id="ask-marsway-title" className="text-base font-semibold text-white tracking-wide flex items-center gap-2">
-                Ask MarsWay AI
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-950 text-purple-400 border border-purple-800/60">
+              <h2 id="ask-marsway-title" className="text-sm sm:text-base font-semibold text-white tracking-wide flex items-center gap-2">
+                <span>Ask MarsWay AI</span>
+                <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-950 text-purple-400 border border-purple-800/60 whitespace-nowrap">
                   Spatial Intelligence
                 </span>
               </h2>
-              <p className="text-xs text-neutral-400">
+              <p className="hidden sm:block text-xs text-neutral-400">
                 Planetary query assistant powered by Gemini and NASA scientific data
               </p>
             </div>

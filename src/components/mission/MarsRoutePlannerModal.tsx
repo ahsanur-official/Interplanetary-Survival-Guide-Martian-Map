@@ -234,7 +234,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 <h3 className="font-bold text-white text-xs sm:text-sm tracking-wide">
                   <span id="mars-route-planner-title">Mars Route Planner & Directions</span>
                 </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/90 text-cyan-300 border border-cyan-500/40 font-bold">
+                <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/90 text-cyan-300 border border-cyan-500/40 font-bold whitespace-nowrap">
                   A* Multi-Objective
                 </span>
               </div>
@@ -484,7 +484,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
       </div>
 
       {/* Sub-Tabs: Overview vs Elevation Profile vs Science Stops vs AI Explainer vs Comms vs Export */}
-      <div className="flex border-b border-white/10 px-3 pt-2 gap-3 text-[11px] font-semibold overflow-x-auto shrink-0 bg-neutral-950/50">
+      <div className="flex border-b border-white/10 px-3 pt-2 gap-3 text-[11px] font-semibold overflow-x-auto no-scrollbar whitespace-nowrap shrink-0 bg-neutral-950/50">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}

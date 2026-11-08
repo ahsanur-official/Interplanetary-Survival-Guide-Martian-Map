@@ -71,11 +71,11 @@ export const MarsCompassWidget: React.FC<MarsCompassWidgetProps> = ({
       onMouseLeave={() => setShowTooltip(false)}
     >
       {/* Sleek, Crystal Clear Aerospace Compass Pod */}
-      <div className="flex items-center gap-1.5 bg-[#090d16]/95 backdrop-blur-md border border-neutral-700/80 p-1.5 rounded-2xl shadow-2xl hover:border-neutral-600 transition-all">
-        {/* Rotate Left (Counter-Clockwise 90°) */}
+      <div className="flex items-center gap-1 sm:gap-1.5 bg-[#090d16]/95 backdrop-blur-md border border-neutral-700/80 p-1 sm:p-1.5 rounded-2xl shadow-2xl hover:border-neutral-600 transition-all">
+        {/* Rotate Left (Counter-Clockwise 90°) - Desktop/Tablet */}
         <button
           onClick={(e) => handleRotateStep(-90, e)}
-          className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/90 active:scale-95 transition-all cursor-pointer"
+          className="hidden sm:flex p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/90 active:scale-95 transition-all cursor-pointer"
           title="Rotate Map Counter-Clockwise 90°"
           aria-label="Rotate Counter-Clockwise 90°"
         >
@@ -87,7 +87,7 @@ export const MarsCompassWidget: React.FC<MarsCompassWidgetProps> = ({
           <button
             onClick={handleDialClick}
             title={normalizedBearing !== 0 ? `Bearing: ${normalizedBearing}° ${cardinal.code} (${cardinal.name}) • Click to reset True North (0°)` : `Bearing: 0° N (North Up) • Click to rotate 90°`}
-            className="group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-neutral-900 to-[#070a12] border-2 border-neutral-600/90 hover:border-orange-500 shadow-xl transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50 active:scale-95"
+            className="group relative flex items-center justify-center w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-neutral-900 to-[#070a12] border-2 border-neutral-600/90 hover:border-orange-500 shadow-xl transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50 active:scale-95"
             aria-label={`Mars Compass: ${cardinal.name}`}
           >
             {/* Compass Dial Face - Rotates with Map Bearing */}
@@ -278,10 +278,10 @@ export const MarsCompassWidget: React.FC<MarsCompassWidgetProps> = ({
           </button>
         </div>
 
-        {/* Rotate Right (Clockwise 90°) */}
+        {/* Rotate Right (Clockwise 90°) - Desktop/Tablet */}
         <button
           onClick={(e) => handleRotateStep(90, e)}
-          className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/90 active:scale-95 transition-all cursor-pointer"
+          className="hidden sm:flex p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/90 active:scale-95 transition-all cursor-pointer"
           title="Rotate Map Clockwise 90°"
           aria-label="Rotate Clockwise 90°"
         >

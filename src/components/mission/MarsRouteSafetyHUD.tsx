@@ -61,7 +61,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
       role="dialog"
       aria-modal="false"
       aria-label="Route Safety Status"
-      className={`fixed top-14 sm:top-18 right-2 sm:right-4 w-[calc(100vw-16px)] sm:w-[410px] max-h-[calc(100vh-140px)] overflow-y-auto z-[500] pointer-events-auto rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 text-xs font-sans shadow-2xl backdrop-blur-2xl transition-all duration-200 border animate-in slide-in-from-top-3 ${
+      className={`fixed top-14 sm:top-18 left-2 sm:left-auto right-2 sm:right-4 w-auto sm:w-[410px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-140px)] overflow-y-auto z-[500] pointer-events-auto rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 text-xs font-sans shadow-2xl backdrop-blur-2xl transition-all duration-200 border animate-in slide-in-from-top-3 ${
         hasIssues
           ? isDangerous
             ? 'bg-[#0f090b]/98 border-red-500/60 shadow-red-950/80 ring-1 ring-red-500/40'
