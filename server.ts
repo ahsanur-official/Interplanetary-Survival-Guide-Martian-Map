@@ -26,6 +26,8 @@ import {
 import { NASA_DATASET_CATALOG } from './src/data/provenanceData';
 import { calculateAStarRoute, RouteMode } from './src/engine/marsAStarRouter';
 import { calculateMarsDistanceKm } from './src/engine/spatialMath';
+import { getMolaElevation, getMarsPressureMbar } from './src/engine/marsMolaElevation';
+import { getMarsSpaceWeatherState, SpaceWeatherScenario } from './src/engine/marsSpaceWeather';
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -329,13 +331,65 @@ async function startServer() {
     res.json({ success: true, feature: f, type: 'PlanetaryNomenclature' });
   });
 
+  // Numeric MOLA Elevation & Barometric Pressure: GET /api/elevation?lat=...&lng=...
+  app.get('/api/elevation', (req, res) => {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90) {
+      res.status(400).json({ error: 'Valid lat (-90 to 90) and lng query parameters required' });
+      return;
+    }
+
+    const elevationM = Math.round(getMolaElevation(lat, lng));
+    const pressureMbar = Number(getMarsPressureMbar(elevationM).toFixed(2));
+    const pressurePa = Math.round(pressureMbar * 100);
+
+    res.json({
+      success: true,
+      coordinate: { latitude: lat, longitude: lng },
+      elevationM,
+      pressureMbar,
+      pressurePa,
+      datum: 'IAU 2000 Mars Areoid (MGS MOLA MEGDR)',
+      scaleHeightKm: 11.1,
+      surfaceStatus: elevationM > 0 ? 'Highlands / Volcanoes' : 'Lowlands / Basins',
+    });
+  });
+
+  // Mars Space Weather & Radiation Telemetry: GET /api/weather?scenario=...
+  app.get('/api/weather', (req, res) => {
+    const scenario = (req.query.scenario as SpaceWeatherScenario) || 'quiet';
+    const state = getMarsSpaceWeatherState(scenario);
+    res.json({
+      success: true,
+      spaceWeather: state,
+      mslRadBaselineMicroGyPerDay: 635,
+    });
+  });
+
   // 6. Intelligent Marswalk Multi-Objective Route Planner: POST /api/routes/plan
   app.post('/api/routes/plan', (req, res) => {
     try {
+      const rawStart = req.body.startCoord || req.body.start;
+      const rawDest = req.body.destCoord || req.body.dest || req.body.end;
+
+      const startCoord = rawStart
+        ? {
+            latitude: typeof rawStart.latitude === 'number' ? rawStart.latitude : Number(rawStart.lat),
+            longitude: typeof rawStart.longitude === 'number' ? rawStart.longitude : Number(rawStart.lng),
+          }
+        : undefined;
+
+      const destCoord = rawDest
+        ? {
+            latitude: typeof rawDest.latitude === 'number' ? rawDest.latitude : Number(rawDest.lat),
+            longitude: typeof rawDest.longitude === 'number' ? rawDest.longitude : Number(rawDest.lng),
+          }
+        : undefined;
+
       const {
-        startCoord,
         startName,
-        destCoord,
         destName,
         regionId = 'jezero',
         constraints = {
@@ -353,10 +407,14 @@ async function startServer() {
       if (
         !startCoord ||
         typeof startCoord.latitude !== 'number' ||
+        isNaN(startCoord.latitude) ||
         typeof startCoord.longitude !== 'number' ||
+        isNaN(startCoord.longitude) ||
         !destCoord ||
         typeof destCoord.latitude !== 'number' ||
-        typeof destCoord.longitude !== 'number'
+        isNaN(destCoord.latitude) ||
+        typeof destCoord.longitude !== 'number' ||
+        isNaN(destCoord.longitude)
       ) {
         res.status(400).json({ error: 'Valid startCoord and destCoord with numeric latitude and longitude are required' });
         return;
@@ -635,28 +693,30 @@ and is not certified for operational extraterrestrial flight operations.
   // Ask MarsWay AI Assistant Endpoint (using gemini-3.8-flash)
   app.post('/api/ask-marsway', async (req, res) => {
     try {
-      const { query, context } = req.body;
-      if (!query || typeof query !== 'string') {
+      const query = (req.body.query || req.body.message || req.body.prompt || '').toString().trim();
+      const context = req.body.context || {};
+      if (!query) {
         res.status(400).json({ error: 'Query is required' });
         return;
       }
 
+      const canonicalFromQuery = resolveCanonicalMarsLocation(query);
+
       const client = getAIClient();
       if (!client) {
-        const canonical = resolveCanonicalMarsLocation(query);
         res.json({
           source: 'local-knowledge',
-          answer: canonical
-            ? `MarsWay built-in spatial planetary dataset located: ${canonical.name} at coordinates (${canonical.lat.toFixed(2)}°, ${canonical.lng.toFixed(2)}°), elevation ${canonical.elevationM}m.`
-            : `[AI Studio Gemini key not configured in environment; utilizing MarsWay built-in spatial planetary intelligence dataset]. For: "${query}", explore the interactive map, mission layers, and location telemetry.`,
-          action: canonical
+          answer: canonicalFromQuery
+            ? `MarsWay spatial index: ${canonicalFromQuery.name} is located at (${canonicalFromQuery.lat.toFixed(2)}°, ${canonicalFromQuery.lng.toFixed(2)}°) with an elevation of ${canonicalFromQuery.elevationM.toLocaleString()} meters.`
+            : `Regarding "${query}": Mars is a terrestrial desert planet with mean radius 3,389.5 km. Explore the interactive map layers, terrain elevation profiles, and rover mission logs for direct observations.`,
+          action: canonicalFromQuery
             ? {
                 type: 'fly_to',
-                lat: canonical.lat,
-                lng: canonical.lng,
-                zoom: canonical.zoom,
-                name: canonical.name,
-                elevationM: canonical.elevationM,
+                lat: canonicalFromQuery.lat,
+                lng: canonicalFromQuery.lng,
+                zoom: canonicalFromQuery.zoom,
+                name: canonicalFromQuery.name,
+                elevationM: canonicalFromQuery.elevationM,
               }
             : null,
         });
@@ -704,34 +764,47 @@ CRITICAL RULES:
      "action": { ... } | null
    }`;
 
-      const response = await client.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `${systemPrompt}\n\nCurrent Map Context: ${JSON.stringify(context || {})}\n\nUser Question: ${query}\n\nRespond with strict JSON only.`,
-              },
-            ],
-          },
-        ],
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-        },
-      });
-
-      const responseText = response.text || '{}';
-      let parsed: any = {};
+      let parsed: any = null;
       try {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI response timed out')), 5000)
+        );
+
+        const aiPromise = client.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `${systemPrompt}\n\nCurrent Map Context: ${JSON.stringify(context || {})}\n\nUser Question: ${query}\n\nRespond with strict JSON only.`,
+                },
+              ],
+            },
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+          },
+        });
+
+        const response = await Promise.race([aiPromise, timeoutPromise]);
+        const responseText = response.text || '{}';
         parsed = JSON.parse(responseText);
-      } catch {
-        parsed = { answer: responseText, action: null };
+      } catch (aiErr) {
+        console.warn('Gemini generateContent fell back to local spatial database:', aiErr);
+      }
+
+      if (!parsed || !parsed.answer) {
+        parsed = {
+          answer: canonicalFromQuery
+            ? `MarsWay planetary intelligence: ${canonicalFromQuery.name} located at coordinates (${canonicalFromQuery.lat.toFixed(2)}°, ${canonicalFromQuery.lng.toFixed(2)}°), elevation ${canonicalFromQuery.elevationM.toLocaleString()}m based on MGS MOLA altimetry.`
+            : `Regarding "${query}": Mars exploration requires multi-layer assessment. Use the layer manager, rover traverse tracks, and A* route planner to evaluate slopes and scientific opportunities.`,
+          action: null,
+        };
       }
 
       // Canonical snapping & auto-detection: Guarantee 100% accurate coordinates for all Martian targets
-      const canonicalFromQuery = resolveCanonicalMarsLocation(query);
       if (parsed.action && parsed.action.type === 'fly_to') {
         const canonical = resolveCanonicalMarsLocation(parsed.action.name) || canonicalFromQuery;
         if (canonical) {
@@ -742,7 +815,6 @@ CRITICAL RULES:
           parsed.action.elevationM = canonical.elevationM;
         }
       } else if (!parsed.action && canonicalFromQuery) {
-        // User asked for a location or rover in any language, auto-attach certified fly_to action
         parsed.action = {
           type: 'fly_to',
           lat: canonicalFromQuery.lat,
@@ -754,14 +826,28 @@ CRITICAL RULES:
       }
 
       res.json({
-        source: 'gemini-3.8-flash',
+        source: parsed.source || 'gemini-3.8-flash',
         ...parsed,
       });
     } catch (err: any) {
-      console.error('Gemini API query error:', err);
-      res.status(500).json({
-        error: 'AI query processing failure',
-        details: err?.message || 'Unknown error',
+      console.error('Ask MarsWay error:', err);
+      const query = (req.body.query || req.body.message || '').toString();
+      const canonical = resolveCanonicalMarsLocation(query);
+      res.json({
+        source: 'local-knowledge-fallback',
+        answer: canonical
+          ? `MarsWay spatial index: ${canonical.name} located at (${canonical.lat.toFixed(2)}°, ${canonical.lng.toFixed(2)}°), elevation ${canonical.elevationM}m.`
+          : 'MarsWay spatial database active. Navigate across the 3D globe and 2D map to inspect mission locations.',
+        action: canonical
+          ? {
+              type: 'fly_to',
+              lat: canonical.lat,
+              lng: canonical.lng,
+              zoom: canonical.zoom,
+              name: canonical.name,
+              elevationM: canonical.elevationM,
+            }
+          : null,
       });
     }
   });

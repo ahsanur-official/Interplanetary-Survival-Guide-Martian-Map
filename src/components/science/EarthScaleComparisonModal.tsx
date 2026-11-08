@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Globe2,
@@ -64,14 +65,16 @@ export const EarthScaleComparisonModal: React.FC<EarthScaleComparisonModalProps>
     }
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto select-text"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0c101a] border border-cyan-500/50 rounded-2xl shadow-2xl shadow-cyan-950/40 flex flex-col overflow-hidden text-neutral-200">
+      <div className="relative w-full max-w-4xl max-h-[85vh] my-auto bg-[#0c101a] border border-cyan-500/50 rounded-2xl shadow-2xl shadow-cyan-950/40 flex flex-col overflow-hidden text-neutral-200 animate-in zoom-in-95 duration-200">
         {/* Modal Header */}
         <div className="px-3.5 sm:px-5 py-3 sm:py-4 bg-gradient-to-r from-neutral-900 via-neutral-900 to-cyan-950/40 border-b border-neutral-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -306,6 +309,7 @@ export const EarthScaleComparisonModal: React.FC<EarthScaleComparisonModalProps>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

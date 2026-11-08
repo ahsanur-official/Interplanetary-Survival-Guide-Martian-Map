@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Navigation,
@@ -212,9 +213,11 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
     window.print();
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 pointer-events-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 pointer-events-auto animate-in fade-in duration-200 select-text"
       role="dialog"
       aria-modal="true"
       aria-labelledby="mars-route-planner-title"
@@ -222,7 +225,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-[#070b14]/98 border border-cyan-500/50 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 flex flex-col text-neutral-200 w-full max-w-2xl max-h-[92vh] overflow-hidden font-sans text-xs ring-1 ring-cyan-500/30">
+      <div className="bg-[#070b14]/98 border border-cyan-500/50 rounded-2xl sm:rounded-3xl shadow-2xl shadow-black/95 flex flex-col text-neutral-200 w-full max-w-2xl max-h-[85vh] my-auto overflow-hidden font-sans text-xs ring-1 ring-cyan-500/30">
         {/* Top Header */}
         <div className="p-3 sm:p-3.5 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -1149,6 +1152,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         </button>
       </div>
     </div>
-  </div>
-  );
+  </div>,
+  document.body
+);
 };

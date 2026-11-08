@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Droplets,
   Wind,
@@ -60,13 +61,15 @@ export const MarsScienceDossierModal: React.FC<MarsScienceDossierModalProps> = (
     onClose();
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto select-text"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto select-text"
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-[#0b0f19] border border-orange-500/40 rounded-2xl shadow-2xl overflow-hidden text-neutral-200 animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-2xl max-h-[85vh] my-auto flex flex-col bg-[#0b0f19] border border-orange-500/40 rounded-2xl shadow-2xl overflow-hidden text-neutral-200 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -448,6 +451,7 @@ export const MarsScienceDossierModal: React.FC<MarsScienceDossierModalProps> = (
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -2315,9 +2315,6 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                   name: site.name,
                   science: sc,
                 });
-                if (onOpenPlaceIdentifier) {
-                  onOpenPlaceIdentifier(site);
-                }
               }}
             >
               <div
@@ -2816,13 +2813,17 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (!inspectedCoord && selectedSite) {
-                  const sc = analyzeMarsLocationScience(selectedSite.lat, selectedSite.lng, selectedSite.elevationM);
+                const targetLat = inspectedCoord?.lat ?? selectedSite?.lat ?? 18.38;
+                const targetLng = inspectedCoord?.lng ?? selectedSite?.lng ?? 77.58;
+                const targetElev = inspectedCoord?.elevationM ?? selectedSite?.elevationM ?? -2500;
+                const targetName = inspectedCoord?.name || selectedSite?.name || 'Martian Surface Target';
+                if (!inspectedCoord) {
+                  const sc = analyzeMarsLocationScience(targetLat, targetLng, targetElev);
                   setInspectedCoord({
-                    lat: selectedSite.lat,
-                    lng: selectedSite.lng,
-                    elevationM: selectedSite.elevationM,
-                    name: selectedSite.name,
+                    lat: targetLat,
+                    lng: targetLng,
+                    elevationM: targetElev,
+                    name: targetName,
                     science: sc,
                   });
                 }
@@ -2836,10 +2837,23 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
 
             {/* Secondary Actions */}
             <div className="flex items-center gap-2 pt-1 border-t border-neutral-800/80 flex-wrap">
-              {selectedSite && onOpenPlaceIdentifier && (
+              {onOpenPlaceIdentifier && (
                 <button
                   type="button"
-                  onClick={() => onOpenPlaceIdentifier(selectedSite)}
+                  onClick={() => {
+                    const feat = selectedSite || {
+                      id: `site-${inspectedCoord?.lat ?? 18.38}-${inspectedCoord?.lng ?? 77.58}`,
+                      name: inspectedCoord?.name || 'Martian Surface Target',
+                      type: 'Surface Feature' as any,
+                      lat: inspectedCoord?.lat ?? 18.38,
+                      lng: inspectedCoord?.lng ?? 77.58,
+                      planetocentricLng: ((inspectedCoord?.lng ?? 77.58) + 360) % 360,
+                      elevationM: inspectedCoord?.elevationM ?? -2500,
+                      originName: 'Target Coordinates',
+                      description: 'Martian surface coordinate sector analyzed via MOLA laser altimetry.',
+                    };
+                    onOpenPlaceIdentifier(feat);
+                  }}
                   className="flex-1 py-1.5 px-2.5 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-600/70 text-orange-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                   title="Detailed Geological & Nomenclature Dossier"
                 >
@@ -2848,10 +2862,10 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 </button>
               )}
 
-              {selectedSite && onOpenEarthComparison && (
+              {onOpenEarthComparison && (
                 <button
                   type="button"
-                  onClick={() => onOpenEarthComparison(selectedSite.id)}
+                  onClick={() => onOpenEarthComparison(selectedSite?.id)}
                   className="flex-1 py-1.5 px-2.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-600/70 text-cyan-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                   title="Compare Physical Scale to Earth Landmarks"
                 >
@@ -2860,21 +2874,33 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                 </button>
               )}
 
-              {selectedSite && (
-                <button
-                  type="button"
-                  onClick={() => onOpenNASACloseUp(selectedSite.name)}
-                  className="py-1.5 px-2.5 rounded-xl bg-neutral-850 hover:bg-neutral-750 text-neutral-200 hover:text-white border border-neutral-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
-                >
-                  <Camera className="w-3.5 h-3.5 text-orange-400" />
-                  <span>Photos</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => onOpenNASACloseUp(selectedSite?.name || inspectedCoord?.name || 'Martian Surface Target')}
+                className="py-1.5 px-2.5 rounded-xl bg-neutral-850 hover:bg-neutral-750 text-neutral-200 hover:text-white border border-neutral-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                title="View NASA In-Situ Photos"
+              >
+                <Camera className="w-3.5 h-3.5 text-orange-400" />
+                <span>Photos</span>
+              </button>
 
               {onOpenElevationProfile && (
                 <button
                   type="button"
-                  onClick={() => onOpenElevationProfile(selectedSite || undefined)}
+                  onClick={() => {
+                    const feat = selectedSite || (inspectedCoord ? {
+                      id: `site-${inspectedCoord.lat}-${inspectedCoord.lng}`,
+                      name: inspectedCoord.name || 'Selected Coordinate',
+                      lat: inspectedCoord.lat,
+                      lng: inspectedCoord.lng,
+                      planetocentricLng: (inspectedCoord.lng + 360) % 360,
+                      elevationM: inspectedCoord.elevationM,
+                      type: 'Surface Feature' as any,
+                      originName: 'Target Coordinates',
+                      description: 'Martian surface transect point.',
+                    } : undefined);
+                    onOpenElevationProfile(feat);
+                  }}
                   className="py-1.5 px-2.5 rounded-xl bg-orange-950/80 hover:bg-orange-900 border border-orange-700/80 text-orange-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                   title="Analyze MOLA Elevation Profile from this location"
                 >
@@ -3092,23 +3118,24 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       )}
 
       {/* PLANETARY SCIENCE DOSSIER MODAL */}
-      {inspectedCoord && (
+      {isDossierModalOpen && (
         <MarsScienceDossierModal
           isOpen={isDossierModalOpen}
           onClose={() => setIsDossierModalOpen(false)}
-          lat={inspectedCoord.lat}
-          lng={inspectedCoord.lng}
-          elevationM={inspectedCoord.elevationM}
-          featureName={inspectedCoord.name}
+          lat={inspectedCoord?.lat ?? selectedSite?.lat ?? 18.38}
+          lng={inspectedCoord?.lng ?? selectedSite?.lng ?? 77.58}
+          elevationM={inspectedCoord?.elevationM ?? selectedSite?.elevationM ?? -2500}
+          featureName={inspectedCoord?.name || selectedSite?.name || 'Martian Surface Target'}
+          featureType={selectedSite?.type}
           onOpenNASACloseUp={onOpenNASACloseUp}
         />
       )}
 
       {/* MARTIAN MOONS DOSSIER MODAL (PHOBOS & DEIMOS) */}
-      {selectedMoon && (
+      {isMoonModalOpen && (
         <MarsMoonDossierModal
           isOpen={isMoonModalOpen}
-          moonId={selectedMoon}
+          moonId={selectedMoon || 'phobos'}
           onClose={() => {
             setIsMoonModalOpen(false);
             setSelectedMoon(null);

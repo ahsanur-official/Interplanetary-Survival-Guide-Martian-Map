@@ -607,23 +607,15 @@ export function RealMarsMap() {
   const [isNasaLandingSiteModalOpen, setIsNasaLandingSiteModalOpen] = useState<boolean>(false);
   const nasaMissionsLayerRef = useRef<L.LayerGroup | null>(null);
 
-  // Marswalk EVA Route Planner Modal & Multi-Transport Engine State
+  // Marswalk EVA Route Planner Modal & Multi-Transport Engine State (Starts completely clean with NO demo route)
   const [isRoutePlannerModalOpen, setIsRoutePlannerModalOpen] = useState<boolean>(false);
-  const [isRouteSafetyHUDOpen, setIsRouteSafetyHUDOpen] = useState<boolean>(true);
-  const [showRouteComparisonOnMap, setShowRouteComparisonOnMap] = useState<boolean>(true);
+  const [isRouteSafetyHUDOpen, setIsRouteSafetyHUDOpen] = useState<boolean>(false);
+  const [showRouteComparisonOnMap, setShowRouteComparisonOnMap] = useState<boolean>(false);
   const [routeTransportMode, setRouteTransportMode] = useState<MarsTransportModeType>('foot');
   const [routeCrewConfig, setRouteCrewConfig] = useState<CrewBuddyConfigType>('buddy_pair');
   const [routeMode, setRouteMode] = useState<RouteMode>('safest');
-  const [routeStartPoint, setRouteStartPoint] = useState<{ lat: number; lng: number; name?: string } | null>({
-    lat: 18.4447,
-    lng: 77.4508,
-    name: 'Octavia E. Butler Landing (Jezero Base)',
-  });
-  const [routeEndPoint, setRouteEndPoint] = useState<{ lat: number; lng: number; name?: string } | null>({
-    lat: 18.435,
-    lng: 77.395,
-    name: 'Kodiak Delta Remnant',
-  });
+  const [routeStartPoint, setRouteStartPoint] = useState<{ lat: number; lng: number; name?: string } | null>(null);
+  const [routeEndPoint, setRouteEndPoint] = useState<{ lat: number; lng: number; name?: string } | null>(null);
 
   const handleStartMapRoutePlanning = () => {
     setIsRoutePlannerModalOpen(false);
@@ -4998,7 +4990,7 @@ export function RealMarsMap() {
               }}
               onOpenNASACloseUp={(name) => {
                 setCloseUpSearchTarget(name);
-                setIsCloseUpModalOpen(true);
+                openPrimaryOverlay(setIsCloseUpModalOpen);
               }}
               onOpenEarthComparison={(compTargetId) => {
                 if (compTargetId) {
@@ -5010,31 +5002,43 @@ export function RealMarsMap() {
                     setActiveEarthComparison(match);
                   }
                 }
-                setIsEarthComparisonOpen(true);
+                openPrimaryOverlay(setIsEarthComparisonOpen);
               }}
               onOpenPlaceIdentifier={(feature) => {
                 setPlaceIdentifierFeature(feature);
-                setIsPlaceIdentifierOpen(true);
+                openPrimaryOverlay(setIsPlaceIdentifierOpen);
               }}
               onOpenElevationProfile={(feature) => {
-                setViewMode('2d');
                 if (feature) {
-                  // Set Point A at feature and ask user to click Point B, or open with preset/ready state
                   const ptA = {
-                    lat: feature.lat,
-                    lng: feature.lng,
-                    name: `Point A (${feature.name})`,
+                    lat: Math.max(-85, feature.lat - 1.2),
+                    lng: feature.lng - 2.0,
+                    name: `${feature.name} West Inflow`,
                   };
-                  setElevationPoints([ptA]);
-                  setElevationProfile(null);
-                  setIsDrawingElevationLine(true);
-                  setTimeout(() => {
-                    mapInstanceRef.current?.setView([feature.lat, feature.lng], 6, { animate: true });
-                  }, 80);
+                  const ptB = {
+                    lat: Math.min(85, feature.lat + 1.2),
+                    lng: feature.lng + 2.0,
+                    name: `${feature.name} Summit Rim`,
+                  };
+                  setElevationPoints([ptA, ptB]);
+                  const prof = generateElevationTransect(
+                    ptA.lat,
+                    ptA.lng,
+                    ptB.lat,
+                    ptB.lng,
+                    120,
+                    ptA.name,
+                    ptB.name
+                  );
+                  setElevationProfile(prof);
+                  openPrimaryOverlay(setIsElevationProfileOpen);
                 } else if (elevationProfile) {
-                  setIsElevationProfileOpen(true);
+                  openPrimaryOverlay(setIsElevationProfileOpen);
+                } else if (PRESET_MARS_TRANSECTS && PRESET_MARS_TRANSECTS.length > 0) {
+                  handleSelectElevationPreset(PRESET_MARS_TRANSECTS[0]);
+                  openPrimaryOverlay(setIsElevationProfileOpen);
                 } else {
-                  setIsDrawingElevationLine(true);
+                  openPrimaryOverlay(setIsElevationProfileOpen);
                 }
               }}
               telemetry={ephemeris}
@@ -6474,7 +6478,8 @@ export function RealMarsMap() {
 
             {/* Instant In-Situ Environmental & Safety Science Analysis */}
             {(() => {
-              const sc = analyzeMarsLocationScience(inspectedPoint.lat, inspectedPoint.lng);
+              const elevM = getMolaElevation(inspectedPoint.lat, inspectedPoint.lng);
+              const sc = analyzeMarsLocationScience(inspectedPoint.lat, inspectedPoint.lng, elevM);
               return (
                 <div className="bg-neutral-900/90 rounded-xl p-2.5 border border-neutral-800 space-y-2 text-[10.5px]">
                   {/* Water / Ice Depth & Abundance */}
@@ -6522,11 +6527,12 @@ export function RealMarsMap() {
             {/* Environmental & Planetary Science Dossier Button */}
             <button
               onClick={() => {
+                const elevM = getMolaElevation(inspectedPoint.lat, inspectedPoint.lng);
                 setScienceDossierTarget({
                   lat: inspectedPoint.lat,
                   lng: inspectedPoint.lng,
-                  elevationM: 0,
-                  name: inspectedPoint.nearestFeature ? `Near ${inspectedPoint.nearestFeature.name}` : `Surface (${inspectedPoint.lat}°, ${inspectedPoint.lng}°)`,
+                  elevationM: Math.round(elevM),
+                  name: inspectedPoint.nearestFeature ? `Near ${inspectedPoint.nearestFeature.name}` : `Surface (${inspectedPoint.lat.toFixed(2)}°, ${inspectedPoint.lng.toFixed(2)}°)`,
                   type: 'Inspected Surface Point',
                 });
                 setIsScienceDossierOpen(true);

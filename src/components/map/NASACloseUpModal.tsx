@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Search,
@@ -76,9 +77,11 @@ export const NASACloseUpModal: React.FC<NASACloseUpModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -87,7 +90,7 @@ export const NASACloseUpModal: React.FC<NASACloseUpModalProps> = ({
     >
       <div
         className={`relative w-full bg-[#0c101a] border border-neutral-700/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-neutral-200 transition-all ${
-          isFullscreen ? 'fixed inset-2 z-50 h-[calc(100vh-1rem)]' : 'max-w-6xl h-[92vh] max-h-[900px]'
+          isFullscreen ? 'fixed inset-2 z-[99999] h-[calc(100vh-1rem)]' : 'max-w-6xl max-h-[88vh] my-auto'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -469,6 +472,7 @@ export const NASACloseUpModal: React.FC<NASACloseUpModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

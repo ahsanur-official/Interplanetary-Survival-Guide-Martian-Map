@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Mountain,
@@ -229,11 +230,11 @@ export function ElevationProfileModal({
     return samples.reduce((min, s) => (s.elevationM < min.elevationM ? s : min), samples[0]);
   }, [samples]);
 
-  if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
-      className={`fixed z-[9999] transition-all duration-300 font-sans ${
+      className={`fixed z-[99999] transition-all duration-300 font-sans ${
         isMinimized
           ? 'bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-96'
           : 'bottom-0 left-0 right-0 sm:bottom-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[94vw] sm:max-w-4xl'
@@ -858,6 +859,7 @@ export function ElevationProfileModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

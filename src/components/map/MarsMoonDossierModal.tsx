@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Compass,
@@ -139,6 +140,7 @@ export const MarsMoonDossierModal: React.FC<MarsMoonDossierModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen || !moonId) return null;
+  if (typeof document === 'undefined') return null;
 
   const data = MARS_MOONS_DATA[moonId];
 
@@ -150,13 +152,13 @@ export const MarsMoonDossierModal: React.FC<MarsMoonDossierModalProps> = ({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto select-text"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto select-text"
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-xl max-h-[92vh] flex flex-col bg-[#0b0f19] border border-orange-500/40 rounded-2xl shadow-2xl overflow-hidden text-neutral-200 animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-xl max-h-[85vh] my-auto flex flex-col bg-[#0b0f19] border border-orange-500/40 rounded-2xl shadow-2xl overflow-hidden text-neutral-200 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -358,6 +360,7 @@ export const MarsMoonDossierModal: React.FC<MarsMoonDossierModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
