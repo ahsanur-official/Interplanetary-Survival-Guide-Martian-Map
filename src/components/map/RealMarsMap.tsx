@@ -1306,6 +1306,13 @@ export function RealMarsMap() {
         setInteractiveRoutePlotStep(null);
         setIsRouteSafetyHUDOpen(true);
         setShowRouteComparisonOnMap(true);
+        if (routeStartPoint) {
+          const bounds = L.latLngBounds([
+            [routeStartPoint.lat, routeStartPoint.lng],
+            [lat, cleanLng],
+          ]);
+          map.fitBounds(bounds, { padding: [70, 70], maxZoom: 8 });
+        }
         marsSonification.sonifyLocation(elev, 2);
         return;
       }
@@ -3370,7 +3377,8 @@ export function RealMarsMap() {
       } else {
         // Standard route rendering
         const routeCoords: [number, number][] = activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]);
-        const routeColor = routeMode === 'safest' ? '#10b981' : routeMode === 'science' ? '#a855f7' : '#f59e0b';
+        const isSafeRoute = routeSafetyAssessment ? routeSafetyAssessment.isSafe : true;
+        const routeColor = isSafeRoute || routeMode === 'safest' ? '#10b981' : routeMode === 'science' ? '#a855f7' : '#10b981';
         const polyline = L.polyline(routeCoords, {
           color: routeColor,
           weight: 5,
@@ -7181,6 +7189,7 @@ export function RealMarsMap() {
           showComparisonOnMap={showRouteComparisonOnMap}
           onToggleShowComparison={() => setShowRouteComparisonOnMap((prev) => !prev)}
           onClose={() => setIsRouteSafetyHUDOpen(false)}
+          onCancelRoute={handleCancelAndClearRoute}
         />
       )}
 
