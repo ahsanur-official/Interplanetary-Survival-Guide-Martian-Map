@@ -4123,32 +4123,33 @@ export function RealMarsMap() {
   return (
     <div className="relative w-full h-full flex flex-col bg-[#080b11] overflow-hidden select-none font-sans text-neutral-100">
       {/* Top Header Bar: Clean, Minimal & Responsive Aerospace HUD */}
-      <header className="z-25 bg-[#070b14]/95 backdrop-blur-2xl border-b border-white/[0.08] px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-3 shadow-xl shadow-black/60 shrink-0 w-full overflow-hidden">
+      <header className="z-25 bg-[#070b14]/95 backdrop-blur-2xl border-b border-white/[0.08] px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-2 shadow-xl shadow-black/60 shrink-0 w-full min-w-0">
         {/* Brand */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
           <div className="relative group shrink-0">
             <img
               src="/assets/aistudio/image_5c943629.png"
               alt="MARSWAY"
-              className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg shadow-md shadow-orange-950/60 ring-1 ring-orange-500/40 object-cover group-hover:scale-105 transition-transform"
+              className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-lg shadow-md shadow-orange-950/60 ring-1 ring-orange-500/40 object-cover group-hover:scale-105 transition-transform"
             />
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-extrabold text-white tracking-wider text-xs sm:text-sm font-sans whitespace-nowrap">MARSWAY</span>
             <span className="hidden md:inline-block text-[9px] font-mono tracking-wider px-1.5 py-0.5 rounded bg-orange-950/80 text-orange-400 border border-orange-700/60 font-semibold whitespace-nowrap">
               NASA GIS
             </span>
-            <span className="hidden xl:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950/70 text-red-300 border border-red-800/60 whitespace-nowrap" title="Educational decision-support prototype; not certified for operational EVA flight.">
+            <span className="hidden 2xl:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950/70 text-red-300 border border-red-800/60 whitespace-nowrap" title="Educational decision-support prototype; not certified for operational EVA flight.">
               NOT FLIGHT-CERTIFIED
             </span>
           </div>
         </div>
 
         {/* Primary View Mode Switcher: 3D | 2D | Astronaut EVA */}
-        <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-black/50 border border-white/10 shadow-inner shrink-0">
+        <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-black/60 border border-white/10 shadow-inner shrink-0">
           <button
+            type="button"
             onClick={() => setViewMode('3d')}
-            className={`px-1.5 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               viewMode === '3d'
                 ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md shadow-orange-950/60'
                 : 'text-neutral-400 hover:text-white'
@@ -4160,11 +4161,12 @@ export function RealMarsMap() {
             <span className="md:hidden">3D</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               setViewMode('2d');
               setTimeout(() => safeInvalidateSize(), 60);
             }}
-            className={`px-1.5 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               viewMode === '2d'
                 ? 'bg-white/15 text-white shadow border border-white/15'
                 : 'text-neutral-400 hover:text-white'
@@ -4176,8 +4178,9 @@ export function RealMarsMap() {
             <span className="md:hidden">2D</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('astronaut')}
-            className={`px-1.5 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               viewMode === 'astronaut'
                 ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-950/60 border border-cyan-400/40'
                 : 'text-neutral-400 hover:text-white'
@@ -4192,8 +4195,21 @@ export function RealMarsMap() {
 
         {/* Right side actions - Guaranteed to fit and never overflow on mobile */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
+          {/* Universal Search Modal Button (Tablet & desktop only to keep mobile uncluttered) */}
+          <button
+            type="button"
+            onClick={() => openPrimaryOverlay(setIsSearchModalOpen)}
+            className="hidden sm:flex p-1.5 sm:px-2 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition cursor-pointer shrink-0"
+            title="Search Martian features, rovers & coordinates"
+            aria-label="Search"
+          >
+            <Search className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+            <span className="hidden xl:inline font-medium whitespace-nowrap">Search</span>
+          </button>
+
           {/* Header Route Plan Button */}
           <button
+            type="button"
             onClick={() => {
               if (interactiveRoutePlotStep) {
                 setInteractiveRoutePlotStep(null);
@@ -4209,14 +4225,16 @@ export function RealMarsMap() {
                 : 'bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-200 border-cyan-500/50 hover:text-white'
             }`}
             title="Interactive Route Planner: Click on map from where to where to evaluate hazards"
+            aria-label="Route Planner"
           >
             <Navigation className="w-3.5 h-3.5 text-cyan-200 fill-cyan-300/40 shrink-0" />
-            <span className="hidden sm:inline font-semibold text-xs whitespace-nowrap">Route Plan</span>
+            <span className="hidden md:inline font-semibold text-xs whitespace-nowrap">Route Plan</span>
           </button>
 
           {/* Quick Clear / Reset Route Button if route is active */}
           {(activePlannedRoute || routeStartPoint || routeEndPoint) && (
             <button
+              type="button"
               onClick={handleCancelAndClearRoute}
               className="p-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 border border-red-500/50 text-red-300 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
               title="Clear / Cancel Current Route"
@@ -4225,20 +4243,10 @@ export function RealMarsMap() {
             </button>
           )}
 
-          {/* Universal Search Modal Button (Large desktop only) */}
-          <button
-            onClick={() => openPrimaryOverlay(setIsSearchModalOpen)}
-            className="hidden lg:flex p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition cursor-pointer shrink-0"
-            title="Search Martian features, rovers & coordinates"
-            aria-label="Search"
-          >
-            <Search className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-            <span className="hidden xl:inline font-medium whitespace-nowrap">Search</span>
-          </button>
-
           {/* Desktop-only secondary buttons */}
           <div className="hidden xl:flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => openPrimaryOverlay(setIsMissionExplorerOpen)}
               className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
               title="Browse missions"
@@ -4247,6 +4255,7 @@ export function RealMarsMap() {
               <span>Missions</span>
             </button>
             <button
+              type="button"
               onClick={() => openPrimaryOverlay(setIsHumanMissionModeOpen)}
               className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
               title="Base Planning"
@@ -4258,6 +4267,7 @@ export function RealMarsMap() {
 
           {/* Ask AI button (Medium+ desktop header only) */}
           <button
+            type="button"
             onClick={() => openPrimaryOverlay(setIsAskMarsWayOpen)}
             className="hidden md:flex px-2 sm:px-2.5 py-1.5 rounded-xl bg-purple-950/70 hover:bg-purple-900/80 border border-purple-600/50 text-xs text-purple-200 hover:text-white items-center gap-1.5 transition cursor-pointer active:scale-95 shrink-0"
             title="Ask MarsWay AI"
@@ -4271,7 +4281,7 @@ export function RealMarsMap() {
             id="mars-global-hamburger-button"
             type="button"
             onClick={() => setIsHamburgerOpen(!isHamburgerOpen)}
-            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 shadow-sm active:scale-95 ${
+            className={`flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 shadow-sm active:scale-95 ${
               isHamburgerOpen
                 ? 'bg-orange-600 text-white border-orange-400 shadow-orange-950/80 shadow-md ring-2 ring-orange-400/40'
                 : 'bg-orange-950/60 hover:bg-orange-900/80 text-orange-200 border-orange-500/50 hover:text-white'
@@ -4280,7 +4290,7 @@ export function RealMarsMap() {
             aria-label="Menu"
           >
             <Menu className="w-4 h-4 text-orange-400 shrink-0" />
-            <span className="font-bold text-xs whitespace-nowrap">Menu</span>
+            <span className="hidden sm:inline font-bold text-xs whitespace-nowrap">Menu</span>
           </button>
         </div>
       </header>
