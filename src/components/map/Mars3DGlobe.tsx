@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import {
   Globe,
@@ -2730,9 +2731,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       )}
 
       {/* BOTTOM INSPECTION CARD (Single unified card for surface point, rover, or landmark) */}
-      {(inspectedCoord || selectedSite) && (
-        <div className="absolute bottom-18 sm:bottom-4 left-2 right-2 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-neutral-200 max-h-[46vh] sm:max-h-[72vh] overflow-y-auto">
+      {(inspectedCoord || selectedSite) && typeof document !== 'undefined' && createPortal(
+        <div className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-4 left-2 right-2 sm:left-4 sm:right-auto sm:w-[380px] max-w-[calc(100vw-16px)] z-[9998] pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-[#090d16]/95 backdrop-blur-xl border border-orange-500/60 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-neutral-200 max-h-[calc(100dvh-7.5rem)] sm:max-h-[72vh] overflow-y-auto overscroll-contain">
             {/* Header */}
             <div className="flex items-start justify-between gap-2 border-b border-neutral-800 pb-2.5">
               <div className="min-w-0">
@@ -2757,7 +2758,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
                       : ''}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-white mt-1 truncate">
+                <h3 className="text-base font-bold text-white mt-1 leading-snug line-clamp-2 break-words">
                   {selectedSite?.name || inspectedCoord?.name || 'Martian Surface Sector'}
                 </h3>
               </div>
@@ -2935,7 +2936,8 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* QUICK SATELLITES FLY DOCK (Phobos & Deimos Moons) - Tablet & Desktop only to keep mobile uncluttered */}
@@ -3150,7 +3152,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       {/* MOBILE FULL-WIDTH LAYER SELECTOR SHEET WITH BACKDROP (Zero Overlap with Right Controls) */}
       {isLayerMenuOpen && (
         <div
-          className="sm:hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex flex-col justify-end p-3 animate-in fade-in duration-200"
+          className="sm:hidden fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xs flex flex-col justify-end p-3 pt-[4.75rem] animate-in fade-in duration-200"
           onClick={() => setIsLayerMenuOpen(false)}
         >
           <div

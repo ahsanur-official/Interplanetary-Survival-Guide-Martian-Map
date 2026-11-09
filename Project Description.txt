@@ -1,164 +1,229 @@
-MARSWAY - FULL PROJECT DESCRIPTION
-===================================
+MARSWAY - DETAILED PROJECT DESCRIPTION
+=======================================
 
-1. PROJECT IDENTITY
--------------------
+PROJECT IDENTITY
+----------------
 
 Project name: MarsWay
 Tagline: Explore Mars. Navigate Safer. Discover More.
-Project type: Interactive planetary GIS and Mars mission-planning prototype.
-Primary audience: Students, educators, planetary science enthusiasts, researchers, and mission-planning demonstrators.
-Challenge context: NASA Space Apps Challenge 2026 - Interplanetary Survival Guide: Martian Map.
+Type: Interactive planetary GIS, science explorer, EVA visualizer, and mission-planning prototype.
+Challenge: NASA Space Apps Challenge 2026 - Interplanetary Survival Guide: Martian Map.
+Audience: Students, educators, planetary science enthusiasts, researchers, and mission-planning demonstrators.
 
-MarsWay is a browser-based Mars exploration console. It combines a global 2D map, a Three.js Mars globe, astronaut EVA visualization, official feature search, environmental science cards, terrain-aware route planning, mission tools, and an offline local assistant.
+IMPORTANT SAFETY NOTE
+---------------------
 
-MarsWay is an educational and research prototype. It is not flight-certified software and must not be used as the sole source for real astronaut or rover navigation.
+MarsWay is an educational and research prototype. It is not flight-certified software, a certified digital elevation model, or an operational navigation system. It must not replace astronaut judgement, rover AutoNav, engineering review, real-time obstacle detection, geotechnical analysis, or mission safety certification.
 
-2. PROBLEM STATEMENT
+1. EXECUTIVE SUMMARY
 --------------------
 
-Mars information is distributed across planetary nomenclature databases, orbital imagery archives, elevation products, rover records, atmospheric measurements, and mission documents. A feature name alone does not explain whether its terrain is traversable. A map line alone does not explain how slope, soil, hazards, pressure, dust, or travel mode affect a route.
+MarsWay is a browser-based Mars exploration console. It combines a global 2D GIS map, Three.js Mars globe, first-person Astronaut EVA presentation, official feature search, environmental science, mission/rover context, explainable route planning, and an offline multilingual assistant.
 
-MarsWay connects these pieces in one visual interface. A user can search for a named place, inspect the science context, select a route, compare the safety/time trade-off, and ask the local assistant to explain the result.
+Mars data is distributed across naming catalogues, orbital imagery, topography, mineralogy, rover archives, atmospheric instruments, radiation measurements, and mission documentation. MarsWay brings those data families into one workflow so a user can find a place, understand its science, select a route, compare safety and time, and receive a local explanation.
 
-3. PROJECT GOALS
+2. PROJECT GOALS
 ----------------
 
-1. Make Mars geography and named features easy to explore.
-2. Connect places with scientific, environmental, and mission context.
-3. Demonstrate explainable multi-objective route planning.
-4. Show why the safest route may be longer than the shortest route.
-5. Separate observed, historical, derived, modeled, and simulated information.
-6. Make complex planetary science understandable to a general user.
-7. Provide useful basic multilingual assistance without an external AI key.
+- Make official Mars geography easy to explore.
+- Connect a place with geological, environmental, resource, and mission context.
+- Demonstrate transparent multi-objective route planning.
+- Show why the safest path may be longer or slower.
+- Separate observed, historical, derived, modeled, and simulated information.
+- Provide an approachable astronaut/EVA perspective.
+- Keep basic help available when network AI is unavailable.
 
-4. USER EXPERIENCE
-------------------
-
-The application opens as a mission-control style Mars interface. Users can switch between Flat Map, 3D Globe, and Astronaut EVA modes. Top controls provide search, route planning, missions, base planning, AI assistance, and menu access. Side controls provide zoom, layers, places, measurements, coordinate tools, voice navigation, and science overlays.
-
-The map is the central workspace. Clicking a place opens its identity and environmental context. Clicking Route Plan enables START and FINAL selection. The route panel compares candidate paths and explains distance, estimated time, terrain, soil, slope, and hazards.
-
-5. MAP AND PLANETARY EXPLORATION
---------------------------------
-
-The 2D map provides global Mars surface visualization, horizontal wrap-safe navigation, NASA-style layers, coordinate readout, scale bar, compass, zoom, map filters, named feature search, region outlines, mission markers, rover landing sites, and historical traverse overlays.
-
-The 3D Globe provides a Three.js view with Mars lighting, orbit/space controls, mission markers, Phobos, Deimos, Earth-scale comparison, and surface presentation tools.
-
-Astronaut EVA mode presents Mars from a human exploration perspective and connects the visual experience to mission planning and voice navigation.
-
-6. PLACES, NOMENCLATURE, AND MISSIONS
---------------------------------------
-
-MarsWay uses a local catalog of named Martian features. The catalog includes official planetary nomenclature records and curated mission locations. Search results can be used to fly to a place, open details, use it as a route endpoint, or compare it with another site.
-
-Mission tools include historical and active rover context for Perseverance, Curiosity, Opportunity, Spirit, Zhurong, Viking, InSight, Pathfinder, and other represented records. The mission explorer can show landing context, traverse tracks, mission timelines, and science targets.
-
-7. ENVIRONMENTAL SCIENCE
-------------------------
-
-The science interface summarizes water/ice indicators, atmospheric gas composition, pressure, temperature, seasonal environment, dust, precipitation assumptions, human survivability, rover suitability, radiation, space weather, elevation, slope, terrain, and soil condition.
-
-Each value is presented with context and a provenance category. A modeled or historical value is never presented as a live measurement.
-
-8. ROUTE PLANNING AND SAFETY
-----------------------------
-
-The workflow is intentionally simple:
-
-1. Select Route Plan.
-2. Click the map once for START.
-3. Click the map again for FINAL.
-4. Choose walking or rover travel and crew configuration.
-5. Review Safest, Shortest, and Science candidates.
-6. Select Check Route to display the route and safety explanation.
-
-The A*-style route engine evaluates distance, elevation, slope, modeled terrain suitability, soil trafficability, hazards, travel mode, and operational assumptions.
-
-The safety analyzer separately checks the direct corridor and candidate path. It can identify hazard exposure, low trafficability, steep terrain, and environmental penalties. When possible, it proposes a safer bypass and explains the trade-off.
-
-Route status is deliberately conservative. A green or nominal result means the modeled inputs did not identify a major issue; it does not mean the route is guaranteed safe.
-
-9. OFFLINE ASK MARSWAY AI
---------------------------
-
-Ask MarsWay is a local, rule-based assistant. It does not require an API key, remote model, external AI service, or internet connection for its core responses.
-
-It supports basic English, বাংলা, and Banglish questions. Examples include:
-
-- "What is the atmosphere on Mars?"
-- Basic Bangla questions written in Unicode.
-- "Mars er gas ki?"
-- "Ei route safe?"
-- "Why is the safer route longer?"
-
-The assistant can answer supported questions about atmosphere, gases, human survivability, EVA needs, rover suitability, named places, coordinates, route safety, distance, time, soil, slope, terrain, and hazards. It uses the current map location and active route context. If no route is selected, it asks for START and FINAL. Unsupported questions receive a clear local-data limitation rather than an invented answer.
-
-Browser voice navigation uses the Web Speech API. This browser capability is separate from the local text-answer engine.
-
-10. DATA AND PROVENANCE
+3. APPLICATION WORKFLOW
 -----------------------
 
-OBSERVED means represented by a source observation, image, or mission record.
-HISTORICAL means recorded by a past mission or historical dataset.
-DERIVED means calculated from coordinates, geometry, or catalog relationships.
-MODELED means produced by a scientific or engineering approximation.
-SIMULATED means generated for visualization, education, or scenario exploration.
+1. Open MarsWay and select Flat Map, 3D Globe, or Astronaut EVA.
+2. Search for a named crater, plain, valley, volcano, rover, lander, or mission.
+3. Open the place card for coordinates, elevation, environment, geology, and mission context.
+4. Select Route Plan.
+5. Click once for START and once for FINAL.
+6. Choose walking or rover travel and crew configuration.
+7. Compare Safest, Shortest, and Science routes.
+8. Click Check Route and inspect distance, time, slope, elevation, soil, terrain, hazards, and explanation.
+9. Ask MarsWay to explain a place or the active route in English, Bangla, or Banglish.
 
-Relevant data families include USGS/IAU planetary nomenclature, NASA Mars and Mars Trek, MGS MOLA, Mars Odyssey THEMIS, MRO HiRISE and CRISM, Mars 2020 MEDA, MSL RAD, NASA/JPL mission records, curated Jezero and Gale datasets, and global modeled hazard proxies.
+4. NASA AND USGS DATA INTEGRATION
+----------------------------------
+
+4.1 USGS/IAU Planetary Nomenclature
+
+Official feature names, feature classes, origins, and coordinates power the local Mars place catalogue. This data is used for search, labels, map markers, place identity cards, region discovery, and route endpoint selection. A local parsed catalogue keeps basic place search useful even when the naming website is unavailable.
+
+4.2 Mars Global Surveyor MOLA MEGDR
+
+MOLA is the principal global topographic reference. MarsWay uses it for MOLA Areoid elevation, elevation profiles, slope, elevation change, pressure adjustment, terrain penalties, and route-time estimation. MOLA represents regional terrain and does not resolve every small rock, rut, dune edge, or trench.
+
+4.3 Mars Reconnaissance Orbiter HiRISE
+
+HiRISE imagery and targeted DTMs provide regional high-resolution context for Jezero, Gale, landing sites, science targets, rocks, scarps, and traverse interpretation. HiRISE coverage is targeted rather than uniform; the application therefore labels it as targeted/source-specific.
+
+4.4 Mars Reconnaissance Orbiter CRISM
+
+CRISM spectral products provide mineralogical context: hydrated minerals, clay/smectite, carbonate, alteration, and resource proxies. These products inform science cards and Jezero resource dossiers. A spectral signature is not proof of accessible volume, purity, or engineering feasibility.
+
+4.5 Mars Odyssey THEMIS
+
+THEMIS daytime infrared data powers the infrared map layer and helps users compare thermal-style regional surface differences with visible Viking imagery.
+
+4.6 Mars 2020 MEDA
+
+Perseverance MEDA records provide historical Jezero pressure, wind, temperature, dust, and environmental baselines. These are historical observations, not live weather forecasts.
+
+4.7 Mars 2020 instruments
+
+Curated Mastcam-Z, SuperCam, PIXL, SHERLOC, and RIMFAX records support Perseverance science targets, rock/mineral descriptions, samples, delta context, clay/carbonate interpretation, and subsurface resource discussion.
+
+4.8 MSL RAD
+
+Curiosity's RAD instrument provides the Gale Crater radiation baseline. MarsWay uses it as a local observed reference and explicitly labels cross-location atmospheric-shielding comparisons as modeled values.
+
+4.9 NASA/JPL and mission archives
+
+NASA/JPL, Mars 2020, Photojournal, and mission archive references support rover/lander identity, landing-site context, traverse storytelling, public imagery, and science dossier links.
+
+4.10 NASA Mars Trek and local imagery
+
+NASA Mars Trek public tiles provide Viking true colour, MOLA shaded relief, and THEMIS infrared layers. The bundled Viking mosaic supports fast initial rendering, the 3D globe, the EVA surface texture, and graceful fallback when public tile services are slow or unavailable.
+
+5. PROVENANCE LANGUAGE
+----------------------
+
+OBSERVED: represented by a source image, instrument measurement, archive record, or mission observation.
+HISTORICAL: recorded by a past mission or mapping campaign; not live telemetry.
+DERIVED: calculated from geometry, coordinates, distance, or catalogue relationships.
+MODELED: generated by a transparent scientific or engineering approximation.
+SIMULATED: generated for visualization, education, or scenario exploration.
+
+This separation is central to the project. A source image, an elevation-derived pressure value, and a modeled route score are not equally certain.
+
+6. MAP AND VISUALIZATION MODULES
+--------------------------------
+
+Flat Map:
+The operational centre of MarsWay. It provides basemaps, labels, search, missions, rover tracks, coordinates, compass, scale, places, layers, measurements, atmosphere/dust overlays, elevation tools, route selection, and science panels.
+
+Three.js Globe:
+A global orientation view with Mars lighting, atmosphere, mission markers, Phobos, Deimos, orbit context, Earth-scale comparison, and Viking surface texture. It is not the authoritative local route surface.
+
+Astronaut EVA:
+A human-centred first-person presentation with real Mars reconnaissance inset, local Mars texture on the 3D terrain, helmet/HUD styling, telemetry, compass, EVA timer, target reticle, scan and sample interactions, movement controls, and forward hazard guidance. It is a visual surface simulation informed by real Mars data, not a complete photogrammetric reconstruction.
+
+7. ENVIRONMENTAL AND SURVIVABILITY SCIENCE
+-------------------------------------------
+
+Science cards may show atmosphere, gas composition, pressure, temperature, wind, dust, precipitation assumptions, water/ice, mineral resources, elevation, slope, terrain, soil, radiation, space weather, human EVA requirements, and rover suitability.
+
+The application uses conservative terms such as nominal, caution, concern, modeled, historical, and proxy. A visually polished card must not be interpreted as a live engineering certification.
+
+8. ROUTE ENGINE
+---------------
+
+The route engine receives START and FINAL coordinates, route objective, transport mode, crew configuration, and applicable hazards. It uses deterministic local calculations and A*-style candidate search.
+
+Factors include:
+
+- Mars surface distance.
+- MOLA-style elevation and elevation change.
+- Slope and grade.
+- Modeled soil trafficability.
+- Terrain suitability and roughness proxies.
+- Regional and site hazard exposure.
+- Transport mode and crew assumptions.
+- Science/resource value for science routes.
+
+Walking and rover time are adjusted for terrain and slope rather than using a fixed Earth speed. The safety analyzer checks both the direct corridor and candidate path. If the direct corridor contains a modeled issue, a bypass can be suggested with an explanation of the distance/time trade-off.
+
+MarsWay never promises absolute safety. A green result means only that the current local model found no major issue in the available data.
+
+9. OFFLINE ASK MARSWAY
+----------------------
+
+Ask MarsWay is a local, deterministic, rule-based assistant. Gemini, OpenAI, remote LLMs, provider SDKs, and AI API keys are intentionally not used.
+
+Why offline assistance is important:
+
+- Mars communication can be delayed or unavailable.
+- Emergency demonstrations may have no network connection.
+- Public tile/API services can be down or rate-limited.
+- A user may have no AI account or API key.
+- Local processing protects mission notes and makes behaviour predictable.
+- Basic guidance remains available even when external services fail.
+
+The assistant reads bundled MarsWay data and the current map/route context. It supports basic English, Bangla Unicode, and Banglish questions about atmosphere, gases, human survivability, EVA, rover suitability, places, elevation, soil, terrain, hazards, route safety, and travel time.
+
+Examples:
+
+What gas is on Mars?
+মঙ্গল গ্রহে মানুষ থাকতে পারবে?
+Mars er gas ki?
+Ei route safe?
+Kon route e time kom lagbe?
+
+Processing flow:
+
+1. Normalise the question.
+2. Match it to a supported local intent.
+3. Read selected place and active route context.
+4. Fill a bounded local response template.
+5. Return a clear limitation message if unsupported.
+
+Offline AI is intentionally narrow. It is not a general chatbot and must not invent information outside the project data.
+
+10. OFFLINE-FIRST APPLICATION BEHAVIOUR
+---------------------------------------
+
+The service worker caches the application shell, local assets, and previously requested resources. External NASA tiles use network-first behaviour with cache fallback. After a successful visit, local search, route calculation, environmental models, and Ask MarsWay can continue without network AI. New uncached public imagery and remote photographs may still require network access.
 
 11. TECHNICAL ARCHITECTURE
 --------------------------
 
-Frontend: React 19, TypeScript, Vite, Tailwind CSS v4, Leaflet, Three.js, Lucide React, and browser speech/audio APIs.
+Frontend: React 19, TypeScript, Vite, Tailwind CSS, Leaflet, Three.js, Lucide React, and browser Web Speech APIs.
+Backend: Node.js, Express, local Mars datasets, deterministic route/science engines, and REST endpoints.
+AI: local intent matching and response templates; no external AI dependency.
 
-Backend: Node.js, Express, local Mars datasets, local route/science engines, TypeScript/tsx, and REST endpoints. No external AI SDK or AI API key is required.
+Important files:
 
-12. IMPORTANT FILES
--------------------
+src/components/map/RealMarsMap.tsx        2D map and GIS state.
+src/components/map/Mars3DGlobe.tsx        Three.js globe.
+src/components/map/MarsAstronautView.tsx  EVA scene, HUD, texture, movement.
+src/engine/marsAStarRouter.ts             route and time model.
+src/engine/marsRouteSafetyAnalyzer.ts     hazard and safety analysis.
+src/engine/marsMolaElevation.ts           elevation/pressure model.
+src/data/provenanceData.ts                NASA dataset catalogue.
+src/data/usgsMarsGazetteer.ts             official feature parser.
+src/apiApp.ts                             local API and assistant.
+public/sw.js                              offline-first service worker.
+tests/                                    deterministic engine tests.
 
-- `src/App.tsx` - application composition.
-- `src/components/map/RealMarsMap.tsx` - main map state and interactions.
-- `src/components/map/Mars3DGlobe.tsx` - 3D globe.
-- `src/components/mission/MarsRoutePlannerModal.tsx` - route setup UI.
-- `src/components/mission/MarsRouteSafetyHUD.tsx` - safety explanation UI.
-- `src/components/common/AskMarsWayModal.tsx` - offline assistant UI and local responses.
-- `src/engine/marsAStarRouter.ts` - route and terrain/time model.
-- `src/engine/marsRouteSafetyAnalyzer.ts` - direct route safety analysis.
-- `src/engine/marsMolaElevation.ts` - elevation model.
-- `src/engine/marsEnvironmentalAnalysis.ts` - environmental cards.
-- `src/data/usgsMarsGazetteer.ts` - official catalog parser.
-- `src/data/marsGlobalHazards.ts` - global hazard proxy data.
-- `src/apiApp.ts` - Express API assembled from local Mars data.
-- `server.ts` - development and production server entry point.
-- `tests/` - automated engine tests.
+12. LOCAL API
+-------------
 
-13. API OVERVIEW
+GET  /api/health                   Service state, offline AI mode, dataset counts.
+GET  /api/regions                  Region metadata.
+GET  /api/layers                   Basemap and provenance metadata.
+GET  /api/features                 Search feature catalogue.
+GET  /api/features/:featureId      Feature detail.
+GET  /api/elevation?lat=&lng=      Modeled elevation and pressure.
+GET  /api/weather?scenario=        Environment/space-weather scenario.
+POST /api/routes/plan              Local route candidates.
+GET/POST/PUT /api/missions...      In-memory mission records.
+POST /api/ask-marsway              Offline assistant.
+
+13. INSTALLATION
 ----------------
 
-- `GET /api/health` - service status and dataset counts.
-- `GET /api/regions` - region metadata.
-- `GET /api/layers` - layer and provenance metadata.
-- `GET /api/features` - feature search.
-- `GET /api/features/:feature_id` - feature detail.
-- `GET /api/elevation?lat=...&lng=...` - modeled elevation.
-- `GET /api/weather?scenario=...` - modeled environmental scenario.
-- `POST /api/routes/plan` - route candidates.
-- `GET /api/missions` - in-memory mission list.
-- `POST /api/missions` - create an in-memory mission.
-- `GET/PUT /api/missions/:mission_id` - read/update a mission.
-- `POST /api/ask-marsway` - offline local assistant.
-
-14. INSTALLATION AND RUNNING
-----------------------------
-
-Requirements: Node.js 20.19+ or Node.js 22+, npm/Bun, and a modern WebGL-capable browser.
+Requirements: Node.js 20.19+ or Node.js 22+, npm/Bun, and a WebGL-capable browser.
 
     npm install
     npm run dev
 
-Open `http://localhost:3000`. If that port is busy in PowerShell:
+Open http://localhost:3000.
+
+If port 3000 is busy in PowerShell:
 
     $env:PORT=3001
     npm run dev
@@ -168,228 +233,356 @@ Production:
     npm run build
     npm run start
 
-Optional `.env` configuration:
+No AI key is required. Optional setting: PORT=3000.
 
-    PORT=3000
-
-No AI key is required.
-
-15. VALIDATION
---------------
-
-    npm run lint
-    npm test -- --run
-    npm run build
-
-The automated tests cover distance, polygon area, slope, elevation, route generation, route safety, Martian walking speed, atmospheric pressure, space weather, Jezero data, and Mars science analysis.
-
-16. LIMITATIONS
----------------
-
-- MarsWay is not flight-certified software.
-- It does not replace rover AutoNav, astronaut judgment, engineering review, or mission safety certification.
-- MOLA-scale elevation cannot resolve every small rock, rut, dune edge, or trench.
-- HiRISE and CRISM coverage is targeted rather than uniform.
-- Soil trafficability, terrain suitability, and hazard zones are modeled proxies.
-- Weather, radiation, dust, and atmosphere values may be historical, derived, or modeled baselines.
-- Route output does not replace real-time obstacle detection.
-- The offline assistant only answers supported basic questions from bundled MarsWay data.
-- Public NASA/USGS services may have network, rate, availability, or attribution constraints.
-- Missions are held in server memory and may disappear when the server restarts.
-- 3D/EVA performance depends on browser WebGL and device hardware.
-
-17. PROJECT STATUS
-------------------
-
-MarsWay is an active educational and research prototype. Its core value is integrating planetary mapping, official feature discovery, environmental context, explainable route planning, mission visualization, and offline multilingual assistance in one approachable interface.
-
-18. DETAILED PRODUCT MODULES
-----------------------------
-
-18.1 Application shell
-
-The application shell owns the global view mode, navigation header, bottom navigation, overlays, keyboard-friendly controls, and shared map context. It prevents multiple primary overlays from competing for focus and keeps route, search, mission, science, and voice tools connected to the same location state.
-
-18.2 Flat Map module
-
-The Flat Map is the operational center of MarsWay. It renders the Mars surface in Leaflet, manages map movement and zoom, displays labels and markers, and coordinates route endpoint selection. It also provides compass, scale, coordinates, layers, measurements, place search, region context, image access, weather overlays, and hazard visualization.
-
-The map uses horizontal world wrapping so users can continue moving east or west without seeing an unintended empty canvas. Labels are progressively decluttered: global views emphasize major landmarks, while local views expose more nearby features.
-
-18.3 3D Globe module
-
-The 3D Globe uses Three.js to present Mars as a sphere. It is intended for global orientation, mission storytelling, orbit and moon context, lighting, and scale comparison. It is not the authoritative surface routing view; route selection and detailed terrain interpretation remain centered on the Flat Map and route panels.
-
-18.4 Astronaut EVA module
-
-The EVA view presents Mars from the perspective of a human explorer. It communicates the difference between viewing a planet and operating on its surface, while reusing the same mission and environmental assumptions shown elsewhere in the application.
-
-18.5 Places and mission module
-
-The Places system combines official nomenclature with curated mission and rover records. A place has an identity, feature class, coordinates, and optional context. A mission record can include landing information, rover identity, traverse points, timeline context, active status, and science targets.
-
-18.6 Science and environment module
-
-The science module turns numeric models into readable cards. It describes atmosphere, gases, pressure, temperature, water/ice, precipitation, dust, radiation, human survivability, rover suitability, elevation, slope, soil, and terrain. The presentation intentionally uses confidence and provenance language so a user can distinguish a source record from a derived or simulated value.
-
-19. ROUTE ENGINE DESIGN
------------------------
-
-19.1 Inputs
-
-The route engine receives start and end coordinates, a route objective, transport mode, crew configuration, and hazard zones. It can also use the available site and science context around the route.
-
-19.2 Candidate generation
-
-The engine evaluates a grid-like set of possible Mars positions between the endpoints. Each candidate step receives a cost based on distance and surface conditions. A* search prioritizes nodes that appear promising while still accounting for accumulated cost.
-
-19.3 Surface assessment
-
-Surface assessment combines elevation change, slope, terrain suitability, soil trafficability, and hazard proximity. These values are proxies intended to make route trade-offs visible. They are not a substitute for rover lidar, wheel-soil interaction testing, geotechnical sampling, or astronaut field reconnaissance.
-
-19.4 Time estimation
-
-Baseline movement speed is adjusted for transport mode and terrain. Slope, difficult soil, and operational factors reduce effective speed. The reported duration is therefore not simply distance divided by a fixed Earth speed.
-
-19.5 Safety assessment
-
-The safety analyzer checks both the direct start-to-end corridor and the selected candidate path. It reports hazard exposure, terrain concerns, low trafficability, slope impact, and environmental penalties. If a direct corridor is problematic, the engine can suggest a bypass and explain why the bypass may be longer.
-
-19.6 Route status language
-
-MarsWay avoids claiming that a route is absolutely safe. The UI uses nominal, caution, concern, or hazard-oriented language based on modeled inputs. This is important because a route can look clear at the map scale while still containing small obstacles that the available datasets cannot resolve.
-
-20. OFFLINE AI DESIGN
+14. QUALITY ASSURANCE
 ---------------------
 
-20.1 Why it is local
+    npm run lint
+    npm test
+    npm run build
 
-The assistant is designed for predictable demonstrations, offline availability, privacy, and simple deployment. It does not send user questions to an external model. There is no AI API key, remote inference dependency, or provider-specific server integration.
+Tests cover distance, polygon area, slope, elevation, pressure, route generation, route safety, Martian walking speed, space weather, Jezero science data, and geographic science variation.
 
-20.2 Processing flow
+Recommended browser smoke test:
 
-1. The user submits text in the Ask MarsWay modal.
-2. The text is normalized for case, punctuation, and common language variants.
-3. Local intent rules identify atmosphere, human safety, rover, place, route, soil, time, or help questions.
-4. The assistant reads the current route/location context and bundled MarsWay data.
-5. A concise answer is generated from local templates and values.
-6. Unsupported questions receive an honest capability message.
+1. Open the local URL.
+2. Switch Flat Map, 3D Globe, and Astronaut EVA.
+3. Search for a known place and open its dossier.
+4. Select START and FINAL points.
+5. Run Check Route and compare Safest/Shortest.
+6. Ask one English, one Bangla, and one Banglish question.
+7. Check a mission, layer, science panel, and route explanation.
+8. Confirm no new browser console error appears.
 
-20.3 Multilingual handling
+15. DETAILED USER GUIDE
+-----------------------
 
-The local matcher includes English terms, Bangla Unicode terms, and Banglish transliterations commonly used to ask basic Mars questions. It is not a full machine-translation system and does not claim to understand every dialect, spelling variation, or long-form question. The supported scope is intentionally basic and explainable.
+15.1 Starting with the Flat Map
 
-20.4 Route-aware answers
+The Flat Map is the best starting point for GIS work. Search for a named feature, select a result, read its place card, and then turn on the layers needed for the question being asked. The map is intentionally decluttered at global scale and becomes more detailed after zooming into a region.
 
-When an active route exists, the assistant can reference the selected route's safety status, duration, distance, soil score, terrain score, slope, hazards, and alternative candidates. Without a route, it gives instructions to select START and FINAL instead of inventing route results.
+15.2 Reading a place card
 
-21. API AND DATA FLOW DETAILS
------------------------------
+Identity describes what the feature is. Location describes where it is. Elevation uses the MOLA reference. Science describes geology, minerals, water/ice, or mission findings. Environment describes pressure, temperature, wind, dust, and radiation context. Operations describes rover/EVA suitability and route relevance. Provenance explains how much confidence and what type of source belongs to each value.
 
-The Express API is assembled in `src/apiApp.ts` and uses local datasets and engines. The development server in `server.ts` mounts the API and Vite middleware together. In production, the built client is served from `dist` while the same local API remains available.
+15.3 Selecting a route
 
-Typical flows:
+Route Plan requires two deliberate map clicks. The first click creates a START point and the second creates a FINAL point. The application then accepts transport and crew settings, generates candidate paths, checks the direct corridor, and draws the selected route from the actual start coordinate to the actual final coordinate. A route should not be interpreted before the Check Route analysis is complete.
+
+15.4 Choosing a route objective
+
+Shortest reduces distance first. Safest gives more weight to hazard, slope, soil, and terrain penalties. Science favours useful science/resource stops while still considering movement cost. These are different planning questions, not three different claims about absolute safety.
+
+15.5 Using Astronaut EVA
+
+EVA mode is a first-person presentation. The astronaut is treated as standing at a local surface position rather than looking at a zoomed-out global map. The HUD shows suit telemetry and mission state, the recon inset shows geographic position, and the local surface responds to movement controls. The visual surface is informed by real Mars imagery and elevation logic but remains an educational simulation.
+
+15.6 Complete web function map
+
+Global header:
+
+- MarsWay logo: returns to the main workspace.
+- 3D Globe: changes the primary view to the Three.js planetary scene.
+- Flat Map: changes the primary view to the Leaflet GIS scene.
+- Astronaut EVA: changes the primary view to the first-person surface scene.
+- Search: opens global place/mission search.
+- Route Plan: starts route endpoint selection.
+- Missions: opens mission and rover context.
+- Base Plan: opens landing/base planning context.
+- Ask AI: opens the local offline assistant.
+- Menu: exposes additional tools and settings.
+
+Bottom navigation:
+
+- Missions opens mission filters, timelines, landing sites, and tracks.
+- Layers opens basemap and scientific overlay controls.
+- Places opens categories such as all places, volcanoes, craters, canyons, plains, and missions.
+- Tools opens measurements, elevation, coordinate, atmosphere, and GIS tools.
+- Weather opens environmental and space-weather context.
+- Search opens the same shared search workflow.
+- AI opens Ask MarsWay.
+- Voice starts browser speech controls where supported.
+
+Flat Map functions:
+
+- Dragging pans the Leaflet map and updates the visible region.
+- Zooming changes scale and recalculates label/feature density.
+- Clicking a marker selects a feature and can open its dossier.
+- The search bar filters the local catalogue and flies to a result.
+- The compass updates orientation and map bearing.
+- Coordinate readout shows the current or inspected Mars location.
+- Scale bar shows Mars distance at the current zoom.
+- Layer selection changes Viking, MOLA, or THEMIS imagery.
+- Mission and place toggles control marker visibility without deleting data.
+- Measurement tools create points, calculate distance/bearing, and inspect elevation.
+- Route Plan changes the map into explicit START then FINAL selection states.
+
+Place dossier functions:
+
+The dossier explains identity, coordinate, elevation, region, geology, resources, atmosphere, human safety, rover suitability, mission relationship, images, and possible route actions. Long content scrolls inside the modal. The modal uses a top-level fixed layer so its actions remain visible above the bottom navigation.
+
+Route states:
+
+IDLE -> SELECT START -> SELECT FINAL -> READY -> CHECKED -> ACTIVE ROUTE.
+
+The first map click stores the departure coordinate. The second stores the destination coordinate. The Check Route action runs candidate generation and safety analysis. The selected route is drawn from the actual stored endpoints, and the active route context becomes available to Ask MarsWay.
+
+Mission functions:
+
+Mission cards show rover/lander identity, agency, landing coordinates, status, timeline, traverse context, science targets, and related imagery. Mission markers can be used for search, map fly-to, dossier inspection, and route endpoint selection. The records are educational/curated and are not live telemetry.
+
+Globe functions:
+
+The globe handles camera orbit, zoom, lighting, global markers, orbit/space context, Phobos, Deimos, Earth-scale comparison, and handoff to the detailed map. It answers the global orientation question; it is not the local route authority.
+
+EVA functions:
+
+- Helmet HUD stays attached to the camera.
+- Telemetry displays heart rate, oxygen, suit pressure, altitude, heading, and EVA time.
+- Recon inset displays current position on real Mars imagery.
+- W/A/S/D and controller inputs change local movement.
+- Forward scan checks the corridor ahead for modelled terrain/hazard concerns.
+- Reticle and scan card identify a local geology target.
+- LIBS/sample controls represent science interaction.
+- Tactical Map opens the detailed GIS map while preserving EVA context.
+
+Science functions:
+
+Science cards combine source records and local calculations. Atmosphere explains gases and pressure. Water/Ice explains resource indicators. Human explains suit and survivability requirements. Rover explains terrain/soil suitability. Weather explains historical/modelled conditions. Geology explains minerals and surface units. Elevation explains MOLA height, slope, and pressure relation.
+
+Layer loading functions:
+
+NASA public tiles are preferred. During partial loading the application does not intentionally mix a bright local fallback with differently coloured remote tiles. If the remote layer fails, a consistent whole-map Viking fallback is used. This protects visual continuity while keeping local exploration available.
+
+Assistant functions:
+
+Ask MarsWay receives text, normalises English/Bangla/Banglish patterns, matches a local intent, reads current place/route context, and returns a bounded response. It can explain atmosphere, places, routes, time, soil, terrain, hazards, rover suitability, and EVA help. It cannot answer arbitrary questions outside its local knowledge.
+
+Voice functions:
+
+The browser Web Speech API can recognise supported voice commands where permissions and browser support are available. It is separate from the text assistant and does not call a remote AI service.
+
+17. INTERACTION AND STATE RULES
+-------------------------------
+
+The application maintains shared state for primary view, selected place, selected site, active layer, map bearing, route endpoints, route candidates, active route, open modal, mission filter, science target, EVA position, and assistant context.
+
+Important rules:
+
+- Selecting a place updates context before opening a dossier.
+- Selecting START does not automatically claim a route is safe.
+- Selecting FINAL enables route analysis but does not replace Check Route.
+- Opening a modal must not hide or disable the underlying route state.
+- Switching view preserves the selected location where the view supports it.
+- External imagery failure must not disable local search, route, science, or offline assistant features.
+- A route answer must use the active route context or clearly say that no route is selected.
+- Source-backed values and modeled values must remain visibly distinguishable.
+
+17. ROUTE SCORING EXPLAINED
+---------------------------
+
+The route engine uses a transparent weighted cost model. A conceptual route cost is:
+
+    total cost = distance cost
+               + time cost
+               + slope cost
+               + hazard cost
+               + soil/terrain cost
+               - science/resource value
+
+The weights change according to the selected objective. Each candidate step is evaluated using Mars distance, local elevation, slope, terrain suitability, soil trafficability, hazard proximity, transport mode, and crew configuration. The search then compares accumulated cost with the remaining distance estimate.
+
+The safety analyzer is a second explanation layer. It checks the direct corridor and chosen path for hazard exposure, steep sections, low trafficability, terrain concerns, and environmental penalties. This is why a direct line can be rejected while a nearby curved path is recommended.
+
+A route status is interpreted as follows:
+
+- Nominal: no major issue detected by the current model.
+- Caution: one or more moderate modelled concerns exist.
+- Concern: the route contains a meaningful terrain, soil, slope, or hazard penalty.
+- Hazard: the corridor intersects a strong modelled hazard or operational constraint.
+
+These labels describe the model output, not a field-certified decision.
+
+18. DATA FLOW AND PROVENANCE FLOW
+---------------------------------
+
+The project follows this path:
+
+    source archive / local catalogue
+        -> normalised Mars record
+        -> derived geometry or environmental value
+        -> route/science interpretation
+        -> map marker, card, HUD, or assistant answer
+
+Examples:
+
+- An official USGS/IAU feature name is source-backed.
+- Distance between two map points is derived.
+- Pressure estimated from MOLA elevation is modeled.
+- A route time adjusted for slope and soil is modeled.
+- A helmet reflection or dust overlay is simulated for visual immersion.
+
+The UI and documentation should never silently convert a modeled value into a live observation.
+
+19. OFFLINE AI: PRODUCT AND EMERGENCY RATIONALE
+-----------------------------------------------
+
+18.1 Product rationale
+
+The assistant is local because MarsWay needs predictable, bounded, easily testable answers. A local rule-based assistant does not require account credentials, provider changes, network permissions, or paid inference. It is also easier to explain to students and easier to audit during a demonstration.
+
+18.2 Emergency rationale
+
+In a simulated Mars emergency, communication may be delayed, intermittent, low bandwidth, or unavailable. Public NASA services may also be temporarily unreachable. The local assistant cannot solve an emergency, but it can still provide basic workflow help and explain the local route/science state already loaded into the application. This keeps basic assistance available without depending on a remote AI provider.
+
+18.3 What offline means in this project
+
+Offline means no external AI call is needed for the supported assistant topics. It does not mean that every new image, NASA tile, live weather feed, or remote archive page is available without a network. The service worker caches local assets and previously requested resources; local datasets and engines continue independently.
+
+18.4 Supported language behaviour
+
+English, Bangla Unicode, and common Banglish patterns are normalised into local intent families. The assistant supports basic atmosphere, place, route, terrain, soil, hazard, time, rover, EVA, and help questions. It is intentionally not a general translator or unrestricted chatbot. Unsupported questions receive a limitation response.
+
+20. NASA DATA-TO-FEATURE MATRIX
+------------------------------
+
+USGS/IAU Planetary Names:
+    Official names, feature type, coordinates, search, labels, place identity.
+
+MGS MOLA MEGDR:
+    Elevation, MOLA Areoid, slope, elevation profile, pressure adjustment, route penalties.
+
+MRO HiRISE:
+    Targeted high-resolution terrain, DTMs, Jezero/Gale context, rocks, scarps, landing areas.
+
+MRO CRISM:
+    Hydrated minerals, clay/smectite, carbonates, alteration, water/resource proxies.
+
+Mars Odyssey THEMIS:
+    Daytime infrared basemap and thermal-style surface interpretation.
+
+Mars 2020 MEDA:
+    Historical Jezero pressure, wind, temperature, dust, and environmental baseline.
+
+Mars 2020 Mastcam-Z/SuperCam/PIXL/SHERLOC/RIMFAX:
+    Science targets, rock/mineral descriptions, samples, delta and subsurface context.
+
+MSL RAD:
+    Gale radiation baseline and explicitly modelled cross-location shielding comparison.
+
+NASA/JPL/Mars Trek archives:
+    Basemap tiles, rover/lander history, public imagery, mission context, and references.
+
+21. MODULE-BY-MODULE DESIGN
+---------------------------
+
+20.1 Application shell
+
+Owns global view state, header, bottom navigation, keyboard-friendly actions, shared location context, and modal layering. It keeps search, places, missions, route, science, AI, and voice actions connected.
+
+20.2 Flat Map module
+
+Owns Leaflet map creation, basemap selection, tile loading, fallback behaviour, labels, markers, route endpoints, measurement tools, region outlines, layers, and map-driven modals. It is the main operational map.
+
+20.3 3D Globe module
+
+Owns Three.js Mars sphere, lighting, orbit/space context, moons, mission markers, global camera controls, and scale comparisons. It is designed for orientation, not detailed local route certification.
+
+20.4 Astronaut EVA module
+
+Owns local Three.js surface scene, real Mars texture integration, first-person camera, movement, telemetry, helmet HUD, scan/sample interactions, reconnaissance inset, and forward guidance.
+
+20.5 Science module
+
+Combines source-backed records with local formulas and clearly labelled proxies. It presents environmental, geological, mineralogical, resource, and survivability information without hiding uncertainty.
+
+20.6 Route module
+
+Owns endpoint selection, candidate generation, safety analysis, route comparison, explanation cards, and active-route context supplied to Ask MarsWay.
+
+20.7 Offline assistant module
+
+Owns local text normalisation, intent matching, route-aware answers, place lookup, language patterns, capability boundaries, and `marsway-offline-local` source marking.
+
+22. USER STORIES
+---------------
+
+- A student searches for Olympus Mons and understands how extreme elevation affects pressure and route time.
+- A teacher switches to the 3D Globe to explain Mars, its moons, and planetary scale.
+- A researcher compares a shortest path with a safer bypass around a modelled hazard.
+- A mission-planning demonstrator selects rover mode and examines terrain-adjusted travel time.
+- A Bangla-speaking user asks `Mars er gas ki?` without an AI key.
+- An explorer opens Jezero science targets and uses one as a route endpoint.
+- A user in a no-network demonstration continues using local route and assistant features.
+
+23. API AND INTERNAL DATA FLOW
+------------------------------
 
 Feature search:
 
-    Browser search input
-        -> GET /api/features
-        -> local Mars catalog filter
-        -> feature result list and map fly-to
+    search input -> GET /api/features -> local catalogue filter -> result list -> map fly-to
 
-Elevation lookup:
+Elevation:
 
-    Selected coordinate
-        -> GET /api/elevation
-        -> local MOLA-style elevation model
-        -> elevation and terrain card
+    selected coordinate -> local elevation model -> elevation/pressure -> science card and route cost
 
-Route planning:
+Route:
 
-    START + FINAL + options
-        -> POST /api/routes/plan
-        -> local route engine and hazard analysis
-        -> candidate routes and safety summary
+    START + FINAL + options -> POST /api/routes/plan -> local route engine -> candidates + safety explanation
 
 Offline assistant:
 
-    User question + current context
-        -> POST /api/ask-marsway
-        -> local intent matching and MarsWay data
-        -> answer with source marker `marsway-offline-local`
+    question + context -> POST /api/ask-marsway -> local intent matcher -> bounded answer
 
-The API is designed so the browser can remain interactive even when optional external tiles or image services are slow or unavailable.
+The Express API does not call an external AI provider. It exposes local datasets and deterministic calculations to the browser.
 
-22. DATA LIFECYCLE AND PROVENANCE
----------------------------------
+24. DESIGN PRINCIPLES
+---------------------
 
-Data enters the application through bundled TypeScript datasets, local catalog files, or public source references documented in the interface. Parsers normalize feature identifiers, names, coordinates, and feature classes. Engines then derive route, elevation, atmosphere, and science values from those normalized inputs.
+- Explainability over false certainty.
+- Local-first assistance for resilience and privacy.
+- Scientific provenance instead of silent mixing of observation and model.
+- Progressive disclosure so global maps remain readable.
+- Direct user control over route endpoints.
+- Graceful degradation when public imagery is unavailable.
+- Consistent visual language across map, globe, EVA, and modal tools.
+- No external AI dependency for basic application help.
 
-Every important output should be interpreted through its provenance:
+25. RELEASE CHECKLIST
+--------------------
 
-- Source-backed records are not the same as model outputs.
-- A derived coordinate or distance is reproducible from source geometry.
-- A modeled soil or hazard score is a planning proxy.
-- A simulated dust or visual effect is for exploration, not measurement.
+Before a release:
 
-This separation is a core part of MarsWay's educational value.
-
-23. USER STORIES
-----------------
-
-- A student searches for Olympus Mons and learns how its elevation changes a route.
-- A teacher switches to the 3D Globe to explain the scale of Mars and its moons.
-- A researcher compares a shortest route with a safer bypass through a modeled hazard zone.
-- A mission-planning demonstrator selects a rover mode and inspects terrain-adjusted travel time.
-- A Bangla-speaking user asks `Mars er gas ki?` and receives a local answer without an API key.
-- An explorer selects a Jezero location, inspects science context, and uses it as a route endpoint.
-- A user with no network AI access still receives basic local help from Ask MarsWay.
-
-24. QUALITY ASSURANCE PLAN
---------------------------
-
-Static validation:
-
-- TypeScript compiler check with `npm run lint`.
-- Automated engine tests with `npm test -- --run`.
-- Production bundling with `npm run build`.
-- Project-wide search for removed provider references and accidental API-key text.
-
-Browser smoke validation:
-
-1. Open the printed local development URL.
-2. Confirm the welcome/app shell renders.
-3. Switch Flat Map, 3D Globe, and EVA modes.
-4. Search for a known place and open its details.
-5. Select START and FINAL on the map.
-6. Run Check Route and verify the path begins and ends at the selected points.
+1. Run `npm run lint`.
+2. Run `npm test`.
+3. Run `npm run build`.
+4. Open the local URL and test Flat Map, 3D Globe, and EVA.
+5. Search a place and open its dossier.
+6. Select START and FINAL and run Check Route.
 7. Compare Safest and Shortest results.
 8. Ask one English, one Bangla, and one Banglish question.
-9. Open Voice and verify the browser permission behavior.
-10. Check that no new browser console error appears.
+9. Test a layer, mission, science card, and offline shell.
+10. Confirm there are no new browser console errors.
 
-25. MAINTENANCE GUIDELINES
---------------------------
+26. LIMITATIONS
+---------------
 
-- Keep route and safety calculations deterministic for the same inputs.
-- Label new environmental values with their provenance.
-- Add or update tests when changing route scoring or environmental formulas.
-- Do not describe a modeled value as live unless a live source and timestamp are present.
-- Keep assistant responses bounded to local data and supported intents.
-- Avoid adding an external AI dependency for basic application help.
-- Preserve mobile and desktop interaction paths when changing map overlays.
-- Re-run lint, tests, build, and browser smoke checks before release.
+- Not flight-certified and not suitable as the sole operational navigation source.
+- MOLA-scale elevation cannot resolve every small obstacle.
+- HiRISE and CRISM coverage is targeted, not uniform.
+- Soil, terrain, hazard, weather, radiation, pressure, and route time may be modeled or historical.
+- The route engine does not replace lidar, AutoNav, field sampling, or astronaut observation.
+- NASA/USGS public imagery depends on network availability and service limits.
+- The offline assistant only answers supported local questions.
+- In-memory mission records may disappear after server restart.
+- 3D/EVA performance depends on WebGL and hardware.
 
-26. LIMITATION INTERPRETATION
------------------------------
+Correct interpretation: "This is the best result supported by the current local model and datasets," not "this route is guaranteed safe."
 
-The map is a visualization and educational planning surface. It is not a certified digital elevation model for every operational decision. The route engine cannot see every boulder, rut, dune edge, subsurface condition, wheel-soil interaction, radiation event, dust front, or communication constraint. Public imagery may be incomplete or unavailable. The offline assistant may not understand questions outside its supported language patterns and local knowledge.
+27. PROJECT VALUE
+-----------------
 
-These limitations are not hidden edge cases; they define how MarsWay should be used responsibly. The correct interpretation of a route result is: "This is the best result supported by the current local model and datasets," not: "This route is guaranteed safe."
-
-27. PROJECT STATUS
-------------------
-
-MarsWay is an active educational and research prototype. Its core value is integrating planetary mapping, official feature discovery, environmental context, explainable route planning, mission visualization, and offline multilingual assistance in one approachable interface.
+MarsWay makes Mars science visual, understandable, and explainable. Its local-first design is especially important: during a network outage or simulated emergency, users can still search bundled places, inspect local science models, calculate route candidates, and receive bounded basic help without a Gemini key or remote AI service.
 
 END OF PROJECT DESCRIPTION

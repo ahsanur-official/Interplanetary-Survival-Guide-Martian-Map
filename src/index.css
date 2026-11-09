@@ -28,6 +28,24 @@ html, body {
   --mars-night: #08090e;
 }
 
+/* Keep browser-standard interaction cues consistent across every control. */
+button:not(:disabled),
+[role="button"],
+select,
+summary,
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+a[href] {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed;
+}
+
 /* Applied to the whole mission console so the UI feels distinct from the old neon-blue/orange mix. */
 .mars-theme {
   --ui-rust: #c85a42;
@@ -257,6 +275,38 @@ html, body {
 @keyframes neon-button-flow {
   0% { background-position: 0% 50%; filter: saturate(1); }
   100% { background-position: 100% 50%; filter: saturate(1.25) brightness(1.08); }
+}
+
+/* Astronaut helmet optics: restrained motion keeps the visor believable
+   without turning the EVA view into a decorative overlay. */
+.mars-visor-dust {
+  background-image:
+    radial-gradient(circle at 14% 28%, rgba(233, 181, 141, .72) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 67% 34%, rgba(255, 220, 186, .5) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 42% 72%, rgba(218, 165, 130, .55) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 84% 64%, rgba(255, 218, 188, .42) 0 1px, transparent 1.6px);
+  background-size: 180px 150px, 230px 190px, 260px 210px, 210px 170px;
+  animation: mars-visor-dust-drift 24s linear infinite;
+}
+
+.mars-visor-scratches {
+  background-image:
+    linear-gradient(116deg, transparent 0 31%, rgba(255, 231, 210, .3) 31.1% 31.25%, transparent 31.4% 100%),
+    linear-gradient(78deg, transparent 0 62%, rgba(154, 224, 255, .2) 62.1% 62.22%, transparent 62.4% 100%),
+    linear-gradient(168deg, transparent 0 47%, rgba(255, 215, 176, .18) 47.1% 47.18%, transparent 47.4% 100%);
+  background-size: 460px 280px, 620px 360px, 520px 320px;
+  animation: mars-visor-reflection 14s ease-in-out infinite alternate;
+}
+
+@keyframes mars-visor-dust-drift {
+  from { transform: translate3d(-8px, 0, 0); opacity: .2; }
+  50% { opacity: .34; }
+  to { transform: translate3d(12px, 5px, 0); opacity: .22; }
+}
+
+@keyframes mars-visor-reflection {
+  from { transform: translateX(-1.5%); opacity: .12; }
+  to { transform: translateX(1.5%); opacity: .28; }
 }
 
 ::selection {

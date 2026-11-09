@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
+import L from 'leaflet';
 import {
   X,
   Compass,
@@ -50,8 +51,13 @@ import {
   RotateCw,
   Gauge,
   Wind,
+  AlertTriangle,
 } from 'lucide-react';
 import { marsEvaAudio } from '../../engine/marsEvaAudio';
+import { distanceToSegmentMeters } from '../../engine/spatialMath';
+import { GLOBAL_MARS_HAZARD_ZONES } from '../../data/marsGlobalHazards';
+import { JEZERO_HAZARD_ZONES } from '../../data/jezeroDataset';
+import { GALE_HAZARD_ZONES } from '../../data/galeDataset';
 
 export interface AstronautSitePreset {
   id: string;
@@ -258,6 +264,141 @@ export const ASTRONAUT_SITE_PRESETS: AstronautSitePreset[] = [
   },
 ];
 
+interface MarsEVAReconMapProps {
+  lat: number;
+  lng: number;
+  mapLayer: 'visible' | 'infrared' | 'elevation';
+  zoom: number;
+  className?: string;
+}
+
+/** A real Leaflet Mars map embedded in the EVA tactical panel. */
+const MarsEVAReconMap: React.FC<MarsEVAReconMapProps> = ({ lat, lng, mapLayer, zoom, className = 'absolute inset-0' }) => {
+  const mapHostRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.CircleMarker | null>(null);
+  const trackRef = useRef<L.Polyline | null>(null);
+  const tileRef = useRef<L.TileLayer | null>(null);
+  const fallbackRef = useRef<L.ImageOverlay | null>(null);
+  const [tileState, setTileState] = useState<'loading' | 'ready'>('loading');
+
+  const tileUrl = mapLayer === 'infrared'
+    ? 'https://trek.nasa.gov/tiles/Mars/EQ/THEMIS_DayIR_ControlledMosaics_100m_v2_oct2018/1.0.0/default/default028mm/{z}/{y}/{x}.png'
+    : mapLayer === 'elevation'
+      ? 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MGS_MOLA_ClrShade_merge_global_463m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg'
+      : 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg';
+
+  useEffect(() => {
+    if (!mapHostRef.current || mapRef.current) return;
+    const map = L.map(mapHostRef.current, {
+      crs: L.CRS.EPSG4326,
+      center: [lat, lng],
+      // EVA view is a local field-of-view, not a global Mars atlas.
+      // Keep the astronaut's position in the centre and show only the
+      // surrounding traverse area.
+      zoom: Math.round(zoom + 2),
+      minZoom: 2,
+      maxZoom: 7,
+      zoomControl: false,
+      attributionControl: false,
+      worldCopyJump: false,
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1,
+      preferCanvas: true,
+    });
+    mapRef.current = map;
+    // Keep a local Mars surface underneath the public tiles so slow or
+    // unavailable NASA requests never create black rectangles in the EVA map.
+    fallbackRef.current = L.imageOverlay(
+      '/textures/mars_viking_2k.jpg',
+      [[-90, -180], [90, 180]],
+      // Never present the global fallback as if it were local high-resolution
+      // astronaut terrain. It is kept hidden while the real NASA layer loads.
+      { opacity: 0, interactive: false }
+    ).addTo(map);
+    trackRef.current = L.polyline([[lat, lng]], {
+      color: '#67e8f9',
+      weight: 2,
+      opacity: 0.9,
+      dashArray: '5 5',
+      interactive: false,
+    }).addTo(map);
+    markerRef.current = L.circleMarker([lat, lng], {
+      radius: 7,
+      color: '#67e8f9',
+      weight: 2,
+      fillColor: '#06b6d4',
+      fillOpacity: 0.95,
+    }).addTo(map);
+    map.invalidateSize();
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      markerRef.current = null;
+      trackRef.current = null;
+      tileRef.current = null;
+      fallbackRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (tileRef.current) map.removeLayer(tileRef.current);
+    const tile = L.tileLayer(tileUrl, {
+      minZoom: 1,
+      maxNativeZoom: mapLayer === 'infrared' ? 8 : 7,
+      // Stay inside the imagery's native resolution. Upscaling beyond this
+      // level is what caused the full-screen Real Map to become pixelated.
+      maxZoom: 7,
+      keepBuffer: 1,
+      updateWhenIdle: true,
+      updateWhenZooming: true,
+      crossOrigin: 'anonymous',
+    });
+    setTileState('loading');
+    tile.once('load', () => setTileState('ready'));
+    tile.addTo(map);
+    tileRef.current = tile;
+    map.setMaxZoom(7);
+    requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+    return () => {
+      map.removeLayer(tile);
+    };
+  }, [tileUrl, mapLayer]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const marker = markerRef.current;
+    if (!map || !marker) return;
+    marker.setLatLng([lat, lng]);
+    trackRef.current?.addLatLng([lat, lng]);
+    if (trackRef.current && trackRef.current.getLatLngs().length > 160) {
+      trackRef.current.setLatLngs(trackRef.current.getLatLngs().slice(-160) as L.LatLngExpression[]);
+    }
+    // Track-up behavior: keep the astronaut centered so every movement is
+    // reflected by the real surface moving underneath the marker.
+    map.panTo([lat, lng], { animate: false });
+  }, [lat, lng]);
+
+  useEffect(() => {
+    mapRef.current?.setZoom(Math.min(7, Math.max(3, Math.round(zoom + 2))), { animate: false });
+  }, [zoom]);
+
+  return (
+    <div ref={mapHostRef} className={`${className} bg-[#090b12]`} aria-label="Live Mars tactical map">
+      {tileState === 'loading' && (
+        <div className="absolute inset-0 z-[2] flex items-center justify-center bg-[#090b12]/95 pointer-events-none">
+          <div className="rounded-xl border border-cyan-400/40 bg-[#07121d]/90 px-3 py-2 text-[10px] font-mono text-cyan-200 shadow-xl">
+            Syncing NASA / USGS surface tiles…
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface MarsAstronautViewProps {
   initialSite?: {
     name: string;
@@ -269,6 +410,23 @@ interface MarsAstronautViewProps {
   onExit: () => void;
   onSwitchTo2D: () => void;
   onSwitchTo3D: () => void;
+  activeRoute?: {
+    name: string;
+    safetyScore: number;
+    maxSlopeDeg?: number;
+    soilConditionScore?: number;
+    terrainSuitabilityScore?: number;
+    surfaceCondition?: string;
+    waypoints: Array<{ lat: number; lng: number; name?: string; cumulativeDistKm?: number }>;
+  };
+}
+
+interface EvaForwardGuidance {
+  status: 'clear' | 'caution' | 'reroute';
+  title: string;
+  detail: string;
+  direction: string;
+  distanceKm?: number;
 }
 
 export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
@@ -276,6 +434,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
   onExit,
   onSwitchTo2D,
   onSwitchTo3D,
+  activeRoute,
 }) => {
   // Selected site preset
   const [selectedSitePreset, setSelectedSitePreset] = useState<AstronautSitePreset>(() => {
@@ -301,6 +460,9 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
   const [tacticalMapLayer, setTacticalMapLayer] = useState<'visible' | 'infrared' | 'elevation'>('visible');
   const [tacticalMapZoom, setTacticalMapZoom] = useState<number>(1.5);
   const [isFlashlightOn, setIsFlashlightOn] = useState<boolean>(false);
+  // Reference-style EVA: first-person Mars surface is the main view, while
+  // the real GIS reconnaissance map remains visible as the inset/tactical map.
+  const [evaDisplayMode] = useState<'real-map' | 'surface-sim'>('surface-sim');
   const [isVoiceListening, setIsVoiceListening] = useState<boolean>(false);
   const [voiceCommandFeedback, setVoiceCommandFeedback] = useState<string | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string>('');
@@ -352,10 +514,68 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
   const [photoFlash, setPhotoFlash] = useState<boolean>(false);
   const [odometerM, setOdometerM] = useState<number>(0);
   const [altitudeM, setAltitudeM] = useState<number>(1.75);
+  const [isMoving, setIsMoving] = useState<boolean>(false);
+  const [movementDirection, setMovementDirection] = useState<string>('Stationary');
+  const [movementSeconds, setMovementSeconds] = useState<number>(0);
 
   // Live dynamic coordinates based on movement offset
   const [currentLat, setCurrentLat] = useState<number>(selectedSitePreset.lat);
   const [currentLng, setCurrentLng] = useState<number>(selectedSitePreset.lng);
+
+  const forwardGuidance = useMemo<EvaForwardGuidance>(() => {
+    const headingRad = (headingDeg * Math.PI) / 180;
+    const aheadLat = currentLat + Math.cos(headingRad) * 0.28;
+    const latitudeScale = Math.max(0.25, Math.cos((currentLat * Math.PI) / 180));
+    const aheadLng = currentLng + (Math.sin(headingRad) * 0.28) / latitudeScale;
+    const start = { latitude: currentLat, longitude: currentLng };
+    const ahead = { latitude: aheadLat, longitude: aheadLng };
+
+    if (activeRoute?.waypoints?.length) {
+      const target = activeRoute.waypoints.slice(1).find((waypoint) =>
+        Math.hypot(waypoint.lat - currentLat, waypoint.lng - currentLng) > 0.01
+      ) || activeRoute.waypoints[activeRoute.waypoints.length - 1];
+      const targetBearing = (Math.atan2(
+        (target.lng - currentLng) * latitudeScale,
+        target.lat - currentLat
+      ) * 180) / Math.PI;
+      const normalizedBearing = (targetBearing + 360) % 360;
+      const relative = ((normalizedBearing - headingDeg + 540) % 360) - 180;
+      const turnText = Math.abs(relative) < 22
+        ? 'Continue on the planned corridor'
+        : `${relative > 0 ? 'Turn right' : 'Turn left'} ${Math.round(Math.abs(relative))}° toward the next waypoint`;
+      const distanceKm = target.cumulativeDistKm;
+      const needsReroute = activeRoute.safetyScore < 70 || (activeRoute.maxSlopeDeg ?? 0) >= 22;
+      const needsCaution = activeRoute.safetyScore < 85 || (activeRoute.maxSlopeDeg ?? 0) >= 15;
+      return {
+        status: needsReroute ? 'reroute' : needsCaution ? 'caution' : 'clear',
+        title: needsReroute ? 'Route change required' : needsCaution ? 'Caution ahead' : 'Smooth route ahead',
+        detail: `${activeRoute.name}: ${activeRoute.surfaceCondition || 'surface model nominal'}${activeRoute.soilConditionScore !== undefined ? ` • soil ${Math.round(activeRoute.soilConditionScore)}/100` : ''}${activeRoute.maxSlopeDeg !== undefined ? ` • max slope ${activeRoute.maxSlopeDeg.toFixed(1)}°` : ''}`,
+        direction: turnText,
+        distanceKm,
+      };
+    }
+
+    const hazards = [...JEZERO_HAZARD_ZONES, ...GALE_HAZARD_ZONES, ...GLOBAL_MARS_HAZARD_ZONES]
+      .map((hazard) => ({ hazard, distance: distanceToSegmentMeters(hazard.coordinate, start, ahead) }))
+      .filter(({ hazard, distance }) => distance <= Math.max(2500, hazard.radiusMeters * 0.12))
+      .sort((a, b) => a.distance - b.distance);
+    const nearest = hazards[0]?.hazard;
+    if (nearest) {
+      const severe = nearest.riskLevel === 'CRITICAL' || nearest.riskLevel === 'HIGH';
+      return {
+        status: severe ? 'reroute' : 'caution',
+        title: severe ? 'Route change required' : 'Caution ahead',
+        detail: `${nearest.name} is inside the forward scan corridor. ${nearest.description}`,
+        direction: severe ? 'Stop, slow down, and choose a safer bypass' : 'Reduce speed and verify terrain before continuing',
+      };
+    }
+    return {
+      status: 'clear',
+      title: 'Smooth ahead',
+      detail: 'No modeled hazard detected in the forward scan corridor.',
+      direction: 'Continue on current heading',
+    };
+  }, [activeRoute, currentLat, currentLng, headingDeg]);
 
   // 3D Canvas References
   const mountRef = useRef<HTMLDivElement>(null);
@@ -365,6 +585,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
   const terrainMeshRef = useRef<THREE.Mesh | null>(null);
   const rocksGroupRef = useRef<THREE.Group | null>(null);
   const skyDomeRef = useRef<THREE.Mesh | null>(null);
+  const dustFieldRef = useRef<THREE.Points | null>(null);
   const ecgCanvasRef = useRef<HTMLCanvasElement>(null);
   const radarCanvasRef = useRef<HTMLCanvasElement>(null);
   const laserBeamRef = useRef<THREE.Line | null>(null);
@@ -377,14 +598,33 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
   const keysDown = useRef<{ [key: string]: boolean }>({});
   const astronautPos = useRef(new THREE.Vector3(0, 1.75, 0));
   const astronautAltitude = useRef(1.75); // Eye level baseline
+  const isMovingRef = useRef(false);
+  const lastMovementDirectionRef = useRef('Stationary');
   const walkStepTimer = useRef(0);
   const speechRecognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const movementClock = window.setInterval(() => {
+      if (isMovingRef.current) setMovementSeconds((seconds) => seconds + 1);
+    }, 1000);
+    return () => window.clearInterval(movementClock);
+  }, []);
   const activeMoveInterval = useRef<any>(null);
 
   // Update live coordinates whenever site preset changes
   useEffect(() => {
     setCurrentLat(selectedSitePreset.lat);
     setCurrentLng(selectedSitePreset.lng);
+    astronautPos.current.set(0, 1.75, 0);
+    astronautAltitude.current = 1.75;
+    cameraEuler.current.set(0, 0, 0);
+    setHeadingDeg(0);
+    setPitchDeg(0);
+    setOdometerM(0);
+    setMovementSeconds(0);
+    setMovementDirection('Stationary');
+    setIsMoving(false);
+    isMovingRef.current = false;
   }, [selectedSitePreset]);
 
   // Start audio on mount
@@ -970,6 +1210,39 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     return tex;
   }, []);
 
+  // A layered dusty-sky gradient gives the EVA visor a readable horizon
+  // instead of a single flat orange color.
+  const createMartianSkyTexture = useCallback((skyColorHex: number) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Texture();
+
+    const base = new THREE.Color(skyColorHex);
+    const top = base.clone().multiplyScalar(0.28);
+    const mid = base.clone().multiplyScalar(0.62);
+    const horizon = base.clone().lerp(new THREE.Color(0xf1b27c), 0.32);
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, `#${top.getHexString()}`);
+    gradient.addColorStop(0.48, `#${mid.getHexString()}`);
+    gradient.addColorStop(0.82, `#${horizon.getHexString()}`);
+    gradient.addColorStop(1, '#7a3827');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Low-contrast dust bands create atmospheric depth near the horizon.
+    for (let y = 560; y < 1024; y += 46) {
+      ctx.fillStyle = `rgba(255, 194, 132, ${0.025 + (y - 560) / 26000})`;
+      ctx.fillRect(0, y, canvas.width, 18);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearFilter;
+    return texture;
+  }, []);
+
   // Initialize Three.js 3D Surface Scene
   useEffect(() => {
     const container = mountRef.current;
@@ -982,13 +1255,17 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     sceneRef.current = scene;
     scene.fog = new THREE.FogExp2(selectedSitePreset.skyColor, 0.008);
 
-    const camera = new THREE.PerspectiveCamera(72, width / height, 0.1, 900);
-    camera.position.set(0, 1.75, 0);
+    // Human eye-level framing: horizon ahead, ground in the lower field of
+    // view, and no overhead/global-map perspective.
+    const camera = new THREE.PerspectiveCamera(68, width / height, 0.25, 900);
+    camera.position.set(0, 1.72, 0);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     rendererRef.current = renderer;
@@ -1005,25 +1282,53 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       const vz = posAttr.getZ(i);
       const dist = Math.sqrt(vx * vx + vz * vz);
       const centerDamp = Math.min(1, Math.max(0, (dist - 4) / 20));
-      const h1 = Math.sin(vx * 0.05) * Math.cos(vz * 0.05) * 2.2;
-      const h2 = Math.sin(vx * 0.12 + 1.2) * Math.sin(vz * 0.12) * 0.8;
-      const h3 = Math.cos(vx * 0.02 - vz * 0.02) * 4.5;
+      const h1 = Math.sin(vx * 0.05) * Math.cos(vz * 0.05) * 3.6;
+      const h2 = Math.sin(vx * 0.12 + 1.2) * Math.sin(vz * 0.12) * 1.25;
+      const h3 = Math.cos(vx * 0.02 - vz * 0.02) * 5.5;
+      const duneRidges = Math.sin(vz * 0.32 + Math.sin(vx * 0.08)) * 0.42;
+      const microRelief = Math.sin(vx * 1.7) * Math.cos(vz * 1.35) * 0.12;
       const craterLip = dist > 60 ? (dist - 60) * 0.09 : 0;
-      posAttr.setY(i, (h1 + h2 + h3 + craterLip) * centerDamp);
+      posAttr.setY(i, (h1 + h2 + h3 + duneRidges + microRelief + craterLip) * centerDamp);
     }
     terrainGeo.computeVertexNormals();
 
     const groundTex = createMartianGroundTexture(selectedSitePreset.groundColor);
     const terrainMat = new THREE.MeshStandardMaterial({
       map: groundTex,
+      bumpMap: groundTex,
+      bumpScale: 0.16,
       roughness: 0.95,
       metalness: 0.02,
     });
+    // Use the bundled NASA/USGS Viking global mosaic on the actual 3D
+    // surface. The texture is cropped around the selected landing site so
+    // walking forward reveals real Martian albedo detail instead of a flat
+    // procedural orange floor.
+    const realMarsTexture = new THREE.TextureLoader().load('/textures/mars_viking_2k.jpg', (texture) => {
+      const repeatX = 0.24;
+      const repeatY = 0.24;
+      const centerU = (selectedSitePreset.lng + 180) / 360;
+      const centerV = (90 - selectedSitePreset.lat) / 180;
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.repeat.set(repeatX, repeatY);
+      texture.offset.set(
+        Math.max(0, Math.min(1 - repeatX, centerU - repeatX / 2)),
+        Math.max(0, Math.min(1 - repeatY, centerV - repeatY / 2)),
+      );
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      terrainMat.map = texture;
+      terrainMat.bumpMap = texture;
+      terrainMat.bumpScale = 0.28;
+      terrainMat.needsUpdate = true;
+    });
     const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+    terrainMesh.receiveShadow = true;
     terrainMeshRef.current = terrainMesh;
     scene.add(terrainMesh);
 
-    // 2. Distant Horizon Mountain Ring
+    // 2. Distant Horizon Mountain Ring + layered geological silhouettes.
     const rimGeo = new THREE.CylinderGeometry(290, 300, 70, 48, 1, true);
     const rimMat = new THREE.MeshBasicMaterial({
       color: selectedSitePreset.groundColor,
@@ -1034,25 +1339,49 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     rimMesh.position.y = 15;
     scene.add(rimMesh);
 
+    const mountainGroup = new THREE.Group();
+    const mountainGeo = new THREE.SphereGeometry(1, 16, 8);
+    const mountainMat = new THREE.MeshStandardMaterial({
+      color: 0x4a241b,
+      roughness: 1,
+      metalness: 0,
+    });
+    for (let i = 0; i < 14; i += 1) {
+      const mountain = new THREE.Mesh(mountainGeo, mountainMat);
+      const x = -150 + i * 23 + Math.sin(i * 1.7) * 10;
+      const z = -190 - (i % 3) * 18;
+      const height = 18 + (i % 5) * 8;
+      mountain.position.set(x, height * 0.22, z);
+      mountain.scale.set(18 + (i % 4) * 8, height, 12 + (i % 3) * 7);
+      mountain.rotation.y = i * 0.7;
+      mountain.castShadow = true;
+      mountainGroup.add(mountain);
+    }
+    scene.add(mountainGroup);
+
     // 3. Martian Rocks & Outcrops Scatter
     const rocksGroup = new THREE.Group();
     rocksGroupRef.current = rocksGroup;
-    const rockGeo = new THREE.DodecahedronGeometry(0.8, 1);
+    const rockGeo = new THREE.IcosahedronGeometry(0.8, 3);
     const rockMat = new THREE.MeshStandardMaterial({
-      color: selectedSitePreset.groundColor,
-      roughness: 0.9,
-      metalness: 0.05,
+      color: 0x9a593d,
+      roughness: 0.98,
+      metalness: 0,
+      emissive: 0x1d0804,
+      emissiveIntensity: 0.12,
     });
 
     const rockPositions = [
-      { x: 3.2, z: -4.5, s: 1.4, targetIdx: 0 },
-      { x: -5.1, z: -7.2, s: 2.1, targetIdx: 1 },
-      { x: 7.8, z: -8.9, s: 1.8, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
-      { x: -2.8, z: 5.4, s: 1.2, targetIdx: 0 },
-      { x: 6.2, z: 4.8, s: 2.4, targetIdx: 1 },
-      { x: -8.4, z: -2.3, s: 3.1, targetIdx: 0 },
-      { x: 12.0, z: -14.0, s: 4.2, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
-      { x: -14.0, z: -16.0, s: 3.8, targetIdx: 1 },
+      // Keep the spawn point clear; targets become selectable as the
+      // astronaut walks toward them instead of filling the centre reticle.
+      { x: 5.5, z: -8.5, s: 1.4, targetIdx: 0 },
+      { x: -11.5, z: -17.5, s: 2.1, targetIdx: 1 },
+      { x: 15.5, z: -20.5, s: 1.8, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
+      { x: -8.5, z: 10.5, s: 1.2, targetIdx: 0 },
+      { x: 15.2, z: 11.8, s: 2.4, targetIdx: 1 },
+      { x: -19.5, z: -6.3, s: 3.1, targetIdx: 0 },
+      { x: 28.0, z: -26.0, s: 4.2, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
+      { x: -28.0, z: -30.0, s: 3.8, targetIdx: 1 },
     ];
 
     rockPositions.forEach((pos) => {
@@ -1060,6 +1389,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       mesh.position.set(pos.x, pos.s * 0.4, pos.z);
       mesh.scale.set(pos.s, pos.s * 0.7 + Math.random() * 0.4, pos.s * 1.1);
       mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       mesh.userData = {
         isScanTarget: true,
         targetInfo: selectedSitePreset.sampleTargets[pos.targetIdx],
@@ -1069,25 +1400,50 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     });
     scene.add(rocksGroup);
 
+    // Fine airborne regolith catches the light and gives the low-pressure
+    // atmosphere depth without covering the astronaut's view.
+    const dustCount = width < 700 ? 220 : 420;
+    const dustPositions = new Float32Array(dustCount * 3);
+    for (let i = 0; i < dustCount; i += 1) {
+      dustPositions[i * 3] = (Math.random() - 0.5) * 190;
+      dustPositions[i * 3 + 1] = 0.35 + Math.random() * 15;
+      dustPositions[i * 3 + 2] = -150 + Math.random() * 180;
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+    const dustMat = new THREE.PointsMaterial({
+      color: 0xd8a17d,
+      size: width < 700 ? 0.045 : 0.06,
+      transparent: true,
+      opacity: 0.26,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+    });
+    const dustField = new THREE.Points(dustGeo, dustMat);
+    dustFieldRef.current = dustField;
+    scene.add(dustField);
+
     // 4. Rover Tracks
-    const trackGeo = new THREE.PlaneGeometry(1.2, 28);
+    const trackGeo = new THREE.PlaneGeometry(0.24, 18);
     trackGeo.rotateX(-Math.PI / 2);
     const trackMat = new THREE.MeshBasicMaterial({
       color: 0x421c0e,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.1,
     });
     const trackLeft = new THREE.Mesh(trackGeo, trackMat);
-    trackLeft.position.set(-1.2, 0.02, -10);
+    trackLeft.position.set(-0.85, 0.025, -8);
     const trackRight = new THREE.Mesh(trackGeo, trackMat);
-    trackRight.position.set(1.2, 0.02, -10);
+    trackRight.position.set(0.85, 0.025, -8);
     scene.add(trackLeft);
     scene.add(trackRight);
 
     // 5. Sky Dome
     const skyGeo = new THREE.SphereGeometry(350, 32, 24);
     const skyMat = new THREE.MeshBasicMaterial({
-      color: selectedSitePreset.skyColor,
+      map: createMartianSkyTexture(selectedSitePreset.skyColor),
+      color: 0xffffff,
       side: THREE.BackSide,
     });
     const skyDome = new THREE.Mesh(skyGeo, skyMat);
@@ -1095,12 +1451,44 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     scene.add(skyDome);
 
     // 6. Lighting
-    const hemiLight = new THREE.HemisphereLight(selectedSitePreset.skyColor, selectedSitePreset.groundColor, 0.7);
+    const hemiLight = new THREE.HemisphereLight(0xffd2a6, 0x32140e, 0.85);
     scene.add(hemiLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffeedd, selectedSitePreset.sunIntensity);
+    const sunLight = new THREE.DirectionalLight(0xffd3a6, selectedSitePreset.sunIntensity * 0.86);
     sunLight.position.set(60, 85, 45);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(width < 700 ? 512 : 1024, width < 700 ? 512 : 1024);
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 360;
+    sunLight.shadow.camera.left = -160;
+    sunLight.shadow.camera.right = 160;
+    sunLight.shadow.camera.top = 160;
+    sunLight.shadow.camera.bottom = -160;
     scene.add(sunLight);
+
+    // A small physically-readable sun disc replaces the flat orange sky cue.
+    const sunCanvas = document.createElement('canvas');
+    sunCanvas.width = 128;
+    sunCanvas.height = 128;
+    const sunCtx = sunCanvas.getContext('2d');
+    if (sunCtx) {
+      const sunGradient = sunCtx.createRadialGradient(64, 64, 8, 64, 64, 64);
+      sunGradient.addColorStop(0, 'rgba(255,250,220,1)');
+      sunGradient.addColorStop(0.2, 'rgba(255,221,164,.95)');
+      sunGradient.addColorStop(0.52, 'rgba(245,139,76,.28)');
+      sunGradient.addColorStop(1, 'rgba(245,139,76,0)');
+      sunCtx.fillStyle = sunGradient;
+      sunCtx.fillRect(0, 0, 128, 128);
+      const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: new THREE.CanvasTexture(sunCanvas),
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }));
+      sunSprite.position.set(110, 54, -230);
+      sunSprite.scale.set(25, 25, 1);
+      scene.add(sunSprite);
+    }
 
     // Dual Helmet Spotlight
     const spotLight = new THREE.SpotLight(0xffffff, isFlashlightOn ? 4.5 : 0, 45, Math.PI / 5, 0.35);
@@ -1216,6 +1604,15 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
       // Process horizontal motion
       if (moveVec.lengthSq() > 0) {
+        isMovingRef.current = true;
+        const nextMovementDirection = Math.abs(moveVec.z) >= Math.abs(moveVec.x)
+          ? (moveVec.z < 0 ? 'Forward' : 'Reverse')
+          : (moveVec.x < 0 ? 'Strafe left' : 'Strafe right');
+        if (lastMovementDirectionRef.current !== nextMovementDirection) {
+          lastMovementDirectionRef.current = nextMovementDirection;
+          setMovementDirection(nextMovementDirection);
+        }
+        setIsMoving(true);
         moveVec.normalize();
         const walkSpeed = 2.5 * speedMultiplier * delta;
 
@@ -1230,6 +1627,21 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
         // Clamping inside exploration radius
         astronautPos.current.x = Math.max(-95, Math.min(95, astronautPos.current.x));
         astronautPos.current.z = Math.max(-95, Math.min(95, astronautPos.current.z));
+
+        // Keep the first-person camera outside rocks while still allowing the
+        // astronaut to approach close enough for the scanner/sample workflow.
+        rocksGroup.children.forEach((rock) => {
+          const dx = astronautPos.current.x - rock.position.x;
+          const dz = astronautPos.current.z - rock.position.z;
+          const distance = Math.hypot(dx, dz);
+          const rockRadius = Math.max(rock.scale.x, rock.scale.z) * 0.72;
+          const safeDistance = rockRadius + 1.15;
+          if (distance > 0.001 && distance < safeDistance) {
+            const push = (safeDistance - distance) / distance;
+            astronautPos.current.x += dx * push;
+            astronautPos.current.z += dz * push;
+          }
+        });
 
         // Dynamically shift GPS lat/lng slightly as astronaut moves
         const latOffset = (astronautPos.current.z / 100000);
@@ -1247,7 +1659,30 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
           marsEvaAudio.playFootstep();
         }
       } else {
+        isMovingRef.current = false;
+        if (lastMovementDirectionRef.current !== 'Stationary') {
+          lastMovementDirectionRef.current = 'Stationary';
+          setMovementDirection('Stationary');
+        }
+        setIsMoving(false);
         camera.position.set(astronautPos.current.x, astronautAltitude.current, astronautPos.current.z);
+      }
+
+      // Keep the first-person view aligned with the current attitude. Keyboard
+      // turn/look controls update cameraEuler directly, so syncing here avoids
+      // the camera appearing to stare at the ground or rotate out of phase
+      // with the direction used by movement.
+      camera.quaternion.setFromEuler(cameraEuler.current);
+
+      // Slow lateral drift makes the regolith particles feel suspended in a
+      // thin Martian atmosphere instead of looking like a game-particle burst.
+      const dustPositions = dustFieldRef.current?.geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+      if (dustPositions) {
+        for (let i = 0; i < dustPositions.count; i += 1) {
+          const x = dustPositions.getX(i) + delta * 0.11;
+          dustPositions.setX(i, x > 96 ? -96 : x);
+        }
+        dustPositions.needsUpdate = true;
       }
 
       // Check nearest rock for target scanner
@@ -1389,8 +1824,57 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
   return (
     <div className="relative w-full h-full bg-black select-none overflow-hidden font-sans">
-      {/* 3D WebGL Surface Viewport */}
-      <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
+      {/* Real Mars GIS is the default EVA surface. The 3D simulation remains
+          available as an explicit presentation mode, never as a fake map. */}
+      {evaDisplayMode === 'real-map' && (
+        <MarsEVAReconMap
+          lat={currentLat}
+          lng={currentLng}
+          mapLayer={tacticalMapLayer}
+          zoom={5}
+          className="absolute inset-0 z-0"
+        />
+      )}
+
+      {/* Optional 3D surface simulation */}
+      <div
+        ref={mountRef}
+        className={`absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing transition-opacity duration-300 ${
+          evaDisplayMode === 'surface-sim' ? 'z-0 opacity-100' : 'z-0 opacity-0 pointer-events-none'
+        }`}
+      />
+
+      {/* Visor optics: subtle vignette and horizon guide unify the 3D scene with
+          the mission HUD without obscuring the terrain. */}
+      <div
+        className="absolute inset-0 z-[1] pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(7,10,18,.28) 0%, transparent 26%, transparent 72%, rgba(7,8,13,.48) 100%), radial-gradient(ellipse at center, transparent 48%, rgba(7,8,13,.38) 100%)',
+        }}
+      />
+      {evaDisplayMode === 'surface-sim' && (
+        <div className="absolute left-6 right-6 top-[18%] z-[2] pointer-events-none border-t border-amber-200/15" />
+      )}
+
+      {/* First-person helmet immersion layer. This is attached to the camera
+          viewport, not a third-person astronaut body. */}
+      <div className="absolute inset-0 z-[4] pointer-events-none overflow-hidden" aria-hidden="true">
+        {/* Curved visor glass and pressure-ring edge. */}
+        <div className="absolute inset-0 rounded-[clamp(1.4rem,4vw,4rem)] border-[clamp(10px,2.2vw,34px)] border-[#171313]/78 shadow-[inset_0_0_28px_rgba(255,180,120,.32),inset_0_0_110px_rgba(0,0,0,.72)]" />
+        <div className="absolute inset-[clamp(12px,2.8vw,42px)] rounded-[clamp(1.2rem,3.5vw,3.5rem)] border border-orange-200/20 shadow-[inset_0_0_18px_rgba(255,220,180,.18)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_48%,rgba(4,7,12,.2)_72%,rgba(2,3,6,.7)_100%)]" style={{ backdropFilter: 'blur(.25px) saturate(1.08)' }} />
+        {/* Sun reflection, glass scratches, and slow dust on the visor. */}
+        <div className="absolute inset-0 opacity-45 mix-blend-screen bg-[linear-gradient(116deg,transparent_28%,rgba(255,224,190,.16)_38%,transparent_46%),linear-gradient(72deg,transparent_54%,rgba(109,220,255,.1)_63%,transparent_70%)]" />
+        {evaDisplayMode === 'surface-sim' && (
+          <div className="mars-visor-scratches absolute inset-[6%] rounded-[3rem] opacity-10" />
+        )}
+        <div className="mars-visor-dust absolute inset-0 opacity-[0.08]" />
+        {/* Only small peripheral suit/shoulder hints remain in the lower frame. */}
+        <div className="absolute left-[-4%] bottom-[-11%] w-[24vw] min-w-[130px] max-w-[300px] h-[23vh] rounded-[65%_35%_20%_0] rotate-[12deg] bg-gradient-to-br from-slate-200/18 via-slate-800/28 to-slate-950/65 border border-slate-200/15 shadow-[10px_-10px_30px_rgba(0,0,0,.38)]" />
+        <div className="absolute right-[-4%] bottom-[-11%] w-[24vw] min-w-[130px] max-w-[300px] h-[23vh] rounded-[35%_65%_0_20%] rotate-[-12deg] bg-gradient-to-bl from-slate-200/18 via-slate-800/28 to-slate-950/65 border border-slate-200/15 shadow-[-10px_-10px_30px_rgba(0,0,0,.38)]" />
+        <div className="absolute bottom-[-14%] left-1/2 -translate-x-1/2 w-[min(32vw,420px)] h-[17vh] rounded-[48%_48%_0_0] bg-gradient-to-b from-slate-200/10 via-slate-800/30 to-slate-950/70 border border-cyan-100/10" />
+      </div>
 
       {/* Snapshot Flash Overlay */}
       {photoFlash && (
@@ -1556,6 +2040,58 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
             </div>
           </div>
 
+          {/* Forward surface/route guidance: tells the astronaut whether to
+              continue, slow down, or change route before moving. */}
+          <div
+            className={`absolute top-20 right-3 sm:right-4 z-20 w-[min(310px,calc(100vw-1.5rem))] pointer-events-auto rounded-2xl border backdrop-blur-xl shadow-2xl p-3 ${
+              forwardGuidance.status === 'reroute'
+                ? 'bg-rose-950/90 border-rose-400/70'
+                : forwardGuidance.status === 'caution'
+                  ? 'bg-amber-950/90 border-amber-400/70'
+                  : 'bg-emerald-950/85 border-emerald-400/60'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {forwardGuidance.status === 'clear' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+                ) : (
+                  <AlertTriangle className={`w-4 h-4 shrink-0 ${forwardGuidance.status === 'reroute' ? 'text-rose-300' : 'text-amber-300'}`} />
+                )}
+                <span className="text-xs font-bold text-white truncate">{forwardGuidance.title}</span>
+              </div>
+              <span className="text-[9px] font-mono uppercase tracking-wider text-white/60">Forward scan</span>
+            </div>
+            <p className="mt-1.5 text-[10px] leading-relaxed text-white/75">{forwardGuidance.detail}</p>
+            <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-black/25 px-2 py-1.5 text-[10px] font-semibold text-white">
+              <Navigation className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+              <span>{forwardGuidance.direction}</span>
+              {forwardGuidance.distanceKm !== undefined && (
+                <span className="ml-auto font-mono text-cyan-200">{forwardGuidance.distanceKm.toFixed(1)} km</span>
+              )}
+            </div>
+          </div>
+
+          {/* Movement telemetry stays above the lower suit/visor area so the
+              astronaut always sees direction and elapsed movement time. */}
+          <div className="absolute left-3 sm:left-4 bottom-28 sm:bottom-24 z-20 pointer-events-none rounded-2xl border border-cyan-300/25 bg-[#07121d]/85 backdrop-blur-xl px-3 py-2 shadow-2xl min-w-[170px]">
+            <div className="flex items-center justify-between gap-3 text-[9px] font-mono uppercase tracking-wider text-cyan-200/70">
+              <span className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${isMoving ? 'bg-emerald-300 animate-pulse' : 'bg-slate-500'}`} />
+                EVA movement
+              </span>
+              <span className="text-amber-300">{movementSeconds.toString().padStart(2, '0')}s</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2 text-xs font-bold text-white">
+              <Navigation className={`w-3.5 h-3.5 ${isMoving ? 'text-emerald-300' : 'text-cyan-300'}`} />
+              <span>{movementDirection}</span>
+              <span className="ml-auto font-mono text-cyan-200">{odometerM.toFixed(1)} m</span>
+            </div>
+            <div className="mt-1 text-[9px] text-neutral-400">
+              {isMoving ? 'Surface tracking active' : 'Press W/A/S/D or use the 6-DOF pad'}
+            </div>
+          </div>
+
           {/* CENTER RETICLE & SPECTROMETER TARGET SCANNER */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center">
             {/* Crosshair Reticle */}
@@ -1565,7 +2101,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
             </div>
 
             {/* Active Rock Target Readout */}
-            {activeScanTarget && (
+            {activeScanTarget && evaDisplayMode === 'surface-sim' && (
               <div className="mt-3 bg-[#070b14]/95 backdrop-blur-xl border border-cyan-500/80 rounded-2xl p-3 shadow-2xl text-left max-w-xs sm:max-w-sm pointer-events-auto animate-in zoom-in-95">
                 <div className="flex items-center justify-between gap-2 border-b border-neutral-800 pb-1.5 mb-2">
                   <div className="flex items-center gap-1.5 text-cyan-300 font-bold text-xs">
@@ -1636,11 +2172,12 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                   isTacticalMapExpanded ? 'w-[240px] h-[180px]' : 'w-[190px] h-[120px]'
                 }`}
               >
-                {/* Real Satellite Background Thumbnail */}
-                <img
-                  src={selectedSitePreset.satelliteThumb}
-                  alt={selectedSitePreset.name}
-                  className="absolute inset-0 w-full h-full object-cover opacity-70"
+                {/* Live Leaflet Mars basemap with the astronaut position */}
+                <MarsEVAReconMap
+                  lat={currentLat}
+                  lng={currentLng}
+                  mapLayer={tacticalMapLayer}
+                  zoom={tacticalMapZoom}
                 />
 
                 {/* Live Radar Canvas with Sweeping Beam & Heading Cone */}
@@ -1783,7 +2320,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
             {/* Bottom Right: OMNIDIRECTIONAL 6-DOF NAVIGATION CONTROLLER ("samne, dane, bame, pichone, upore, niche") */}
             <div className="flex flex-col gap-1.5 bg-[#070b14]/90 backdrop-blur-xl border border-neutral-800 rounded-2xl p-2 shadow-2xl text-neutral-200">
               <div className="flex items-center justify-between text-[10px] font-mono text-cyan-400 pb-1 border-b border-neutral-800/80">
-                <span className="font-bold">6-DOF CONTROLLER</span>
+                <span className="font-bold">EVA MOTION CONTROL</span>
                 <button
                   type="button"
                   onClick={() => setIsSprintActive((prev) => !prev)}
@@ -1796,6 +2333,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                 </button>
               </div>
 
+              <div className="text-[9px] font-mono text-neutral-500 text-center">W/S FWD/REV • A/D STRAFE • Z/X TURN</div>
+
               {/* 3D Directional Move Cluster (Forward, Back, Strafe Left/Right, Pitch, Turn) */}
               <div className="flex items-center gap-2">
                 {/* 2D Horizontal Compass D-Pad */}
@@ -1805,8 +2344,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     type="button"
                     onMouseDown={() => startContinuousMove('forward')}
                     onMouseUp={stopContinuousMove}
+                    onMouseLeave={stopContinuousMove}
                     onTouchStart={() => startContinuousMove('forward')}
                     onTouchEnd={stopContinuousMove}
+                    onTouchCancel={stopContinuousMove}
                     className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
                     title="Forward (W)"
                   >
@@ -1819,8 +2360,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       type="button"
                       onMouseDown={() => startContinuousMove('left')}
                       onMouseUp={stopContinuousMove}
+                      onMouseLeave={stopContinuousMove}
                       onTouchStart={() => startContinuousMove('left')}
                       onTouchEnd={stopContinuousMove}
+                      onTouchCancel={stopContinuousMove}
                       className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
                       title="Strafe Left (A)"
                     >
@@ -1842,8 +2385,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       type="button"
                       onMouseDown={() => startContinuousMove('right')}
                       onMouseUp={stopContinuousMove}
+                      onMouseLeave={stopContinuousMove}
                       onTouchStart={() => startContinuousMove('right')}
                       onTouchEnd={stopContinuousMove}
+                      onTouchCancel={stopContinuousMove}
                       className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
                       title="Strafe Right (D)"
                     >
@@ -1856,8 +2401,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     type="button"
                     onMouseDown={() => startContinuousMove('back')}
                     onMouseUp={stopContinuousMove}
+                    onMouseLeave={stopContinuousMove}
                     onTouchStart={() => startContinuousMove('back')}
                     onTouchEnd={stopContinuousMove}
+                    onTouchCancel={stopContinuousMove}
                     className="w-9 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 flex items-center justify-center text-cyan-400 active:scale-90 transition cursor-pointer"
                     title="Backward (S)"
                   >
@@ -1872,13 +2419,15 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     type="button"
                     onMouseDown={() => startContinuousMove('up')}
                     onMouseUp={stopContinuousMove}
+                    onMouseLeave={stopContinuousMove}
                     onTouchStart={() => startContinuousMove('up')}
                     onTouchEnd={stopContinuousMove}
+                    onTouchCancel={stopContinuousMove}
                     className="w-14 h-8 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer shadow-md"
                     title="MMU Thruster Ascend (Space / E)"
                   >
                     <Flame className="w-3.5 h-3.5" />
-                    <span>UP</span>
+                    <span>ALT +</span>
                   </button>
 
                   {/* Descend / Land DOWN (C) */}
@@ -1886,13 +2435,15 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     type="button"
                     onMouseDown={() => startContinuousMove('down')}
                     onMouseUp={stopContinuousMove}
+                    onMouseLeave={stopContinuousMove}
                     onTouchStart={() => startContinuousMove('down')}
                     onTouchEnd={stopContinuousMove}
+                    onTouchCancel={stopContinuousMove}
                     className="w-14 h-8 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 font-bold text-[10px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer"
                     title="Descend / Land (C / Q)"
                   >
                     <ArrowDown className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>DOWN</span>
+                    <span>ALT -</span>
                   </button>
 
                   {/* Turn 360° Left & Right */}
@@ -1901,8 +2452,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       type="button"
                       onMouseDown={() => startContinuousMove('turnLeft')}
                       onMouseUp={stopContinuousMove}
+                      onMouseLeave={stopContinuousMove}
                       onTouchStart={() => startContinuousMove('turnLeft')}
                       onTouchEnd={stopContinuousMove}
+                      onTouchCancel={stopContinuousMove}
                       className="flex-1 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-[10px] font-mono text-cyan-300 border border-neutral-800 active:scale-90"
                       title="Turn Left (Z)"
                     >
@@ -1912,8 +2465,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                       type="button"
                       onMouseDown={() => startContinuousMove('turnRight')}
                       onMouseUp={stopContinuousMove}
+                      onMouseLeave={stopContinuousMove}
                       onTouchStart={() => startContinuousMove('turnRight')}
                       onTouchEnd={stopContinuousMove}
+                      onTouchCancel={stopContinuousMove}
                       className="flex-1 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-[10px] font-mono text-cyan-300 border border-neutral-800 active:scale-90"
                       title="Turn Right (X)"
                     >
@@ -1929,8 +2484,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
       {/* FULL TACTICAL SATELLITE RECON MAP MODAL ("real map dekhabe") */}
       {isTacticalMapOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex flex-col p-3 sm:p-6 animate-in fade-in duration-200">
-          <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col bg-[#090d16] border border-cyan-500/70 rounded-3xl overflow-hidden shadow-2xl text-neutral-200">
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-xl flex flex-col px-3 pb-3 sm:px-6 sm:pb-6 pt-[4.75rem] min-h-0 animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl mx-auto flex-1 min-h-0 flex flex-col bg-[#090d16] border border-cyan-500/70 rounded-3xl overflow-hidden shadow-2xl text-neutral-200">
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-neutral-800 bg-[#0c1220] flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1990,7 +2545,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
             </div>
 
             {/* Tactical Map Recon Surface Viewer */}
-            <div className="flex-1 relative bg-black flex flex-col md:flex-row overflow-hidden">
+            <div className="flex-1 min-h-0 relative bg-black flex flex-col md:flex-row overflow-hidden">
               {/* Main Satellite View */}
               <div className="flex-1 relative overflow-hidden flex flex-col p-3 sm:p-4 bg-[#080d1a]">
                 {/* Map Layer Toolbar & Zoom Controls */}
@@ -2051,16 +2606,11 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
                     className="w-full h-full relative transition-transform duration-300 flex items-center justify-center"
                     style={{ transform: `scale(${tacticalMapZoom})` }}
                   >
-                    <img
-                      src={selectedSitePreset.satelliteThumb}
-                      alt={selectedSitePreset.name}
-                      className={`w-full h-full object-cover transition-all ${
-                        tacticalMapLayer === 'infrared'
-                          ? 'filter hue-rotate-180 contrast-125'
-                          : tacticalMapLayer === 'elevation'
-                          ? 'filter invert contrast-150 saturate-200'
-                          : ''
-                      }`}
+                    <MarsEVAReconMap
+                      lat={currentLat}
+                      lng={currentLng}
+                      mapLayer={tacticalMapLayer}
+                      zoom={tacticalMapZoom}
                     />
 
                     {/* Tactical Crosshair at current astronaut location */}
@@ -2120,8 +2670,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
       {/* SAMPLE CADDY DRAWER */}
       {isSampleCaddyOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-end sm:items-center justify-center p-3 animate-in fade-in">
-          <div className="w-full max-w-lg bg-[#0c1220] border border-emerald-500/60 rounded-3xl p-5 shadow-2xl text-neutral-200">
+        <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-md flex items-end sm:items-center justify-center p-3 pt-[4.75rem] sm:pt-[4.75rem] animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-lg bg-[#0c1220] border border-emerald-500/60 rounded-3xl p-5 shadow-2xl text-neutral-200 max-h-[calc(100dvh-6rem)] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-emerald-400" />
@@ -2159,8 +2709,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
       {/* SITE TELEPORT MENU */}
       {isSiteMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-end sm:items-center justify-center p-3 animate-in fade-in">
-          <div className="w-full max-w-md bg-[#0c1220] border border-orange-500/60 rounded-3xl p-5 shadow-2xl text-neutral-200">
+        <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-md flex items-end sm:items-center justify-center p-3 pt-[4.75rem] sm:pt-[4.75rem] animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-md bg-[#0c1220] border border-orange-500/60 rounded-3xl p-5 shadow-2xl text-neutral-200 max-h-[calc(100dvh-6rem)] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-orange-400" />
@@ -2204,8 +2754,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
       {/* EVA PHOTO GALLERY MODAL */}
       {isPhotoGalleryOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in">
-          <div className="w-full max-w-3xl bg-[#0c1220] border border-cyan-500/60 rounded-3xl p-5 shadow-2xl text-neutral-200 flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-start sm:items-center justify-center p-3 pt-[4.75rem] sm:pt-[4.75rem] animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-3xl bg-[#0c1220] border border-cyan-500/60 rounded-3xl p-5 shadow-2xl text-neutral-200 flex flex-col max-h-[calc(100dvh-6rem)] sm:max-h-[85vh]">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
                 <Camera className="w-5 h-5 text-cyan-400" />
@@ -2251,8 +2801,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
       {/* VOICE CONTROL HELP & 1-CLICK COMMAND PALETTE MODAL */}
       {isVoiceCheatSheetOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in">
-          <div className="w-full max-w-xl bg-[#0c1220] border border-cyan-500/70 rounded-3xl p-5 shadow-2xl text-neutral-200 flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-start sm:items-center justify-center p-3 pt-[4.75rem] sm:pt-[4.75rem] animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-xl bg-[#0c1220] border border-cyan-500/70 rounded-3xl p-5 shadow-2xl text-neutral-200 flex flex-col max-h-[calc(100dvh-6rem)] sm:max-h-[85vh]">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div className="flex items-center gap-2">
                 <Mic className="w-5 h-5 text-cyan-400" />

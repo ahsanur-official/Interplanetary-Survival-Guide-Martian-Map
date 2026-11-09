@@ -90,8 +90,8 @@ and is not certified for extraterrestrial flight operations.
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-neutral-700 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl font-mono text-xs text-neutral-300">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[9999] flex items-start sm:items-center justify-center p-3 pt-[4.75rem] sm:pt-[4.75rem] overflow-y-auto">
+      <div className="bg-neutral-900 border border-neutral-700 rounded-xl max-w-3xl w-full max-h-[calc(100dvh-6rem)] sm:max-h-[90vh] overflow-y-auto shadow-2xl font-mono text-xs text-neutral-300">
         {/* Header */}
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between sticky top-0 bg-neutral-900 z-10">
           <div className="flex items-center gap-2.5">

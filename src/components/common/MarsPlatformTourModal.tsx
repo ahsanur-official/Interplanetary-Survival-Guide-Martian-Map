@@ -108,12 +108,12 @@ export function MarsPlatformTourModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-start sm:items-center justify-center p-3 pt-[4.75rem] sm:pt-[4.75rem] overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-xl bg-[#0c1017] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-neutral-200 animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-xl max-h-[calc(100dvh-6rem)] bg-[#0c1017] border border-neutral-800 rounded-2xl shadow-2xl overflow-y-auto flex flex-col text-neutral-200 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/60">
           <div className="flex items-center gap-2.5">

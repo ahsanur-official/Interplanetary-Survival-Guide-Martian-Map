@@ -268,6 +268,15 @@ export function RealMarsMap() {
     return '2d';
   });
 
+  // Keep the user's current page/view across refreshes and browser reopen.
+  useEffect(() => {
+    try {
+      localStorage.setItem('marsway_preferred_view', viewMode);
+    } catch {
+      // Storage can be unavailable in private/restricted browser contexts.
+    }
+  }, [viewMode]);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
@@ -1096,7 +1105,9 @@ export function RealMarsMap() {
       center: [18.38, 77.58],
       zoom: 3,
       minZoom: 2, // Keep the full Mars disk larger than the viewport so no polar/edge void appears.
-      maxZoom: 20,
+      // The public basemaps provide native detail up to roughly z7/z8.
+      // Preventing extreme over-zoom avoids stretched, blurry tiles.
+      maxZoom: 8,
       maxBounds: [[-85, -540], [85, 540]], // Clamp latitude while still allowing several horizontal world copies.
       maxBoundsViscosity: 1,
       attributionControl: false,
@@ -2535,6 +2546,10 @@ export function RealMarsMap() {
     const map = mapInstance || mapInstanceRef.current;
     if (!map) return;
 
+    // Match the map ceiling to the selected basemap's native pyramid so the
+    // final zoom step never enlarges a low-resolution tile.
+    map.setMaxZoom(activeLayer === 'themis' ? 8 : 7);
+
     if (fallbackSurfaceLayerRef.current) {
       map.removeLayer(fallbackSurfaceLayerRef.current);
       fallbackSurfaceLayerRef.current = null;
@@ -2546,19 +2561,17 @@ export function RealMarsMap() {
       }
     });
 
-    // Ultra-fast, responsive tile options to eliminate zoom loading delay:
-    // updateWhenIdle: false -> immediately begins tile fetch without waiting for gesture halt
-    // updateWhenZooming: true -> hardware CSS scaling + continuous fetching during zoom
-    // keepBuffer: 8 -> keeps loaded tiles in DOM cache so zooming in/out has zero blank re-loading
+    // Keep the first view light. The local 2K Mars image below fills any remote
+    // tile gaps immediately while NASA tiles load progressively on top.
     const fastTileOptions: L.TileLayerOptions = {
       minZoom: 1,
       maxNativeZoom: activeLayer === 'themis' ? 8 : 7,
-      maxZoom: 20,
+      maxZoom: activeLayer === 'themis' ? 8 : 7,
       noWrap: false,
-      updateWhenIdle: false,
+      updateWhenIdle: true,
       updateWhenZooming: true,
-      keepBuffer: 8,
-      updateInterval: 80,
+      keepBuffer: 1,
+      updateInterval: 120,
       tileSize: 256,
       crossOrigin: 'anonymous',
     };
@@ -2599,24 +2612,37 @@ export function RealMarsMap() {
       );
     }
 
+    // Always place a local surface underneath the remote tile layer. This
+    // prevents black/empty rectangles when a public tile request is slow.
+    const localFallback = L.imageOverlay(
+      '/textures/mars_viking_2k.jpg',
+      [[-90, -180], [90, 180]],
+      // Keep the fallback hidden while NASA tiles are loading. Showing it
+      // underneath a partially loaded tile pyramid creates visible orange /
+      // brown colour blocks across the 2D map. It is revealed only when the
+      // remote layer genuinely fails and then covers the whole map uniformly.
+      { opacity: 0, interactive: false, crossOrigin: true }
+    );
+    localFallback.addTo(map);
+    fallbackSurfaceLayerRef.current = localFallback;
+
     let tileErrors = 0;
     let fallbackActivated = false;
     const activateLocalFallback = () => {
       if (fallbackActivated || !mapInstanceRef.current) return;
       fallbackActivated = true;
       map.removeLayer(newTileLayer);
-      const fallback = L.imageOverlay(
-        '/textures/mars_viking_2k.jpg',
-        [[-90, -180], [90, 180]],
-        { opacity: activeLayer === 'viking' ? 1 : 0.72, interactive: false, crossOrigin: true }
-      );
-      fallback.addTo(map);
-      fallbackSurfaceLayerRef.current = fallback;
+      localFallback.setOpacity(1);
       setIsTilesLoading(false);
     };
 
     newTileLayer.on('loading', () => setIsTilesLoading(true));
-    newTileLayer.on('load', () => setIsTilesLoading(false));
+    newTileLayer.on('load', () => {
+      // Once the NASA pyramid is complete, make sure the local fallback never
+      // leaks through and changes the map's colour from tile to tile.
+      localFallback.setOpacity(0);
+      setIsTilesLoading(false);
+    });
     newTileLayer.on('tileerror', () => {
       tileErrors += 1;
       if (tileErrors >= 3) activateLocalFallback();
@@ -3277,6 +3303,8 @@ export function RealMarsMap() {
         return true;
       })
       .sort((a, b) => (b.diameterKm || 0) - (a.diameterKm || 0))
+      // Keep pan/zoom responsive; the full catalog remains searchable.
+      .slice(0, currentZoom < 5 ? 180 : currentZoom < 7 ? 420 : 800)
       .forEach((feature) => {
         const point = map.latLngToContainerPoint([feature.lat, feature.lng]);
         if (collisionPoints.some((placed) => Math.hypot(placed.x - point.x, placed.y - point.y) < minimumDistance)) return;
@@ -5279,6 +5307,20 @@ export function RealMarsMap() {
                 setTimeout(() => safeInvalidateSize(), 60);
               }}
               onSwitchTo3D={() => setViewMode('3d')}
+              activeRoute={activePlannedRoute ? {
+                name: activePlannedRoute.name,
+                safetyScore: activePlannedRoute.safetyScore,
+                maxSlopeDeg: activePlannedRoute.maxSlopeDeg,
+                soilConditionScore: activePlannedRoute.soilConditionScore,
+                terrainSuitabilityScore: activePlannedRoute.terrainSuitabilityScore,
+                surfaceCondition: activePlannedRoute.surfaceCondition,
+                waypoints: activePlannedRoute.waypoints.map((waypoint) => ({
+                  lat: waypoint.lat,
+                  lng: waypoint.lng,
+                  name: waypoint.name,
+                  cumulativeDistKm: waypoint.cumulativeDistKm,
+                })),
+              } : undefined}
             />
           </div>
         )}
@@ -7055,8 +7097,9 @@ export function RealMarsMap() {
         </div>
       </div>
 
-      {/* COLLAPSIBLE BOTTOM SHEET & TOUCH-FRIENDLY MISSION TOOLS DOCK */}
-      <MarsMissionBottomSheet
+      {/* The EVA view has its own visor controls and 6-DOF dock. Keeping the
+          global map dock visible here would cover those controls. */}
+      {viewMode !== 'astronaut' && <MarsMissionBottomSheet
         activeTab={activeTab}
         onTabChange={(tab) => {
           closeAllPrimaryOverlays();
@@ -7168,7 +7211,7 @@ export function RealMarsMap() {
           openPrimaryOverlay(setIsRoutePlannerModalOpen);
           handleEmergencyReturn();
         }}
-      />
+      />}
 
       {/* GOOGLE MAPS STYLE REGION DOSSIER MODAL */}
       <MarsRegionDetailModal
