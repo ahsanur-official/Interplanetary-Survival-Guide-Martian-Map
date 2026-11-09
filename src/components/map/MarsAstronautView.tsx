@@ -1220,14 +1220,17 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     if (!ctx) return new THREE.Texture();
 
     const base = new THREE.Color(skyColorHex);
-    const top = base.clone().multiplyScalar(0.28);
-    const mid = base.clone().multiplyScalar(0.62);
-    const horizon = base.clone().lerp(new THREE.Color(0xf1b27c), 0.32);
+    // Mars dust makes the sky warm, but an over-saturated orange gradient
+    // makes the EVA scene look like a cartoon. Keep the horizon luminous and
+    // the upper sky muted like a real dusty planetary atmosphere.
+    const top = base.clone().multiplyScalar(0.12);
+    const mid = base.clone().multiplyScalar(0.34);
+    const horizon = base.clone().lerp(new THREE.Color(0xd18d70), 0.18);
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, `#${top.getHexString()}`);
     gradient.addColorStop(0.48, `#${mid.getHexString()}`);
     gradient.addColorStop(0.82, `#${horizon.getHexString()}`);
-    gradient.addColorStop(1, '#7a3827');
+    gradient.addColorStop(1, '#5b403b');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1253,11 +1256,13 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
 
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(selectedSitePreset.skyColor, 0.008);
+    // Linear dusty haze creates depth without washing the entire scene in
+    // site-colour orange. The real surface texture remains readable nearby.
+    scene.fog = new THREE.Fog(0x6e514b, 105, 330);
 
     // Human eye-level framing: horizon ahead, ground in the lower field of
     // view, and no overhead/global-map perspective.
-    const camera = new THREE.PerspectiveCamera(68, width / height, 0.25, 900);
+    const camera = new THREE.PerspectiveCamera(62, width / height, 0.25, 900);
     camera.position.set(0, 1.72, 0);
     cameraRef.current = camera;
 
@@ -1267,7 +1272,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.02;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     rendererRef.current = renderer;
 
     container.innerHTML = '';
@@ -1282,12 +1288,12 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       const vz = posAttr.getZ(i);
       const dist = Math.sqrt(vx * vx + vz * vz);
       const centerDamp = Math.min(1, Math.max(0, (dist - 4) / 20));
-      const h1 = Math.sin(vx * 0.05) * Math.cos(vz * 0.05) * 3.6;
-      const h2 = Math.sin(vx * 0.12 + 1.2) * Math.sin(vz * 0.12) * 1.25;
-      const h3 = Math.cos(vx * 0.02 - vz * 0.02) * 5.5;
-      const duneRidges = Math.sin(vz * 0.32 + Math.sin(vx * 0.08)) * 0.42;
-      const microRelief = Math.sin(vx * 1.7) * Math.cos(vz * 1.35) * 0.12;
-      const craterLip = dist > 60 ? (dist - 60) * 0.09 : 0;
+      const h1 = Math.sin(vx * 0.05) * Math.cos(vz * 0.05) * 2.2;
+      const h2 = Math.sin(vx * 0.12 + 1.2) * Math.sin(vz * 0.12) * 0.75;
+      const h3 = Math.cos(vx * 0.02 - vz * 0.02) * 3.1;
+      const duneRidges = Math.sin(vz * 0.32 + Math.sin(vx * 0.08)) * 0.28;
+      const microRelief = Math.sin(vx * 1.7) * Math.cos(vz * 1.35) * 0.08;
+      const craterLip = dist > 60 ? (dist - 60) * 0.045 : 0;
       posAttr.setY(i, (h1 + h2 + h3 + duneRidges + microRelief + craterLip) * centerDamp);
     }
     terrainGeo.computeVertexNormals();
@@ -1305,8 +1311,10 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     // walking forward reveals real Martian albedo detail instead of a flat
     // procedural orange floor.
     const realMarsTexture = new THREE.TextureLoader().load('/textures/mars_viking_2k.jpg', (texture) => {
-      const repeatX = 0.24;
-      const repeatY = 0.24;
+      // A wider crop gives the eye enough real orbital texture while avoiding
+      // the stretched, single-colour look of the previous narrow crop.
+      const repeatX = 0.34;
+      const repeatY = 0.28;
       const centerU = (selectedSitePreset.lng + 180) / 360;
       const centerV = (90 - selectedSitePreset.lat) / 180;
       texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -1317,7 +1325,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
         Math.max(0, Math.min(1 - repeatY, centerV - repeatY / 2)),
       );
       texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       terrainMat.map = texture;
       terrainMat.bumpMap = texture;
       terrainMat.bumpScale = 0.28;
@@ -1331,28 +1339,31 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
     // 2. Distant Horizon Mountain Ring + layered geological silhouettes.
     const rimGeo = new THREE.CylinderGeometry(290, 300, 70, 48, 1, true);
     const rimMat = new THREE.MeshBasicMaterial({
-      color: selectedSitePreset.groundColor,
+      color: 0x624640,
       side: THREE.BackSide,
       fog: true,
+      transparent: true,
+      opacity: 0.42,
     });
     const rimMesh = new THREE.Mesh(rimGeo, rimMat);
     rimMesh.position.y = 15;
     scene.add(rimMesh);
 
     const mountainGroup = new THREE.Group();
-    const mountainGeo = new THREE.SphereGeometry(1, 16, 8);
+    const mountainGeo = new THREE.SphereGeometry(1, 32, 16);
     const mountainMat = new THREE.MeshStandardMaterial({
-      color: 0x4a241b,
+      color: 0x5d433d,
       roughness: 1,
       metalness: 0,
+      flatShading: false,
     });
     for (let i = 0; i < 14; i += 1) {
       const mountain = new THREE.Mesh(mountainGeo, mountainMat);
       const x = -150 + i * 23 + Math.sin(i * 1.7) * 10;
       const z = -190 - (i % 3) * 18;
-      const height = 18 + (i % 5) * 8;
-      mountain.position.set(x, height * 0.22, z);
-      mountain.scale.set(18 + (i % 4) * 8, height, 12 + (i % 3) * 7);
+      const height = 14 + (i % 5) * 6;
+      mountain.position.set(x, height * 0.18, z);
+      mountain.scale.set(20 + (i % 4) * 8, height, 16 + (i % 3) * 7);
       mountain.rotation.y = i * 0.7;
       mountain.castShadow = true;
       mountainGroup.add(mountain);
@@ -1367,8 +1378,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       color: 0x9a593d,
       roughness: 0.98,
       metalness: 0,
-      emissive: 0x1d0804,
-      emissiveIntensity: 0.12,
+      emissive: 0x100806,
+      emissiveIntensity: 0.04,
     });
 
     const rockPositions = [
@@ -1382,12 +1393,18 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
       { x: -19.5, z: -6.3, s: 3.1, targetIdx: 0 },
       { x: 28.0, z: -26.0, s: 4.2, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
       { x: -28.0, z: -30.0, s: 3.8, targetIdx: 1 },
+      { x: 34.0, z: -42.0, s: 1.2, targetIdx: 0 },
+      { x: -42.0, z: -48.0, s: 1.6, targetIdx: 1 },
+      { x: 48.0, z: -62.0, s: 2.3, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
+      { x: -54.0, z: -72.0, s: 1.1, targetIdx: 0 },
+      { x: 22.0, z: -78.0, s: 1.5, targetIdx: 1 },
+      { x: -24.0, z: -92.0, s: 2.0, targetIdx: 2 % selectedSitePreset.sampleTargets.length },
     ];
 
     rockPositions.forEach((pos) => {
       const mesh = new THREE.Mesh(rockGeo, rockMat);
       mesh.position.set(pos.x, pos.s * 0.4, pos.z);
-      mesh.scale.set(pos.s, pos.s * 0.7 + Math.random() * 0.4, pos.s * 1.1);
+      mesh.scale.set(pos.s, pos.s * 0.62 + Math.random() * 0.28, pos.s * 1.05);
       mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -1861,8 +1878,8 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
           viewport, not a third-person astronaut body. */}
       <div className="absolute inset-0 z-[4] pointer-events-none overflow-hidden" aria-hidden="true">
         {/* Curved visor glass and pressure-ring edge. */}
-        <div className="absolute inset-0 rounded-[clamp(1.4rem,4vw,4rem)] border-[clamp(10px,2.2vw,34px)] border-[#171313]/78 shadow-[inset_0_0_28px_rgba(255,180,120,.32),inset_0_0_110px_rgba(0,0,0,.72)]" />
-        <div className="absolute inset-[clamp(12px,2.8vw,42px)] rounded-[clamp(1.2rem,3.5vw,3.5rem)] border border-orange-200/20 shadow-[inset_0_0_18px_rgba(255,220,180,.18)]" />
+        <div className="absolute inset-0 rounded-[clamp(1.2rem,3vw,3rem)] border-[clamp(8px,1.45vw,24px)] border-[#171313]/72 shadow-[inset_0_0_24px_rgba(255,180,120,.24),inset_0_0_90px_rgba(0,0,0,.58)]" />
+        <div className="absolute inset-[clamp(10px,2vw,30px)] rounded-[clamp(1rem,2.5vw,2.5rem)] border border-orange-200/16 shadow-[inset_0_0_16px_rgba(255,220,180,.14)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_48%,rgba(4,7,12,.2)_72%,rgba(2,3,6,.7)_100%)]" style={{ backdropFilter: 'blur(.25px) saturate(1.08)' }} />
         {/* Sun reflection, glass scratches, and slow dust on the visor. */}
         <div className="absolute inset-0 opacity-45 mix-blend-screen bg-[linear-gradient(116deg,transparent_28%,rgba(255,224,190,.16)_38%,transparent_46%),linear-gradient(72deg,transparent_54%,rgba(109,220,255,.1)_63%,transparent_70%)]" />
@@ -1871,9 +1888,9 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
         )}
         <div className="mars-visor-dust absolute inset-0 opacity-[0.08]" />
         {/* Only small peripheral suit/shoulder hints remain in the lower frame. */}
-        <div className="absolute left-[-4%] bottom-[-11%] w-[24vw] min-w-[130px] max-w-[300px] h-[23vh] rounded-[65%_35%_20%_0] rotate-[12deg] bg-gradient-to-br from-slate-200/18 via-slate-800/28 to-slate-950/65 border border-slate-200/15 shadow-[10px_-10px_30px_rgba(0,0,0,.38)]" />
-        <div className="absolute right-[-4%] bottom-[-11%] w-[24vw] min-w-[130px] max-w-[300px] h-[23vh] rounded-[35%_65%_0_20%] rotate-[-12deg] bg-gradient-to-bl from-slate-200/18 via-slate-800/28 to-slate-950/65 border border-slate-200/15 shadow-[-10px_-10px_30px_rgba(0,0,0,.38)]" />
-        <div className="absolute bottom-[-14%] left-1/2 -translate-x-1/2 w-[min(32vw,420px)] h-[17vh] rounded-[48%_48%_0_0] bg-gradient-to-b from-slate-200/10 via-slate-800/30 to-slate-950/70 border border-cyan-100/10" />
+        <div className="absolute left-[-5%] bottom-[-13%] w-[22vw] min-w-[120px] max-w-[260px] h-[19vh] rounded-[65%_35%_20%_0] rotate-[12deg] bg-gradient-to-br from-slate-200/12 via-slate-800/22 to-slate-950/58 border border-slate-200/10 shadow-[10px_-10px_26px_rgba(0,0,0,.3)]" />
+        <div className="absolute right-[-5%] bottom-[-13%] w-[22vw] min-w-[120px] max-w-[260px] h-[19vh] rounded-[35%_65%_0_20%] rotate-[-12deg] bg-gradient-to-bl from-slate-200/12 via-slate-800/22 to-slate-950/58 border border-slate-200/10 shadow-[-10px_-10px_26px_rgba(0,0,0,.3)]" />
+        <div className="absolute bottom-[-16%] left-1/2 -translate-x-1/2 w-[min(30vw,380px)] h-[14vh] rounded-[48%_48%_0_0] bg-gradient-to-b from-slate-200/07 via-slate-800/24 to-slate-950/62 border border-cyan-100/08" />
       </div>
 
       {/* Snapshot Flash Overlay */}
@@ -2093,7 +2110,7 @@ export const MarsAstronautView: React.FC<MarsAstronautViewProps> = ({
           </div>
 
           {/* CENTER RETICLE & SPECTROMETER TARGET SCANNER */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center">
+          <div className="absolute top-[53%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center">
             {/* Crosshair Reticle */}
             <div className="relative w-12 h-12 flex items-center justify-center">
               <Crosshair className={`w-8 h-8 transition-colors ${activeScanTarget ? 'text-cyan-400 animate-pulse' : 'text-white/40'}`} />
