@@ -47,6 +47,8 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
     isSafe,
     safetyStatus,
     maxDirectSlopeDeg,
+    directSoilConditionScore,
+    directTerrainSuitabilityScore,
     issues,
     warningHeadlineEn,
     detailedAnalysisEn,
@@ -95,7 +97,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <h3 className="font-bold text-white text-sm tracking-tight truncate">
-                {hasIssues ? 'Route Issue Detected' : 'Route is 100% Safe'}
+                {hasIssues ? 'Route Issue Detected' : 'Route is Nominal'}
               </h3>
               <span
                 className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase font-mono tracking-wider ${
@@ -223,16 +225,16 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
           </div>
         </div>
       ) : (
-        /* 4. CASE B: ROUTE IS 100% SAFE (Solid Green Line) */
+        /* 4. CASE B: ROUTE IS NOMINAL (Solid Green Line) */
         <div className="mt-2.5 space-y-2.5">
           <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-2.5 space-y-1.5">
             <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Direct Path is 100% Safe (Green Line)</span>
+              <span>Direct Path is Nominal (Green Line)</span>
             </div>
             <p className="text-[11px] text-emerald-100/90 leading-relaxed font-sans">
-              Zero steep scarps, loose sand drifts, or boulder fields detected along this corridor. Safe for suited
-              astronaut traverse or rover navigation.
+              No critical mapped obstacle crossed the sampled corridor. Soil trafficability is {directSoilConditionScore}/100
+              and terrain suitability is {directTerrainSuitabilityScore}/100; verify local rocks, dust, and traction before traversal.
             </p>
           </div>
 

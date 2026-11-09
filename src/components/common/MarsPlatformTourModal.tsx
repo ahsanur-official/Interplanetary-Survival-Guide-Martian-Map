@@ -64,7 +64,7 @@ const TOUR_STEPS = [
   },
   {
     title: 'Ask MarsWay — AI Spatial Assistant',
-    subtitle: 'Gemini-Powered Natural Language Map Control',
+    subtitle: 'Offline Natural Language Map Control',
     icon: Sparkles,
     color: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
     description:

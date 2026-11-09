@@ -213,7 +213,7 @@ interface SurfaceAssessment {
  * Explainable surface-trafficability estimate from MOLA elevation, local
  * slope and mapped hazards. This is a planning aid, not live rover telemetry.
  */
-function assessMartianSurface(
+export function assessMartianSurface(
   lat: number,
   lng: number,
   elevationM: number,

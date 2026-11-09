@@ -154,8 +154,7 @@ Ask MarsWay:
   topography, water, ice, and human landing candidates.
 - Can fly to locations, open missions, compare sites, activate Human Mission Mode,
   and switch map layers.
-- Uses the backend Gemini endpoint when configured.
-- Falls back to a local rule-based Mars knowledge engine when Gemini is unavailable.
+- Uses a local rule-based Mars knowledge engine with current map and route context.
 
 Live Voice:
 - Browser Speech Recognition support.
@@ -165,7 +164,7 @@ Live Voice:
 - Speech synthesis responses.
 - CAPCOM-style command log.
 - Radio-click audio effects.
-- Gemini Live WebSocket support when GEMINI_API_KEY is configured.
+- Browser Web Speech API support for local voice navigation.
 
 NASA AND EXTERNAL DATA
 ----------------------
@@ -213,7 +212,7 @@ Express server endpoints include:
 - PUT  /api/missions/:mission_id
 - POST /api/missions/:mission_id/report
 - POST /api/ask-marsway
-- WebSocket /api/live-ws for Gemini Live voice sessions.
+- Offline local assistant at POST /api/ask-marsway.
 
 PWA AND OFFLINE SUPPORT
 -----------------------
@@ -235,7 +234,7 @@ IMPORTANT LIMITATIONS
 - Dust, radiation, water, and trafficability outputs are simplified models.
 - Route calculations use assumptions about suit mobility and metabolism.
 - External NASA imagery and tiles require network access.
-- Gemini AI and Gemini Live require GEMINI_API_KEY.
+- The assistant requires no API key and does not call a remote AI service.
 - Missions are stored in memory and disappear when the server restarts.
 - The project has no automated test script in package.json.
 - Frontend and backend route engines are separate implementations and may produce different results.
@@ -252,4 +251,4 @@ KEY DOCUMENTATION
 - src/engine/marsMolaElevation.ts: elevation and terrain engine.
 - src/engine/marsEnvironmentalAnalysis.ts: science and safety analysis.
 - src/engine/marsAtmosphereDustModel.ts: dust and atmospheric simulation.
-- server.ts: Express API and Gemini integrations.
+- server.ts: Express API and offline local assistant integration.

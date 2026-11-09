@@ -4,6 +4,7 @@ import {
   calculateMarsDistanceMeters,
   calculateMarsDistanceKm,
   calculateMarsPolygonAreaKm2,
+  distanceToSegmentMeters,
 } from '../../engine/spatialMath';
 import {
   Compass,
@@ -57,6 +58,7 @@ import {
 import { MARS_MISSIONS_DATA } from '../../data/marsMissions';
 import { GALE_HAZARD_ZONES } from '../../data/galeDataset';
 import { JEZERO_HAZARD_ZONES } from '../../data/jezeroDataset';
+import { GLOBAL_MARS_HAZARD_ZONES } from '../../data/marsGlobalHazards';
 import { analyzeMarsLocationScience } from '../../engine/marsEnvironmentalAnalysis';
 import { ALL_MARS_FEATURES, MarsFeature } from '../../data/marsNomenclature';
 import { loadOfficialMarsGazetteer, UsgsMarsFeature } from '../../data/usgsMarsGazetteer';
@@ -677,9 +679,20 @@ export function RealMarsMap() {
   };
 
   const routeHazardZones = useMemo(() => {
-    const point = routeStartPoint || routeEndPoint;
-    if (!point) return [];
-    return point.lng > 130 && point.lng < 145 ? GALE_HAZARD_ZONES : JEZERO_HAZARD_ZONES;
+    if (!routeStartPoint || !routeEndPoint) return [];
+    const allHazards = [
+      ...JEZERO_HAZARD_ZONES,
+      ...GALE_HAZARD_ZONES,
+      ...GLOBAL_MARS_HAZARD_ZONES,
+    ];
+    const start = { latitude: routeStartPoint.lat, longitude: routeStartPoint.lng };
+    const end = { latitude: routeEndPoint.lat, longitude: routeEndPoint.lng };
+    // Use hazards near the entire corridor, not only the first clicked point.
+    // This makes routes outside Jezero/Gale respond to broad Mars terrain hazards too.
+    return allHazards.filter((hazard) => {
+      const distanceToCorridor = distanceToSegmentMeters(hazard.coordinate, start, end);
+      return distanceToCorridor <= Math.max(300000, hazard.radiusMeters * 1.5);
+    });
   }, [routeStartPoint, routeEndPoint]);
 
   // Real-time Route Safety Assessment (Detects scarps, soft dunes, and offers safer corridors)
@@ -4869,9 +4882,9 @@ export function RealMarsMap() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-xs block">Live Voice Comms</span>
+                          <span className="font-bold text-white text-xs block">Offline Voice Navigation</span>
                           <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-900 text-purple-300 border border-purple-500/40 font-mono">
-                            gemini-3.8-live
+                            Web Speech API
                           </span>
                         </div>
                         <span className="text-[10px] text-neutral-300">Ultra-low latency audio stream & live map action control</span>
@@ -7612,6 +7625,34 @@ export function RealMarsMap() {
           lng: cursorPos?.lng,
           name: inspectedPoint?.nearestFeature?.name,
           activeLayer,
+          route: {
+            start: routeStartPoint,
+            destination: routeEndPoint,
+            selectedMode: routeMode,
+            active: activePlannedRoute
+              ? {
+                  name: activePlannedRoute.name,
+                  distanceKm: activePlannedRoute.totalDistanceKm,
+                  time: activePlannedRoute.estimatedWalkTimeFormatted,
+                  safetyScore: activePlannedRoute.safetyScore,
+                  soilScore: activePlannedRoute.soilConditionScore,
+                  terrainScore: activePlannedRoute.terrainSuitabilityScore,
+                  surfaceCondition: activePlannedRoute.surfaceCondition,
+                  maxSlopeDeg: activePlannedRoute.maxSlopeDeg,
+                }
+              : null,
+            candidates: Object.entries(candidateRoutes)
+              .filter((entry): entry is [string, NonNullable<typeof entry[1]>] => Boolean(entry[1]))
+              .map(([mode, route]) => ({
+                mode,
+                name: route.name,
+                distanceKm: route.totalDistanceKm,
+                time: route.estimatedWalkTimeFormatted,
+                safetyScore: route.safetyScore,
+                soilScore: route.soilConditionScore,
+                terrainScore: route.terrainSuitabilityScore,
+              })),
+          },
         }}
         onFlyToLocation={(lat, lng, zoom, name) => {
           handleFlyToLocation(lat, lng, zoom ?? 6, name);

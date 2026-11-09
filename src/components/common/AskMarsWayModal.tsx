@@ -31,6 +31,30 @@ interface AskMarsWayModalProps {
     lng?: number;
     name?: string;
     activeLayer?: string;
+    route?: {
+      start?: { lat: number; lng: number; name?: string } | null;
+      destination?: { lat: number; lng: number; name?: string } | null;
+      selectedMode?: string;
+      active?: {
+        name: string;
+        distanceKm: number;
+        time: string;
+        safetyScore: number;
+        soilScore: number;
+        terrainScore: number;
+        surfaceCondition: string;
+        maxSlopeDeg: number;
+      } | null;
+      candidates?: Array<{
+        mode: string;
+        name: string;
+        distanceKm: number;
+        time: string;
+        safetyScore: number;
+        soilScore: number;
+        terrainScore: number;
+      }>;
+    };
   };
 }
 
@@ -91,9 +115,45 @@ export function AskMarsWayModal({
 
   if (!isOpen) return null;
 
-  // Local fallback rule-based spatial intelligence if Gemini endpoint is unavailable
+  // Offline-first local spatial intelligence. It only uses MarsWay's bundled
+  // catalogs, current map context, and the already-computed route engine output.
   const generateLocalResponse = (query: string): ChatMessage => {
     const q = query.toLowerCase();
+    const route = currentContext?.route;
+
+    if (route?.active && /route|safe|safety|time|fast|soil|terrain|hazard|travel|path|যাত্রা|নিরাপদ|সময়/.test(q)) {
+      const active = route.active;
+      const candidates = route.candidates || [];
+      const fastest = candidates.length > 0
+        ? candidates.reduce((best, item) => item.time < best.time ? item : best, candidates[0])
+        : null;
+      const safest = candidates.length > 0
+        ? candidates.reduce((best, item) => item.safetyScore > best.safetyScore ? item : best, candidates[0])
+        : null;
+      const status = active.safetyScore >= 85 ? 'SAFE' : active.safetyScore >= 70 ? 'CAUTION' : 'DANGEROUS';
+      const timeNote = fastest && fastest.mode !== route.selectedMode
+        ? `The ${fastest.mode} candidate is the shortest-time option at ${fastest.time}; the active route is selected because it balances that time against terrain and safety.`
+        : 'The active route is currently the lowest-time option among the computed candidates.';
+      const safestNote = safest && safest.mode !== route.selectedMode
+        ? `The highest safety score is on the ${safest.mode} candidate (${safest.safetyScore}/100).`
+        : 'The active route also has the highest safety score among the computed candidates.';
+
+      return {
+        id: Date.now().toString(),
+        role: 'assistant',
+        text: `Offline MarsWay route analysis: ${active.name} is ${status} with a safety score of ${active.safetyScore}/100. It covers ${active.distanceKm} km and takes about ${active.time}. Surface: ${active.surfaceCondition}; soil trafficability ${active.soilScore}/100; terrain suitability ${active.terrainScore}/100; maximum slope ${active.maxSlopeDeg}°. ${timeNote} ${safestNote}`,
+        sources: ['MarsWay local route engine', 'MOLA-calibrated elevation model', 'Local hazard and surface model'],
+      };
+    }
+
+    if (/route|safe|safety|time|fast|soil|terrain|hazard|travel|path|যাত্রা|নিরাপদ|সময়/.test(q)) {
+      return {
+        id: Date.now().toString(),
+        role: 'assistant',
+        text: 'Offline MarsWay AI needs a selected START and FINAL point before it can explain route safety or travel time. Activate Route Plan, select two points, and press Check route. I will then use the local elevation, soil, terrain, hazard, and route results to compare the options.',
+        sources: ['MarsWay local route engine', 'Local map context'],
+      };
+    }
 
     // 1. Olympus Mons
     if (q.includes('olympus') || q.includes('volcano')) {
@@ -244,8 +304,8 @@ export function AskMarsWayModal({
     return {
       id: Date.now().toString(),
       role: 'assistant',
-      text: `Regarding "${query}": Mars is a dynamic cold desert world with radius 3,389.5 km. Use the map tools, GIS layer manager, and mission explorer to inspect topography, rover routes, and subsurface water deposits.`,
-      sources: ['NASA Planetary Data System', 'USGS Astrogeology'],
+      text: `Offline MarsWay AI can answer from the bundled Mars catalog and current map context. Regarding "${query}": use the map tools, GIS layer manager, and mission explorer to inspect topography, rover routes, and environmental data.`,
+      sources: ['MarsWay local knowledge base', 'USGS/IAU catalog bundled with the app'],
     };
   };
 
@@ -263,55 +323,11 @@ export function AskMarsWayModal({
     setInputQuery('');
     setIsLoading(true);
 
-    try {
-      // Call backend /api/ask-marsway
-      const res = await fetch('/api/ask-marsway', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: q,
-          context: currentContext,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
-      }
-
-      const data = await res.json();
-
-      let actionObj: ChatMessage['action'] = null;
-      if (data.action && data.action.type) {
-        let label = 'Execute Action';
-        if (data.action.type === 'fly_to') label = `Fly to ${data.action.name || 'Location'}`;
-        else if (data.action.type === 'select_mission') label = `Open ${data.action.name || 'Mission'}`;
-        else if (data.action.type === 'compare') label = 'Launch Comparison Matrix';
-        else if (data.action.type === 'human_mode') label = 'Activate Human Mission Mode';
-        else if (data.action.type === 'toggle_layer') label = `Switch to ${data.action.layerId} Layer`;
-
-        actionObj = {
-          type: data.action.type,
-          label,
-          payload: data.action,
-        };
-      }
-
-      const assistantMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        text: data.answer || data.text || 'Information processed.',
-        action: actionObj,
-        sources: ['NASA Planetary Data System', 'MGS MOLA', 'Odyssey THEMIS'],
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
-      console.warn('Backend AI query falling back to built-in local spatial engine:', err);
-      const fallbackMsg = generateLocalResponse(q);
-      setMessages((prev) => [...prev, fallbackMsg]);
-    } finally {
-      setIsLoading(false);
-    }
+    // Offline-first by design: answers are generated from bundled MarsWay data
+    // and current route context. No network or API key is required for chat.
+    const localMsg = generateLocalResponse(q);
+    setMessages((prev) => [...prev, localMsg]);
+    setIsLoading(false);
   };
 
   const handleExecuteAction = (action: NonNullable<ChatMessage['action']>) => {
@@ -399,11 +415,11 @@ export function AskMarsWayModal({
               <h2 id="ask-marsway-title" className="text-sm sm:text-base font-semibold text-white tracking-wide flex items-center gap-2">
                 <span>Ask MarsWay AI</span>
                 <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-950 text-purple-400 border border-purple-800/60 whitespace-nowrap">
-                  Spatial Intelligence
+                  Offline Local AI
                 </span>
               </h2>
               <p className="hidden sm:block text-xs text-neutral-400">
-                Planetary query assistant powered by Gemini and NASA scientific data
+                Offline local assistant using MarsWay data and your current route context
               </p>
             </div>
           </div>
@@ -416,12 +432,12 @@ export function AskMarsWayModal({
                   onOpenLiveVoice();
                 }}
                 className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-900 to-indigo-900 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/70 text-purple-200 hover:text-white text-xs flex items-center gap-1.5 transition font-mono shadow shadow-purple-950/40 group"
-                title="Switch to real-time voice conversation powered by gemini-3.8-live"
+                title="Use offline browser voice navigation"
               >
                 <Radio className="w-3.5 h-3.5 text-purple-400 group-hover:animate-pulse" />
-                <span className="font-semibold">Live Voice</span>
+                <span className="font-semibold">Offline Voice</span>
                 <span className="hidden sm:inline text-[9px] px-1 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-700/50">
-                  gemini-3.8-live
+                  Web Speech API
                 </span>
               </button>
             )}

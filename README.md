@@ -1,404 +1,348 @@
-# 🔴 MARSWAY — Next-Generation Mars Exploration & Marswalk Intelligence Platform
+# MarsWay
 
-> **"Explore Smarter. Navigate Safer. Discover More."**  
-> *An integrated planetary GIS, multi-objective astronaut EVA route planner, 3D planetary globe, first-person spacesuit surface simulator, and AI flight controller for Mars exploration.*
+## Explore Mars. Navigate Safer. Discover More.
 
-[![NASA Space Apps Challenge 2026](https://img.shields.io/badge/NASA%20Space%20Apps%20Challenge-2026%20Global%20Nominee-orange.svg)](https://spaceappschallenge.org)
-[![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org)
-[![React](https://img.shields.io/badge/React-19.0-blue.svg)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-7.0%2B-blue.svg)](https://www.typescriptlang.org)
-[![Three.js](https://img.shields.io/badge/Three.js-0.186-black.svg)](https://threejs.org)
-[![Leaflet](https://img.shields.io/badge/Leaflet-1.9.4-brightgreen.svg)](https://leafletjs.com)
-[![Gemini API](https://img.shields.io/badge/Google%20GenAI-gemini--3.8--flash%20%7C%20live-purple.svg)](https://ai.google.dev)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-cyan.svg)](https://tailwindcss.com)
+MarsWay is an interactive Mars GIS and mission-planning prototype for exploring planetary places, rover missions, environmental conditions, terrain, and explainable travel routes in one browser application.
 
----
+> Educational decision-support software for the NASA Space Apps Challenge 2026 theme **Interplanetary Survival Guide: Martian Map**. MarsWay is not flight-certified navigation software.
 
-## 📑 Table of Contents
+![React](https://img.shields.io/badge/React-19-20232a?logo=react&logoColor=61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
+![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white)
+![Three.js](https://img.shields.io/badge/Three.js-0.186-black?logo=three.js)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=white)
 
-1. [Executive Summary & Problem Statement](#1-executive-summary--problem-statement)
-2. [Platform Architecture & System Design](#2-platform-architecture--system-design)
-3. [Key Exploration & Intelligence Modes](#3-key-exploration--intelligence-modes)
-   - [3.1 3D Planetary Globe (Three.js WebGL)](#31-3d-planetary-globe-threejs-webgl)
-   - [3.2 2D Flat Mercator Planetary GIS (Leaflet + NASA Trek)](#32-2d-flat-mercator-planetary-gis-leaflet--nasa-trek)
-   - [3.3 Astronaut First-Person Surface EVA (3D Visor HUD & Audio)](#33-astronaut-first-person-surface-eva-3d-visor-hud--audio)
-   - [3.4 A* Science-Aware Multi-Objective Route Planner & Safety HUD](#34-a-science-aware-multi-objective-route-planner--safety-hud)
-   - [3.5 Ask MarsWay & Gemini Live Voice Flight Controller](#35-ask-marsway--gemini-live-voice-flight-controller)
-4. [Authentic NASA Multi-Mission Data Pipeline](#4-authentic-nasa-multi-mission-data-pipeline)
-5. [Mathematical & Scientific Formulation](#5-mathematical--scientific-formulation)
-   - [5.1 Planetocentric Geodesy & Distance](#51-planetocentric-geodesy--distance)
-   - [5.2 Margaria-Minetti Bioenergetic Metabolic Suited Walking Model (0.38g)](#52-margaria-minetti-bioenergetic-metabolic-suited-walking-model-038g)
-   - [5.3 Multi-Objective Pareto Traverse Formulation](#53-multi-objective-pareto-traverse-formulation)
-   - [5.4 MOLA Topographic Elevation & Slope Gradient Extraction](#54-mola-topographic-elevation--slope-gradient-extraction)
-6. [Complete Codebase Architecture & File Map](#6-complete-codebase-architecture--file-map)
-7. [Installation, Setup & Deployment](#7-installation-setup--deployment)
-8. [API Reference & Telemetry Endpoints](#8-api-reference--telemetry-endpoints)
-9. [NASA Space Apps Challenge 2026 Alignment](#9-nasa-space-apps-challenge-2026-alignment)
-10. [Scientific Honesty & Operational Disclaimer](#10-scientific-honesty--operational-disclaimer)
+## Overview
 
----
+Mars exploration data is spread across planetary nomenclature databases, orbital imagery, elevation products, rover records, weather observations, and mission archives. MarsWay brings those data families together so a user can find a Martian feature, understand its context, select a route, compare the safety/time trade-off, and inspect the result through a map, globe, EVA view, or local assistant.
 
-## 1. Executive Summary & Problem Statement
+The platform is designed for students, educators, planetary science enthusiasts, researchers, and mission-planning demonstrations.
 
-Over sixty years of robotic Mars exploration by NASA, ESA, ISRO, and CNSA have accumulated petabytes of high-precision imagery, altimetry, hyperspectral mineralogy, and surface meteorological telemetry. However, when planning future human **Extravehicular Activities (EVAs / "Marswalks")**, existing software tools treat navigation as a simplistic shortest-distance geometric problem.
+## Features
 
-On Mars, the shortest geometric line is frequently hazardous or scientifically unproductive:
-- **Catastrophic Terrain:** Slopes $> 15^\circ$ increase astronaut slippage and suit-abrasion risks; slopes $> 25^\circ$ induce life-threatening tumble risks.
-- **Aeolian Hazards:** Uncompacted transverse sand ripple fields (such as the *Séítah* unit in Jezero Crater) can entrap robotic wheels and suited boots.
-- **Missed Scientific Discoveries:** A simple detour of only 200–400 meters can yield access to prime astrobiological biosignatures (e.g., smectite clay-rich mudstones, deltaic bottomset beds, hydrothermal silica sinter) that would otherwise be bypassed.
+### Mars map and exploration
 
-**MARSWAY** is an interactive planetary intelligence decision-support platform that transforms raw archival planetary data into actionable, explainable mission navigation for the future human exploration of Mars.
+- Global Leaflet-based 2D Mars map with wrap-safe horizontal navigation.
+- NASA-style surface layers, coordinates, scale bar, compass, zoom, and filters.
+- Official feature search for craters, plains, canyons, volcanoes, landing sites, and mission locations.
+- Region boundaries, labels, rover markers, landing sites, and historical traverse overlays.
+- NASA/JPL, HiRISE, Mars 2020, and photojournal image access where available.
 
----
+### 3D globe and astronaut EVA
 
-## 2. Platform Architecture & System Design
+- Three.js Mars globe with lighting, orbit controls, moons, orbit visuals, and mission markers.
+- Astronaut EVA presentation mode for a human exploration perspective.
+- Earth-scale comparison and surface perspective tools.
 
-```
-                                  ┌────────────────────────────────────────────────────────┐
-                                  │                  MARSWAY PLATFORM                      │
-                                  └──────────────────────────┬─────────────────────────────┘
-                                                             │
-                    ┌────────────────────────────────────────┴────────────────────────────────────────┐
-                    ▼                                                                                 ▼
-     ┌─────────────────────────────┐                                                   ┌─────────────────────────────┐
-     │      CLIENT / FRONTEND      │                                                   │     BACKEND / SERVER.TS     │
-     │      React 19 + TypeScript  │                                                   │     Express + Node.js 22    │
-     └──────────────┬──────────────┘                                                   └──────────────┬──────────────┘
-                    │                                                                                 │
-     ┌──────────────┴───────────────────────────────────────────────────────┐                         │
-     │ INTERACTIVE PRESENTATION MODES:                                      │                         │
-     │  ├── 3D WebGL Globe (Three.js Viking 2K, Rayleigh terminator, moons) │                         │
-     │  ├── 2D Planetary GIS (Leaflet + NASA Trek WMTS tiles)               │                         │
-     │  └── Astronaut EVA 3D Simulator (First-Person Visor HUD + Web Audio) │                         │
-     │                                                                      │                         │
-     │ SCIENTIFIC ROUTING & HUD ENGINES:                                    │                         │
-     │  ├── marsAStarRouter.ts (Multi-objective A* corridor solver)         │                         │
-     │  ├── marsRouteSafetyAnalyzer.ts (Slope, sand, hazard bypass)         │                         │
-     │  ├── marsMolaElevation.ts (Deterministic MEGDR elevation grid)       │                         │
-     │  └── marsAtmosphereDustModel.ts (Diurnal pressure & optical tau)     │                         │
-     └──────────────────────────────────────────────────────────────────────┘                         │
-                                                                                                      │
-                    ┌─────────────────────────────────────────────────────────────────────────────────┴┐
-                    │ REST ENDPOINTS & WEBSOCKET ENGINE:                                               │
-                    │  ├── GET /api/health (Service status, dataset catalog, telemetry metrics)        │
-                    │  ├── GET /api/regions & /api/features (Authoritative IAU planetary gazetteer)    │
-                    │  ├── GET /api/layers (Viking, MOLA, THEMIS, CRISM, RAD, MEDA metadata)           │
-                    │  ├── POST /api/routes/plan (Shared A* solver execution & Pareto trade-offs)      │
-                    │  ├── GET/POST /api/missions (In-memory & JSON file persistent EVA flight plans)  │
-                    │  ├── POST /api/ask-marsway (Server-side Gemini 3.8 Flash spatial intelligence)   │
-                    │  └── WS /api/live-ws (Gemini 3.8 Live bidirectional 16kHz/24kHz audio websocket) │
-                    └──────────────────────────────────────────────────────────────────────────────────┘
+### Environmental science
+
+- Local pressure and CO2-dominated atmosphere context.
+- Water/ice, precipitation, temperature, radiation, dust, human survivability, and rover suitability cards.
+- MOLA-inspired elevation and slope analysis.
+- MOLA, THEMIS, HiRISE, CRISM, MEDA, RAD, and mission-derived context where implemented.
+- Provenance labels distinguish observed, historical, derived, modeled, and simulated values.
+
+### Explainable route planning
+
+- Select START and FINAL points directly on the map.
+- Compare **Safest**, **Shortest**, and **Science** routes.
+- Choose walking or rover travel and crew configuration.
+- Estimate distance, duration, slope, elevation change, soil trafficability, terrain suitability, and hazard exposure.
+- Use Jezero, Gale, and global modeled hazard zones where applicable.
+- Show safer bypasses when the direct corridor crosses a modeled hazard.
+- Draw the selected route from the actual START point to FINAL and explain the trade-offs.
+
+The routing model is a transparent educational approximation using Mars geography, terrain proxies, slope, elevation, hazards, travel mode, and modeled soil/traction effects. A green or nominal result is not a guarantee of operational safety.
+
+### Offline multilingual Ask MarsWay
+
+Ask MarsWay works locally and requires no API key, remote model, or network AI service.
+
+- Supports basic English, বাংলা, and Banglish questions.
+- Answers questions about Mars atmosphere, gases, human survivability, rover suitability, places, routes, soil, terrain, hazards, and travel time.
+- Uses the selected location and active route context when available.
+- Explains why a safer route may be longer or slower.
+- Gives a clear local-data fallback for unsupported questions.
+- Browser voice navigation uses the Web Speech API.
+
+## How it works
+
+```text
+User interaction
+    |
+    +--> React interface
+    |       +--> 2D map / 3D globe / EVA view
+    |       +--> places, missions, science, route and voice tools
+    |
+    +--> Local Mars data and models
+    |       +--> feature catalog and regions
+    |       +--> elevation and atmosphere models
+    |       +--> hazard datasets
+    |       +--> route and safety engines
+    |
+    +--> Express API
+            +--> feature, elevation, weather and route endpoints
+            +--> in-memory missions
+            +--> offline local Ask MarsWay endpoint
 ```
 
----
+## Project structure
 
-## 3. Key Exploration & Intelligence Modes
-
-### 3.1 3D Planetary Globe (Three.js WebGL)
-- **High-Fidelity Textures & Bump Shaders:** Viking MDIM 2.1 global color mosaic mapped onto an astronomical sphere with MOLA displacement normal maps.
-- **Dynamic Orbital Lighting:** Real-time calculation of sub-solar latitude ($\delta_\odot$) and solar longitude ($L_s$) to simulate authentic Martian diurnal day/night terminators.
-- **Celestial Satellites:** Orbital trajectory rendering and smooth fly-to targeting for Martian moons **Phobos** (semi-major axis 9,376 km) and **Deimos** (23,463 km).
-- **Interactive Landmarking:** Direct 3D raycasting and animated camera transitions to Olympus Mons, Valles Marineris, Jezero Crater, Gale Crater, and human landing candidate sites.
-
-### 3.2 2D Flat Mercator Planetary GIS (Leaflet + NASA Trek)
-- **Authoritative Basemaps:** Seamless integration with official NASA Trek tile servers:
-  1. *Viking MDIM 2.1 Color Global Mosaic* (232 m/pixel)
-  2. *MGS MOLA Color Shaded Relief Topography* (463 m/pixel)
-  3. *Mars Odyssey THEMIS Daytime Infrared* (100 m/pixel)
-  4. *OpenPlanetaryMap (OPM) Basemap*
-- **Dynamic Bearing & Counter-Rotating Typography:** Full 360° map rotation. A custom CSS variable counter-rotation pipeline ensures all text labels, pins, tooltips, and waypoint badges face upright toward the user at all times.
-- **MOLA Elevation Cross-Section Tool:** Click any two points across Mars to generate an instantaneous elevation profile transect with peak altitude, depression depths, and slope distributions.
-- **Multi-Mission Overlay Layers:** MRO HiRISE high-resolution footprint footprints, CRISM mineral hydration signatures, Curiosity/Perseverance rover traverses, EDL landing ellipses, and dust storm opacity maps.
-
-### 3.3 Astronaut First-Person Surface EVA (3D Visor HUD & Audio)
-- **Immersive 3D Surface:** Procedural Martian terrain rendering rocky regolith, impact craters, stratified bedrock, and dust devil particulates.
-- **Spacesuit Visor HUD:** Authentic real-time display of astronaut telemetry:
-  - Consumable Oxygen Supply (fluctuating with metabolic exertion)
-  - Core Body Temperature and Pulse Rate
-  - Space Suit Internal Pressure ($29.6 \text{ kPa}$ nominal pure-O2 setting)
-  - Real-time Gyro Heading and Pitch Angle
-  - In-Situ Geological Rock Spectrometer crosshair identifying hematite, smectite, olivine, and carbonate minerals.
-- **Spatial Acoustic Engine (`marsEvaAudio.ts`):** Synthesized realistic spacesuit life-support audio (breathing cycles, helmet ventilation fans, comms static, radio beeps, and geological survey pings) using the Web Audio API.
-- **Speech Recognition (English & Bengali):** Hands-free voice commands to take EVA photographs, illuminate helmet spotlights, activate tactical map overlays, or request Capcom guidance.
-
-### 3.4 A* Science-Aware Multi-Objective Route Planner & Safety HUD
-- **Pareto Traverse Generation:** Computes three distinct operational traverses for every mission:
-  1. **Direct Efficiency Route (Route A):** Minimizes distance and metabolic energy expenditure.
-  2. **Science Opportunity Route (Route B):** Maximizes astrobiological return by buffering and intersecting documented clay outcrops, sedimentary deltas, and sample caches.
-  3. **Maximum Safety Route (Route C):** Strictly limits slopes to $< 8^\circ$ and avoids soft sand ripple fields and boulder clusters.
-- **"Why This Route?" Explainable Decision Support:** Comprehensive breakdown analyzing trade-offs (e.g., *"+0.6 km distance added, but delivers 300% greater biosignature sampling score while staying 2.1 hours within EVA life-support limits"*).
-- **Route Safety HUD (`MarsRouteSafetyHUD.tsx`):** Detects terrain hazards along the planned traverse, isolates high-risk segments, and computes an automated **Safer Bypass Route**.
-
-### 3.5 Ask MarsWay & Gemini Live Voice Flight Controller
-- **Spatial Intelligence Endpoint (`/api/ask-marsway`):** Powered by `gemini-3.8-flash` running server-side with strict JSON schema outputs. Interprets natural language questions (e.g. *"Show me where Perseverance landed"*), returns scientific explanations grounded in NASA PDS data, and automatically executes camera fly-to actions.
-- **Real-Time Voice Streaming (`/api/live-ws`):** Powered by `gemini-3.8-live` connected over bidirectional WebSockets. Transmits real-time 16kHz PCM astronaut microphone input to Gemini and streams 24kHz audio output back to the client with sub-second latency. Includes automated tool calling for camera navigation and GIS layer switching.
-
----
-
-## 4. Authentic NASA Multi-Mission Data Pipeline
-
-MARSWAY rigorously attributes, standardizes, and labels all planetary datasets according to strict provenance criteria:
-
-| Domain | Instrument / Dataset | Mission / Source | Spatial Resolution | Status Label |
-|---|---|---|---|---|
-| **Global Topography** | MOLA MEGDR (Areoid 0 km Datum) | Mars Global Surveyor (MGS) | 128 px/deg (~463 m/px) | `OBSERVED` |
-| **Global True Color** | Viking MDIM 2.1 Mosaic | Viking Orbiters 1 & 2 (USGS) | 232 m/pixel | `OBSERVED` |
-| **Thermal Infrared** | THEMIS Daytime Infrared 100m | 2001 Mars Odyssey (ASU/NASA) | 100 m/pixel | `OBSERVED` |
-| **Orbital Reconnaissance**| HiRISE DTMs & Orthomosaics | Mars Reconnaissance Orbiter (MRO) | 0.25 – 1.0 m/pixel | `DERIVED` |
-| **Spectroscopic Mineralogy**| CRISM Targeted Hyperspectral Indices | Mars Reconnaissance Orbiter (MRO) | 18 m/pixel | `DERIVED` |
-| **In-Situ Science & Traverses**| Mars 2020 (Perseverance) & MSL (Curiosity) | NASA Planetary Data System (PDS) | Centimetric Surface Logs | `OBSERVED / HISTORICAL` |
-| **Surface Meteorology**| MEDA Environmental Package | Perseverance Rover (Mars 2020) | Hourly Surface Logs | `HISTORICAL` |
-| **Radiation Environment** | RAD Radiation Assessment Detector | Curiosity Rover (MSL) | Point Sensor + Model | `MODELED` |
-| **Topographic Approximations**| Deterministic MOLA Mesh Calibration | MARSWAY MOLA Altimetry Model | Continuous Point Sampling | `MODELED` |
-
-Every coordinate, feature card, and route briefing displays an accessible, color-independent **Provenance Badge**: `[OBSERVED]`, `[HISTORICAL]`, `[DERIVED]`, `[MODELED]`, or `[SIMULATED]`.
-
----
-
-## 5. Mathematical & Scientific Formulation
-
-### 5.1 Planetocentric Geodesy & Distance
-Mars is modeled as an ellipsoid with mean radius $R_\text{Mars} = 3,389.5 \text{ km}$. For two points on the surface $P_1(\phi_1, \lambda_1)$ and $P_2(\phi_2, \lambda_2)$, the great-circle arc distance $d$ is determined via the haversine formula:
-
-$$\Delta\phi = \phi_2 - \phi_1, \quad \Delta\lambda = \lambda_2 - \lambda_1$$
-
-$$a = \sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta\lambda}{2}\right)$$
-
-$$c = 2 \cdot \operatorname{atan2}\left(\sqrt{a}, \sqrt{1-a}\right), \quad d = R_\text{Mars} \cdot c$$
-
-Local polygon areas (such as landing hazard zones or geological quadrangles) are integrated using spherical excess formulas over planetocentric coordinates.
-
-### 5.2 Margaria-Minetti Bioenergetic Metabolic Suited Walking Model (0.38g)
-Under Martian surface gravity ($g_\text{Mars} = 3.72 \text{ m/s}^2 \approx 0.38g_\text{Earth}$), the metabolic energy cost of suited locomotion is a non-linear function of terrain slope $i = \tan\theta$:
-
-$$C_w(i) = \left(280 \cdot i^5 - 54 \cdot i^4 - 23 \cdot i^3 + 12 \cdot i^2 + 2.5 \cdot i + 2.8\right) \cdot \gamma_\text{suit} \cdot \left(\frac{g_\text{Mars}}{g_\text{Earth}}\right)$$
-
-Where $\gamma_\text{suit} = 1.35$ represents the internal joint stiffness and pressurization resistance of an advanced planetary exploration spacesuit (xEMU).
-
-The adjusted walking velocity $v(i)$ is given by:
-
-$$v(i) = v_0 \cdot \exp\left(-3.5 \cdot |i + 0.05|\right)$$
-
-With flat-ground suited base speed $v_0 = 1.11 \text{ m/s} \approx 4.0 \text{ km/h}$.
-
-### 5.3 Multi-Objective Pareto Traverse Formulation
-The generalized cost function $J(\pi)$ for a candidate traverse $\pi$ connecting departure base $S$ to destination $D$ across a sequence of discrete spatial steps $e = (u, v)$ is:
-
-$$J(\pi) = \sum_{e \in \pi} \left[ w_d \cdot \frac{d(e)}{d_\text{direct}} + w_t \cdot \frac{\Delta t(e)}{t_\text{nominal}} + w_s \cdot \left(\frac{\text{slope}(e)}{\theta_\text{max}}\right)^2 + w_h \cdot H(e) - w_\text{sci} \cdot S(e) - w_\text{res} \cdot R(e) \right]$$
-
-Where:
-- $H(e) \in [0, 10]$ represents terrain hazard penalties (friable scarps, uncompacted dune ripple fields).
-- $S(e) \in [0, 10]$ represents scientific reward (presence of hydrated minerals, smectite clays, delta bottomsets).
-- $R(e) \in [0, 10]$ represents in-situ resource value (shallow subsurface water ice, regolith shielding).
-- $w_d, w_t, w_s, w_h, w_\text{sci}, w_\text{res}$ are normalized objective weights chosen according to the mission strategy (*Efficiency*, *Science*, or *Safety*).
-
----
-
-## 6. Complete Codebase Architecture & File Map
-
-```
-MARSWAY/
-├── api/
-│   └── index.ts                 # Vercel serverless entry point proxying to Express backend
-├── data/
-│   └── missions.json            # Persistent storage for user-created Marswalk mission plans
-├── public/
-│   ├── assets/
-│   │   ├── aistudio/            # Generated high-resolution icons & UI illustrations
-│   │   ├── icon-192.svg         # PWA home screen icon
-│   │   └── icon-512.svg         # PWA high-res manifest icon
-│   ├── textures/
-│   │   └── mars_viking_2k.jpg   # NASA Viking global true-color 2K planetary map texture
-│   ├── manifest.json            # Progressive Web App manifest definition
-│   ├── marsway-icon.png         # Primary application favicon & brand mark
-│   └── sw.js                    # Service worker for offline caching and PWA installation
-├── src/
-│   ├── components/
-│   │   ├── common/              # Global shared UI components
-│   │   │   ├── AskMarsWayModal.tsx         # AI Assistant dialog with interactive fly-to triggers
-│   │   │   ├── DemoTourModal.tsx           # 3-minute guided tour for NASA Space Apps judges
-│   │   │   ├── ErrorBoundary.tsx           # React crash prevention boundary
-│   │   │   ├── MarsBookmarksModal.tsx      # Saved landing coordinates & locations
-│   │   │   ├── MarsPlatformTourModal.tsx   # Feature overview tour
-│   │   │   ├── MarsPresentationMode.tsx    # Fullscreen presentation & showcase HUD
-│   │   │   ├── MarsSearchModal.tsx         # Universal Mars feature and crater search modal
-│   │   │   ├── MarsTimeline.tsx            # Interactive chronological robotic exploration slider
-│   │   │   └── ProvenanceBadge.tsx         # Accessible OBSERVED/MODELED provenance tag
-│   │   ├── map/                 # Mapping, 3D Globe & First-Person EVA components
-│   │   │   ├── ElevationProfile.tsx        # MGS MOLA elevation transect chart
-│   │   │   ├── MapLayerControls.tsx        # Basemap and raster overlay switcher
-│   │   │   ├── MapLegend.tsx               # Cartographic elevation and hazard legend
-│   │   │   ├── Mars3DGlobe.tsx             # Interactive Three.js WebGL Mars Globe
-│   │   │   ├── MarsAstronautView.tsx       # First-Person Spacesuit EVA Surface Simulator
-│   │   │   ├── MarsAtmosphereOverlayControl.tsx # Atmospheric optical depth & pressure widget
-│   │   │   ├── MarsCompassWidget.tsx       # Compass rose, solar azimuth & bearing control
-│   │   │   ├── MarsCoordinateOverlay.tsx   # Live cursor geodetic coordinates & elevation HUD
-│   │   │   ├── MarsDestinationTool.tsx     # Destination waypoint picker
-│   │   │   ├── MarsDustStormLayerControl.tsx # Dust opacity (tau) visualization tool
-│   │   │   ├── MarsLayerControlPanel.tsx   # Full-featured GIS layer management panel
-│   │   │   ├── MarsMeasurementTool.tsx     # Click-to-measure geodesic distance ruler
-│   │   │   ├── MarsMissionBottomSheet.tsx  # Touch-friendly collapsible mobile bottom dock
-│   │   │   ├── MarsMolaAvailabilityControl.tsx # MGS MOLA & HRSC high-res DTM inventory
-│   │   │   ├── MarsMoonDossierModal.tsx    # Phobos & Deimos orbital telemetry dossier
-│   │   │   ├── MarsNasaMissionsOverlayControl.tsx # Historic landing sites & rover traverse lines
-│   │   │   ├── MarsPathElevationGraph.tsx  # Dynamic elevation chart for planned Marswalk routes
-│   │   │   ├── MarsPlaceIdentifierModal.tsx# IAU Gazetteer place dossiers and geology
-│   │   │   ├── MarsRegionDetailModal.tsx   # Detailed quadrangle overview dialog
-│   │   │   ├── MarsScaleBar.tsx            # Adaptive metric scale bar for Leaflet viewport
-│   │   │   ├── MarsScienceDossierModal.tsx # Astrobiological target science dossiers
-│   │   │   ├── MarsSwipeCompare.tsx        # Split-screen swipe comparison between Viking & MOLA
-│   │   │   ├── MarsTopSearchBar.tsx        # Quick search bar with autocomplete suggestions
-│   │   │   ├── NASACloseUpModal.tsx        # High-res orbital and rover surface imagery gallery
-│   │   │   ├── NasaLandingSiteModal.tsx    # Detailed rover landing site explorer
-│   │   │   └── RealMarsMap.tsx             # Main orchestrator component hosting 2D, 3D, and EVA
-│   │   ├── mission/             # Astronaut Marswalk planning & safety components
-│   │   │   ├── CandidateRouteCard.tsx      # Pareto traverse comparison card (Route A, B, C)
-│   │   │   ├── HumanMissionMode.tsx        # Future human Mars base planning & ISRU analyzer
-│   │   │   ├── MarsConditionsPanel.tsx     # Live Sol meteorological conditions & thermal ranges
-│   │   │   ├── MarsRoutePlannerModal.tsx   # Comprehensive Marswalk Route Planning modal
-│   │   │   ├── MarsRouteSafetyHUD.tsx      # Real-time route hazard detection & bypass corridor generator
-│   │   │   ├── MissionExplorerDrawer.tsx   # Slide-over catalog of all historic Martian missions
-│   │   │   ├── MissionSummaryModal.tsx     # Flight-ready EVA mission briefing exporter
-│   │   │   ├── MissionTimelineSlider.tsx   # Mars exploration timeline from Viking to present
-│   │   │   ├── NasaSurfacePovModal.tsx     # Rover Mastcam 360° panoramas
-│   │   │   └── WhyThisRouteModal.tsx       # Explainable AI decision support breakdown
-│   │   ├── provenance/          # Scientific honesty & challenge criteria modals
-│   │   │   ├── ChallengeAlignmentModal.tsx # Alignment with NASA Space Apps 2026 rubric
-│   │   │   ├── DataSourcesModal.tsx        # Complete PDS dataset citations and instruments
-│   │   │   └── MethodologyModal.tsx        # Algorithmic methodology, datum, and bioenergetics
-│   │   ├── science/             # Scientific comparison & location intelligence
-│   │   │   ├── CompareSitesModal.tsx       # Multi-site side-by-side geological comparison
-│   │   │   ├── EarthScaleComparisonModal.tsx # True-scale visual overlay comparing Mars vs Earth
-│   │   │   ├── ElevationProfileModal.tsx   # Dedicated full-featured elevation transect tool
-│   │   │   ├── LocationIntelDrawer.tsx     # Detailed point-and-click geodetic telemetry drawer
-│   │   │   └── ScienceOpportunityList.tsx  # Ranked list of nearby high-value outcrops
-│   │   ├── simulation/
-│   │   │   └── WhatIfSimulatorPanel.tsx    # Contingency simulation (EVA cuts, pass closures)
-│   │   └── voice/
-│   │       └── MarsLiveVoiceModal.tsx      # Interactive two-way voice console using Gemini Live
-│   ├── data/                    # Authoritative scientific data stores
-│   │   ├── earthMarsComparisons.ts # Scaled geological analogs (Grand Canyon vs Valles Marineris)
-│   │   ├── galeDataset.ts          # Mount Sharp & Curiosity rover PDS science catalog
-│   │   ├── humanLandingSites.ts    # NASA Human Landing Site Study candidate locations
-│   │   ├── jezeroDataset.ts        # Jezero Crater Western Delta astrobiology target catalog
-│   │   ├── marsAtmosphereData.ts   # Diurnal temperature, pressure, and dust optical depth records
-│   │   ├── marsMissions.ts         # Complete roster of global Mars surface & orbital missions
-│   │   ├── marsNomenclature.ts     # IAU approved craters, montes, valles, and planitiae
-│   │   ├── marsRegions.ts          # 18 major Martian quadrangles with geodetic boundaries
-│   │   └── provenanceData.ts       # PDS catalog metadata, uncertainty notes, and instrument logs
-│   ├── engine/                  # Core algorithmic & mathematical modules
-│   │   ├── marsAStarRouter.ts      # Multi-objective A* corridor pathfinding algorithm
-│   │   ├── marsAtmosphereDustModel.ts # Seasonal dust storm and atmospheric pressure calculations
-│   │   ├── marsElevationAvailability.ts # MOLA and HiRISE DTM availability index
-│   │   ├── marsEnvironmentalAnalysis.ts # Surface radiation, temperature, and sun angle analyzer
-│   │   ├── marsEvaAudio.ts         # Web Audio API procedural spacesuit sound synthesizer
-│   │   ├── marsLiveAudio.ts        # Linear 16-bit PCM audio recorder & 24kHz stream player
-│   │   ├── marsMolaElevation.ts    # Deterministic MOLA MEGDR elevation model
-│   │   ├── marsRouteSafetyAnalyzer.ts # Slope, sand, and obstacle hazard detector & bypass solver
-│   │   ├── marsSonification.ts     # Web Audio API elevation profile sound sonification
-│   │   ├── marsSpaceWeather.ts     # Solar particle events and galactic cosmic ray modeling
-│   │   ├── marsTextureGenerator.ts # Procedural Three.js terrain shaders and textures
-│   │   ├── multiObjectiveRouter.ts # High-level mission trade-off and Pareto coordinator
-│   │   ├── nasaMarsService.ts      # PDS archive integration and orbital ephemeris math
-│   │   └── spatialMath.ts          # Great-circle Haversine, slope gradient, and spherical geometry
-│   ├── types/
-│   │   └── mars.ts                 # Full TypeScript definitions for sites, routes, hazards, and telemetry
-│   ├── App.tsx                  # Root application component
-│   ├── index.css                # Global stylesheet with Tailwind CSS v4 and Leaflet overrides
-│   └── main.tsx                 # Application entry point with strict ErrorBoundary
-├── tests/
-│   └── marsway.test.ts          # Comprehensive unit tests for geodesy, MOLA math, and A* routing
-├── server.ts                    # Full-stack Express server with Gemini Live WebSocket server
-├── package.json                 # Dependency definitions and build scripts
-├── tsconfig.json                # TypeScript compiler configuration
-└── vite.config.ts               # Vite bundler configuration with Tailwind CSS v4 plugin
+```text
+src/
+  components/       React map, mission, science, route and common UI
+  data/              Mars feature, mission, atmosphere and hazard datasets
+  engine/            Routing, elevation, science, weather and local AI logic
+  types/             Shared TypeScript models
+  apiApp.ts          Express API assembled from local Mars data
+server.ts            Development and production server entry point
+tests/               Automated engine tests
+public/              Static application assets
 ```
 
----
+Important files include `RealMarsMap.tsx`, `marsAStarRouter.ts`, `marsRouteSafetyAnalyzer.ts`, `AskMarsWayModal.tsx`, `usgsMarsGazetteer.ts`, `marsGlobalHazards.ts`, and `apiApp.ts`.
 
-## 7. Installation, Setup & Deployment
+## Installation and usage
 
-### Prerequisites
-- **Node.js**: Version 22.x or later
-- **npm**: Version 10.x or later
+Requirements: Node.js 20.19+ or Node.js 22+, npm/Bun, and a modern WebGL-capable browser.
 
-### Local Development Setup
+```bash
+npm install
+npm run dev
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ahsanur-official/Interplanetary-Survival-Guide-Martian-Map.git
-   cd Interplanetary-Survival-Guide-Martian-Map
-   ```
+Open `http://localhost:3000`.
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+If port 3000 is busy in PowerShell:
 
-3. **Configure Environment Variables:**
-   Copy the `.env.example` file to create `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-   Add your Google Gemini API Key to enable AI Spatial Intelligence and Live Voice:
-   ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
-   PORT=3000
-   ```
+```powershell
+$env:PORT=3001
+npm run dev
+```
 
-4. **Start the Development Server:**
-   ```bash
-   npm run dev
-   ```
-   *The Express server and Vite development server will boot on `http://localhost:3000`.*
+Then open `http://localhost:3001`.
 
-5. **Run Automated Test Suite:**
-   ```bash
-   npm test
-   ```
+Production:
 
-6. **Production Build:**
-   ```bash
-   npm run build
-   npm start
-   ```
+```bash
+npm run build
+npm run start
+```
 
----
+No AI key is required. Optional `.env` configuration:
 
-## 8. API Reference & Telemetry Endpoints
+```env
+PORT=3000
+```
 
-The MARSWAY Express backend provides robust REST endpoints and WebSocket protocols:
+## API reference
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Health telemetry, loaded dataset count, available regions, and Gemini status |
-| `GET` | `/api/regions` | Authoritative Martian regions (Jezero Delta, Gale Crater, Olympus Mons, etc.) |
-| `GET` | `/api/layers` | Global GIS raster metadata with verified NASA Trek WMTS tile URLs |
-| `GET` | `/api/features` | IAU Martian nomenclature catalog with query filtering and categorizations |
-| `GET` | `/api/features/:id` | Detailed dossier for a specific crater, volcano, mountain, or rover site |
-| `POST` | `/api/routes/plan` | Solves multi-objective A* routes with custom weights and hazard avoidance |
-| `GET` | `/api/missions` | Retrieves saved Marswalk mission plans from persistent storage |
-| `POST` | `/api/missions` | Creates and saves a new Marswalk mission plan |
-| `POST` | `/api/missions/:id/report` | Generates a flight-ready, exportable EVA mission briefing document |
-| `POST` | `/api/ask-marsway` | Natural language spatial AI query powered by `gemini-3.8-flash` |
-| `WS` | `/api/live-ws` | Bidirectional real-time audio WebSocket powered by `gemini-3.8-live` |
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/health` | Service status and dataset counts |
+| GET | `/api/regions` | Mars region metadata |
+| GET | `/api/layers` | Layer and provenance metadata |
+| GET | `/api/features` | Search the Mars feature catalog |
+| GET | `/api/features/:featureId` | Read feature details |
+| GET | `/api/elevation?lat=...&lng=...` | Read modeled elevation |
+| GET | `/api/weather?scenario=...` | Read modeled environment |
+| POST | `/api/routes/plan` | Generate local route candidates |
+| GET | `/api/missions` | List in-memory missions |
+| POST | `/api/missions` | Create an in-memory mission |
+| GET/PUT | `/api/missions/:missionId` | Read or update a mission |
+| POST | `/api/ask-marsway` | Ask the offline local assistant |
 
----
+Example:
 
-## 9. NASA Space Apps Challenge 2026 Alignment
+```bash
+curl -X POST http://localhost:3000/api/ask-marsway \
+  -H "Content-Type: application/json" \
+  -d '{"query":"Banglish e Mars er gas ki?"}'
+```
 
-| Challenge Requirement | MARSWAY Solution |
-|---|---|
-| **Layered, Integrated Martian View** | Multi-layer composite viewport blending MOLA topography, HiRISE slope gradients, CRISM hydration spectra, and hazard zones. |
-| **Multiple NASA Science Missions** | Data pipeline combining MGS (MOLA), MRO (HiRISE, CRISM), MSL (Curiosity RAD, REMS), and Mars 2020 (Perseverance MEDA, PIXL, SHERLOC). |
-| **Route & Destination Information** | Start/Dest geodetic waypoints, EVA duration constraints, and bioenergetic traverse planning under 0.38g gravity. |
-| **Conduct New Science Along the Way** | Science Opportunity Engine detecting nearby high-value outcrops within a 750m corridor buffer. |
-| **Mission Safety & Environmental Context** | Real slope trafficability thresholds, boulder field hazards, and authentic diurnal thermal and radiation shielding calculations. |
-| **Explainable Decision Support** | Transparent "Why This Route?" modal and Pareto trade-off matrix. |
-| **Scientific Honesty & Provenance** | Clear labeling of OBSERVED vs MODELED vs SIMULATED data with complete PDS archive citations. |
+## Validation
 
----
+```bash
+npm run lint
+npm test -- --run
+npm run build
+```
 
-## 10. Scientific Honesty & Operational Disclaimer
+Tests cover Mars distance, polygon area, slope, elevation, route generation, route safety, Martian walking speed, pressure, space weather, Jezero data, and science analysis.
 
-MARSWAY is an educational and conceptual decision-support system developed for the **2026 NASA Space Apps Challenge**. It is **not certified for operational extraterrestrial flight operations** by NASA, ESA, or any international space agency. All route calculations, metabolic expenditures, and hazard detections are based on scientific models calibrated with authentic archival planetary data for research and decision-support demonstration purposes.
+## Data references
+
+- [USGS/IAU Planetary Names](https://planetarynames.wr.usgs.gov/)
+- [NASA Mars](https://mars.nasa.gov/)
+- [NASA Mars Trek](https://trek.nasa.gov/mars/)
+- [NASA/JPL Photojournal](https://photojournal.jpl.nasa.gov/)
+- [HiRISE](https://hirise.lpl.arizona.edu/)
+- [Mars 2020 raw images](https://mars.nasa.gov/mars2020/multimedia/raw-images/)
+- [NASA Open Data](https://data.nasa.gov/)
+
+## Limitations
+
+MarsWay is not flight-ready software and does not replace engineering review, rover AutoNav, astronaut judgment, real-time obstacle detection, or mission certification.
+
+- MOLA-scale elevation cannot resolve every rock, rut, dune edge, or trench.
+- Soil trafficability, terrain suitability, and global hazards are modeled proxies.
+- Weather and radiation values may be historical, derived, or modeled baselines.
+- Public NASA/USGS services may have network, rate, availability, or attribution constraints.
+- Missions are held in server memory and may disappear after restart.
+- The offline assistant answers only supported basic questions from local MarsWay data.
+- 3D/EVA performance depends on browser WebGL and device hardware.
+
+See [LIMITATIONS.md](LIMITATIONS.md) for the full statement.
+
+**MarsWay - a visual and explainable way to explore where humans and robots might go next on Mars.**
+
+## Detailed feature reference
+
+### 1. First launch and navigation
+
+When the application starts, MarsWay presents the map as the primary workspace. The header switches between the three main experiences:
+
+- **Flat Map**: the practical GIS workspace for search, places, layers, measurements, routes, and science panels.
+- **3D Globe**: a planetary overview for orientation, missions, moons, orbit context, and global scale.
+- **Astronaut EVA**: a human-centered surface presentation for exploration and mission storytelling.
+
+The same Mars location and mission context can be reused across these experiences. The bottom navigation exposes Missions, Layers, Places, Tools, Weather, Search, AI, and Voice without requiring the user to leave the map.
+
+### 2. Finding a place
+
+Use the search bar to find a named crater, volcano, canyon, plain, region, landing site, rover, or mission. A result can be selected to:
+
+1. Fly the map to the location.
+2. Show its name, type, coordinates, and contextual information.
+3. Open environmental and science cards.
+4. Use the location as a route START or FINAL point.
+5. Compare it with another site or mission.
+
+At global zoom the interface declutters labels so the map remains readable. As the user zooms into a region, more nearby names and official catalog features become visible.
+
+### 3. Layer controls
+
+Layer controls allow the user to combine surface visualization with scientific and operational overlays. Depending on the current view, the available controls include:
+
+- Mars surface imagery and contrast modes.
+- Named places and official feature labels.
+- Mission and rover markers.
+- Rover traverse tracks.
+- Region boundaries and planetary quadrangles.
+- Atmosphere, wind, dust, and storm visualizations.
+- MOLA elevation availability and elevation profile tools.
+- Hazard zones used by route analysis.
+- Measurement and coordinate tools.
+
+Layers are visual aids. Turning on a layer does not mean that its source is live or that it has operational navigation accuracy.
+
+### 4. Route planning: complete user workflow
+
+The intended route workflow is:
+
+1. Click **Route Plan**.
+2. Select the transport mode and crew setup.
+3. Click once on the Mars surface to place the START point.
+4. Click a second time to place the FINAL point.
+5. Review the direct corridor and generated candidate routes.
+6. Choose Safest, Shortest, or Science mode.
+7. Click **Check Route** to run the safety assessment.
+8. Read the distance, time, slope, soil, terrain, hazard, and explanation cards.
+9. Apply the safer route if the direct path has a modeled concern.
+
+The map keeps the selected endpoints visible and draws the currently active route. A route is not automatically marked safe simply because two points were selected. The assessment must use the route corridor, the local surface model, and the available hazard datasets.
+
+### 5. What changes route time and safety
+
+The route engine combines several factors:
+
+- **Distance**: the geometric length of the candidate path.
+- **Elevation**: uphill/downhill changes derived from the Mars elevation model.
+- **Slope**: grade penalties affect walking and rover speed.
+- **Soil trafficability**: a modeled estimate of how easily the selected vehicle or crew can cross the surface.
+- **Terrain suitability**: a composite proxy for slope, roughness, and local surface difficulty.
+- **Hazards**: route corridor exposure to regional or site-specific hazard zones.
+- **Transport mode**: foot travel and rover travel use different speed/traction assumptions.
+- **Crew configuration**: operational assumptions can change the planning multiplier.
+- **Route objective**: safest, shortest, and science objectives use different weights.
+
+The result is a planning estimate, not a promise. A longer route can be preferable when it avoids a steep slope, soft soil, dust-prone area, or hazard corridor.
+
+### 6. Offline assistant behavior
+
+Ask MarsWay is intentionally narrow and explainable. It is not a general-purpose chatbot. It detects supported intents locally and reads information already present in MarsWay.
+
+Supported intent families include:
+
+| Intent | Example question | Answer source |
+| --- | --- | --- |
+| Atmosphere | `What gas is on Mars?` | Local atmosphere model and science copy |
+| Human safety | `Mars e manush thakte parbe?` | EVA and survivability context |
+| Rover | `Ei jaygay rover cholbe?` | Terrain and rover suitability model |
+| Place | `Where is Jezero Crater?` | Local feature catalog |
+| Route | `Ei route safe?` | Active route and safety assessment |
+| Soil | `Soil condition kemon?` | Local route/environment assessment |
+| Time | `Which route takes less time?` | Candidate route comparison |
+| Help | `How do I select a route?` | Local workflow guidance |
+
+English, বাংলা, and Banglish are handled through normalized text and supported keyword patterns. The assistant returns a limitation message for unsupported topics instead of pretending to have unrestricted knowledge.
+
+### 7. Voice navigation
+
+The Voice control uses browser speech capabilities for local navigation and mission queries. Browser permissions may be required. Voice behavior depends on browser support, microphone access, language availability, and device settings. Voice navigation is not a remote AI service and does not require an AI key.
+
+### 8. Troubleshooting
+
+#### Port 3000 is busy
+
+Use another port:
+
+```powershell
+$env:PORT=3001
+npm run dev
+```
+
+On Windows, the process using port 3000 can be identified with:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000 -State Listen
+```
+
+Do not stop a process unless you recognize it as the old MarsWay development server.
+
+#### Blank or stale page after a code change
+
+- Stop the old development server.
+- Start the current server again.
+- Hard-refresh the browser with `Ctrl+Shift+R`.
+- Confirm that the browser URL uses the same port printed by the server.
+
+#### 3D view does not render
+
+Check browser WebGL support, update the graphics driver, close other GPU-heavy tabs, and use Flat Map while diagnosing. The 2D map and API do not require the 3D renderer.
+
+#### Map tiles or images are missing
+
+Public NASA/USGS services may be unavailable, rate-limited, blocked by a network, or slow. Local feature and route tools can still work with bundled data.
+
+### 9. Development checklist
+
+Before submitting a change:
+
+1. Run `npm run lint`.
+2. Run `npm test -- --run`.
+3. Run `npm run build`.
+4. Start the app and open the printed local URL.
+5. Test Flat Map, search, a feature detail, route START/FINAL selection, Check Route, AI, and one alternate view.
+6. Confirm that the browser console has no new runtime errors.
+7. Confirm that new data or claims include a source or an explicit modeled/simulated label.
+
+### 10. Design principles
+
+- **Explainability over false certainty**: every route result is a model with visible reasons.
+- **Local-first assistance**: basic help remains available without a paid or remote AI dependency.
+- **Scientific labeling**: measured, derived, modeled, and simulated values are not mixed silently.
+- **Progressive disclosure**: global views stay readable while zoomed views reveal more detail.
+- **Mission usability**: important actions are available from the map without navigating through many pages.
+- **Graceful failure**: unavailable external imagery should not disable local catalog, science, or route tools.

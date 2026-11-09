@@ -12,6 +12,7 @@ import {
   RouteMode,
   MarsTransportModeType,
   CrewBuddyConfigType,
+  assessMartianSurface,
 } from './marsAStarRouter';
 
 export interface RouteHazardIssue {
@@ -37,6 +38,8 @@ export interface RouteSafetyAssessment {
   overallSafetyScore: number; // 0 to 100
   maxDirectSlopeDeg: number;
   avgDirectSlopeDeg: number;
+  directSoilConditionScore: number;
+  directTerrainSuitabilityScore: number;
   issues: RouteHazardIssue[];
   warningHeadlineBn: string;
   warningHeadlineEn: string;
@@ -97,6 +100,9 @@ export function analyzeRouteSafety(
 
   let maxDirectSlope = 0;
   let slopeTotal = 0;
+  let soilTotal = 0;
+  let minSoilScore = 100;
+  let hasSurfaceIssue = false;
   let prevElev = getMolaElevation(startPoint.lat, startPoint.lng);
   let prevPt: MarsCoordinate = p1;
 
@@ -110,6 +116,27 @@ export function analyzeRouteSafety(
     const stepSlope = calculateSlopeDegrees(prevPt, prevElev, curPt, curElev);
     if (stepSlope > maxDirectSlope) maxDirectSlope = stepSlope;
     slopeTotal += stepSlope;
+
+    const surface = assessMartianSurface(curLat, curLng, curElev, stepSlope, hazardZones);
+    soilTotal += surface.soilScore;
+    minSoilScore = Math.min(minSoilScore, surface.soilScore);
+    if (surface.soilScore < 62 && !hasSurfaceIssue) {
+      hasSurfaceIssue = true;
+      const isCriticalSurface = surface.soilScore < 45;
+      issues.push({
+        id: 'surface_trafficability_issue',
+        hazardName: surface.condition,
+        hazardType: 'SOFT_SAND_DRIFT',
+        riskLevel: isCriticalSurface ? 'CRITICAL' : 'HIGH',
+        distanceToPathMeters: 0,
+        maxSlopeDeg: Math.round(stepSlope),
+        description: `Modeled surface trafficability is ${surface.soilScore}/100 along the direct corridor.`,
+        issueSummaryBn: `Direct route-এর surface trafficability ${surface.soilScore}/100; astronaut footing বা rover traction কমতে পারে।`,
+        issueSummaryEn: `Direct corridor surface trafficability is ${surface.soilScore}/100; astronaut footing or rover traction may degrade.`,
+        remedySuggestionBn: 'Firm regolith corridor দিয়ে detour নেওয়া উচিত।',
+        remedySuggestionEn: 'Prefer a firm-regolith bypass corridor.',
+      });
+    }
 
     prevElev = curElev;
     prevPt = curPt;
@@ -170,6 +197,11 @@ export function analyzeRouteSafety(
 
   const avgDirectSlope = Number((slopeTotal / sampleSteps).toFixed(1));
   maxDirectSlope = Number(maxDirectSlope.toFixed(1));
+  const directSoilConditionScore = Math.round(soilTotal / sampleSteps);
+  const directTerrainSuitabilityScore = Math.max(
+    10,
+    Math.min(100, Math.round(directSoilConditionScore * 0.55 + Math.max(0, 100 - maxDirectSlope * 3) * 0.45))
+  );
 
   // If local slope exceeds 16° but wasn't part of named hazard, add high slope issue
   if (maxDirectSlope >= 16 && !issues.some((iss) => iss.hazardType === 'STEEP_SLOPE')) {
@@ -189,8 +221,8 @@ export function analyzeRouteSafety(
   }
 
   // Determine overall safety status and score
-  const hasCritical = issues.some((i) => i.riskLevel === 'CRITICAL') || maxDirectSlope >= 20;
-  const hasHigh = issues.some((i) => i.riskLevel === 'HIGH') || maxDirectSlope >= 14;
+  const hasCritical = issues.some((i) => i.riskLevel === 'CRITICAL') || maxDirectSlope >= 20 || minSoilScore < 45;
+  const hasHigh = issues.some((i) => i.riskLevel === 'HIGH') || maxDirectSlope >= 14 || minSoilScore < 62;
 
   let safetyStatus: 'SAFE' | 'CAUTION' | 'DANGEROUS' = 'SAFE';
   let overallSafetyScore = 92;
@@ -234,7 +266,7 @@ export function analyzeRouteSafety(
     saferSlope: suggestedSaferRoute.maxSlopeDeg,
     slopeImprovementDeg: Math.max(0, Number((maxDirectSlope - suggestedSaferRoute.maxSlopeDeg).toFixed(1))),
     directHazardsCount: issues.length,
-    saferHazardsCount: 0,
+    saferHazardsCount: suggestedSaferRoute.waypoints.filter((waypoint) => waypoint.hazardRisk !== 'Low').length,
     detourExtraDistanceKm: Math.max(0, Number((suggestedSaferRoute.totalDistanceKm - directDistanceKm).toFixed(2))),
     safetyScoreDirect: overallSafetyScore,
     safetyScoreSafer: suggestedSaferRoute.safetyScore,
@@ -249,6 +281,8 @@ export function analyzeRouteSafety(
     overallSafetyScore,
     maxDirectSlopeDeg: maxDirectSlope,
     avgDirectSlopeDeg: avgDirectSlope,
+    directSoilConditionScore,
+    directTerrainSuitabilityScore,
     issues,
     warningHeadlineBn,
     warningHeadlineEn,
