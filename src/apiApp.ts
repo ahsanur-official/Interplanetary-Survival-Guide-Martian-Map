@@ -129,7 +129,13 @@ export function createApiApp(): Express {
       const routeZones = routeHazards(start, destination);
       const transportMode = String(req.body.transportMode || 'foot').toLowerCase() as MarsTransportModeType;
       const crewConfig = String(req.body.crewConfig || 'buddy_pair').toLowerCase() as CrewBuddyConfigType;
-      const routes = (['shortest', 'science', 'safest'] as RouteMode[]).map((mode) => calculateAStarRoute(start.lat, start.lng, destination.lat, destination.lng, mode, { transportMode, crewConfig, hazardZones: routeZones }));
+      const routes = (['shortest', 'science', 'safest'] as RouteMode[]).map((mode) => calculateAStarRoute(start.lat, start.lng, destination.lat, destination.lng, mode, {
+        transportMode,
+        crewConfig,
+        hazardZones: routeZones,
+        solarLongitudeLs: Number(req.body.solarLongitudeLs) || 120,
+        sensorSnapshot: req.body.sensorSnapshot,
+      }));
       res.json({ source: 'marsway-offline-local', routes, hazardsConsidered: routeZones.length, distanceKm: calculateMarsDistanceKm({ latitude: start.lat, longitude: start.lng }, { latitude: destination.lat, longitude: destination.lng }) });
     } catch (error: any) {
       res.status(500).json({ error: 'Failed to calculate local route', details: error?.message || 'Unknown error' });

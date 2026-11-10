@@ -339,6 +339,20 @@ code, kbd, samp, pre, .font-mono {
   transition: opacity 0.2s ease-in-out;
 }
 
+/*
+ * The bundled surface is a graceful loading layer, not the final NASA map.
+ * Keep it calm and professional while public high-resolution tiles arrive:
+ * muted contrast plus a small optical blur avoids the harsh orange flash and
+ * makes the transition to the sharper remote imagery feel intentional.
+ */
+.mars-local-surface-fallback {
+  filter: blur(3px) saturate(0.5) brightness(0.62) contrast(0.9);
+  opacity: 0.84;
+  transform: scale(1.006);
+  transform-origin: center;
+  transition: filter 0.35s ease, opacity 0.35s ease;
+}
+
 /* Custom crisp dark tooltips */
 .mars-tooltip {
   background: rgba(10, 14, 23, 0.95) !important;

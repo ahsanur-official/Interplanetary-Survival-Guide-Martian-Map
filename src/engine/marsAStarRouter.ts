@@ -12,6 +12,7 @@ import {
   getBearingCardinal,
 } from './spatialMath';
 import { getMolaElevation } from './marsMolaElevation';
+import { estimateOfflineMarsRisk, OfflineMarsSensorSnapshot } from './offlineMarsRiskModel';
 
 import { NasaSurfacePovImage } from '../types/mars';
 
@@ -31,6 +32,7 @@ export interface PlannedWaypoint {
   isScienceStop?: boolean;
   scienceCategory?: string;
   hazardRisk: 'Low' | 'Moderate' | 'Hazardous';
+  dustRiskProbability?: number;
   surfacePovImage?: NasaSurfacePovImage;
 }
 
@@ -86,6 +88,7 @@ export interface PlannedRouteResult {
     criticalDecisionFactors: string[];
   };
   nearbyScienceStops: ScienceStopSuggestion[];
+  averageDustRiskProbability?: number;
 }
 
 // Known science targets catalog on Mars for science-rich routing & auto-suggestions
@@ -287,6 +290,8 @@ export function calculateAStarRoute(
     transportMode?: MarsTransportModeType;
     crewConfig?: CrewBuddyConfigType;
     hazardZones?: HazardZone[];
+    solarLongitudeLs?: number;
+    sensorSnapshot?: OfflineMarsSensorSnapshot;
   }
 ): PlannedRouteResult {
   const directDistKm = calculateMarsDistanceKm(
@@ -297,6 +302,7 @@ export function calculateAStarRoute(
   const transportMode = options?.transportMode || 'foot';
   const crewConfig = options?.crewConfig || 'buddy_pair';
   const hazardZones = options?.hazardZones || [];
+  const solarLongitudeLs = Number.isFinite(options?.solarLongitudeLs) ? options!.solarLongitudeLs! : 120;
 
   // Number of discretized navigation nodes along the corridor (scale with distance)
   const numSteps = Math.max(8, Math.min(32, Math.round(directDistKm / 0.75)));
@@ -362,7 +368,15 @@ export function calculateAStarRoute(
           return total + (1 - distance / protectedRadius) * riskWeight;
         }, 0);
         const modeHazardWeight = mode === 'science' ? 1.0 : 1.5;
-        const cost = slope + hazardCost * modeHazardWeight;
+        const dustRisk = estimateOfflineMarsRisk({
+          latitude: testLat,
+          longitude: testLng,
+          solarLongitudeLs,
+          ...options?.sensorSnapshot,
+          slopeDeg: slope,
+        }).routePenalty;
+        const dustWeight = mode === 'science' ? 0.9 : 1.5;
+        const cost = slope + hazardCost * modeHazardWeight + dustRisk * dustWeight;
         if (cost < bestCost) {
           bestCost = cost;
           bestSlope = slope;
@@ -414,7 +428,14 @@ export function calculateAStarRoute(
       );
 
       const surfaceAssessment = assessMartianSurface(lat, lng, elev, slope, hazardZones);
-      surfaceScores.push(surfaceAssessment.soilScore);
+      const dustRisk = estimateOfflineMarsRisk({
+        latitude: lat,
+        longitude: lng,
+        solarLongitudeLs,
+        ...options?.sensorSnapshot,
+        slopeDeg: slope,
+      });
+      surfaceScores.push(Math.max(20, Math.round(surfaceAssessment.soilScore - dustRisk.routePenalty * 18)));
       surfaceConditions.push(surfaceAssessment.condition);
 
       // Speed calculation based on transport mode, slope and soil traction.
@@ -428,6 +449,7 @@ export function calculateAStarRoute(
       }
 
       speedKmH *= surfaceAssessment.tractionFactor;
+      speedKmH *= Math.max(0.55, 1 - dustRisk.routePenalty * 0.22);
       cumTimeHours += stepDistKm / speedKmH;
     }
 
@@ -450,6 +472,19 @@ export function calculateAStarRoute(
     if (nearbyHazard && (nearbyHazard.riskLevel === 'CRITICAL' || nearbyHazard.riskLevel === 'HIGH')) {
       hazardRisk = 'Hazardous';
     } else if (nearbyHazard) {
+      hazardRisk = 'Moderate';
+    }
+
+    const waypointDustRisk = estimateOfflineMarsRisk({
+      latitude: lat,
+      longitude: lng,
+      solarLongitudeLs,
+      ...options?.sensorSnapshot,
+      slopeDeg: slope,
+    });
+    if (waypointDustRisk.hazardBand === 'SEVERE' || waypointDustRisk.hazardBand === 'HIGH') {
+      hazardRisk = 'Hazardous';
+    } else if (waypointDustRisk.hazardBand === 'MODERATE' && hazardRisk === 'Low') {
       hazardRisk = 'Moderate';
     }
 
@@ -476,6 +511,7 @@ export function calculateAStarRoute(
       isScienceStop: isScience,
       scienceCategory: scienceCat,
       hazardRisk,
+      dustRiskProbability: waypointDustRisk.riskProbability,
       surfacePovImage: waypointPovImage,
     });
   }
@@ -509,6 +545,10 @@ export function calculateAStarRoute(
 
   // Compute Rigorous Safety Score (0-100) & Explanations:
   const hazardExposureCount = waypoints.filter((waypoint) => waypoint.hazardRisk !== 'Low').length;
+  const dustRisks = waypoints.map((waypoint) => waypoint.dustRiskProbability).filter((risk): risk is number => risk !== undefined);
+  const averageDustRiskProbability = dustRisks.length
+    ? Number((dustRisks.reduce((sum, risk) => sum + risk, 0) / dustRisks.length).toFixed(3))
+    : 0;
   const soilConditionScore = Math.round(surfaceScores.reduce((sum, score) => sum + score, 0) / Math.max(1, surfaceScores.length));
   const terrainSuitabilityScore = Math.max(
     10,
@@ -577,6 +617,7 @@ export function calculateAStarRoute(
     safetyFactors: safetyBreakdown.factors,
     whyThisRoute: explanations,
     nearbyScienceStops: nearbyScience,
+    averageDustRiskProbability,
   };
 }
 

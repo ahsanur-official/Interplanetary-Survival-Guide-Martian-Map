@@ -141,11 +141,11 @@ export const MarsScaleBar: React.FC<MarsScaleBarProps> = ({ map }) => {
 
       {/* Bottom Subtitle: Imperial miles & Mars Areoid tag */}
       <div
-        className="flex items-center justify-between text-[8.5px] font-mono text-neutral-400 mt-0.5"
+        className="flex items-center justify-between gap-2 text-[8px] font-mono text-neutral-400 mt-0.5"
         style={{ width: `${scaleData.widthPx}px` }}
       >
-        <span className="text-neutral-400">{scaleData.milesLabel}</span>
-        <span className="text-orange-400/80 tracking-tighter">Mars R=3,389.5km</span>
+        <span className="text-neutral-400 whitespace-nowrap">{scaleData.milesLabel}</span>
+        <span className="text-orange-400/80 tracking-tighter whitespace-nowrap">R 3,389 km</span>
       </div>
     </div>
   );

@@ -2601,6 +2601,7 @@ export function RealMarsMap() {
       minZoom: 1,
       maxNativeZoom: activeLayer === 'themis' ? 8 : 7,
       maxZoom: activeLayer === 'themis' ? 8 : 7,
+      zIndex: 2,
       noWrap: false,
       updateWhenIdle: true,
       updateWhenZooming: true,
@@ -2646,46 +2647,51 @@ export function RealMarsMap() {
       );
     }
 
-    // Always place a local surface underneath the remote tile layer. This
-    // prevents black/empty rectangles when a public tile request is slow.
+    // Place the bundled Mars surface in the tile pane, underneath NASA's
+    // remote tiles. It must be visible immediately: public NASA tiles can
+    // arrive one-by-one or fail for a single viewport tile, and hiding this
+    // layer creates the black rectangles users see during loading.
     const localFallback = L.imageOverlay(
       '/textures/mars_viking_2k.jpg',
       [[-90, -180], [90, 180]],
-      // Keep the fallback hidden while NASA tiles are loading. Showing it
-      // underneath a partially loaded tile pyramid creates visible orange /
-      // brown colour blocks across the 2D map. It is revealed only when the
-      // remote layer genuinely fails and then covers the whole map uniformly.
-      { opacity: 0, interactive: false, crossOrigin: true }
+      {
+        opacity: 1,
+        pane: 'tilePane',
+        zIndex: 1,
+        interactive: false,
+        crossOrigin: true,
+        className: 'mars-local-surface-fallback',
+      }
     );
     localFallback.addTo(map);
     fallbackSurfaceLayerRef.current = localFallback;
 
     let tileErrors = 0;
-    let fallbackActivated = false;
-    const activateLocalFallback = () => {
-      if (fallbackActivated || !mapInstanceRef.current) return;
-      fallbackActivated = true;
-      map.removeLayer(newTileLayer);
-      localFallback.setOpacity(1);
+    let firstTileLoaded = false;
+    const markFirstTileReady = () => {
+      if (firstTileLoaded) return;
+      firstTileLoaded = true;
       setIsTilesLoading(false);
     };
 
     newTileLayer.on('loading', () => setIsTilesLoading(true));
-    newTileLayer.on('load', () => {
-      // Once the NASA pyramid is complete, make sure the local fallback never
-      // leaks through and changes the map's colour from tile to tile.
-      localFallback.setOpacity(0);
-      setIsTilesLoading(false);
-    });
+    // The first successful tile is enough to stop showing the loading state.
+    // Keep the bundled surface mounted so failed/slow tiles never expose a
+    // black hole between otherwise valid NASA tiles.
+    newTileLayer.on('tileload', markFirstTileReady);
+    newTileLayer.on('load', markFirstTileReady);
     newTileLayer.on('tileerror', () => {
       tileErrors += 1;
-      if (tileErrors >= 3) activateLocalFallback();
+      // The local surface remains visible underneath; a few remote tile
+      // errors are expected on public NASA endpoints and must not blank map.
+      if (tileErrors >= 3) setIsTilesLoading(false);
     });
     newTileLayer.addTo(map);
 
     const loadingTimeout = window.setTimeout(() => {
-      if (tileErrors > 0) activateLocalFallback();
-      else setIsTilesLoading(false);
+      // Never leave the user staring at a loading pill indefinitely. The
+      // bundled surface is already usable even when NASA is slow or offline.
+      setIsTilesLoading(false);
     }, 5000);
 
     return () => {
@@ -5548,7 +5554,7 @@ export function RealMarsMap() {
             {isTilesLoading && (
               <div className="pointer-events-none bg-[#070b14]/90 backdrop-blur-md border border-cyan-500/30 text-cyan-300 px-3 py-1 rounded-full text-[10.5px] font-mono flex items-center gap-2 shadow-xl animate-in fade-in">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0"></span>
-                <span>Syncing High-Res NASA Tiles...</span>
+                <span>NASA tiles syncing · local surface ready</span>
               </div>
             )}
           </div>
@@ -6374,9 +6380,9 @@ export function RealMarsMap() {
         {/* CRISP DARK-THEMED MARS SCALE BAR (Bottom Left - shifts gracefully when a card is open) */}
         <div
           className={`absolute z-20 pointer-events-auto transition-all duration-300 ${
-            selectedSite || inspectedPoint || selectedRegion
-              ? 'hidden sm:block sm:bottom-4 sm:left-[430px]'
-              : 'bottom-18 left-2 sm:bottom-4 sm:left-4'
+            hasBlockingOverlay || activeTab || selectedSite || inspectedPoint || selectedRegion
+              ? 'hidden'
+              : 'bottom-22 left-[4.75rem] sm:bottom-22 sm:left-[4.75rem]'
           }`}
         >
           <MarsScaleBar map={mapInstance} />
@@ -7719,6 +7725,7 @@ export function RealMarsMap() {
                   terrainScore: activePlannedRoute.terrainSuitabilityScore,
                   surfaceCondition: activePlannedRoute.surfaceCondition,
                   maxSlopeDeg: activePlannedRoute.maxSlopeDeg,
+                  averageDustRiskProbability: activePlannedRoute.averageDustRiskProbability,
                 }
               : null,
             candidates: Object.entries(candidateRoutes)

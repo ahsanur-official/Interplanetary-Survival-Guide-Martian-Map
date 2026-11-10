@@ -44,6 +44,7 @@ interface AskMarsWayModalProps {
         terrainScore: number;
         surfaceCondition: string;
         maxSlopeDeg: number;
+        averageDustRiskProbability?: number;
       } | null;
       candidates?: Array<{
         mode: string;
@@ -134,6 +135,9 @@ export function AskMarsWayModal({
         ? candidates.reduce((best, item) => item.safetyScore > best.safetyScore ? item : best, candidates[0])
         : null;
       const status = active.safetyScore >= 85 ? 'SAFE' : active.safetyScore >= 70 ? 'CAUTION' : 'DANGEROUS';
+      const dustNote = typeof active.averageDustRiskProbability === 'number'
+        ? ` Offline dust-climatology risk is ${(active.averageDustRiskProbability * 100).toFixed(1)}%; this is historical context, not a live storm alert.`
+        : '';
       const timeNote = fastest && fastest.mode !== route.selectedMode
         ? `The ${fastest.mode} candidate is the shortest-time option at ${fastest.time}; the active route is selected because it balances that time against terrain and safety.`
         : 'The active route is currently the lowest-time option among the computed candidates.';
@@ -144,7 +148,7 @@ export function AskMarsWayModal({
       return {
         id: Date.now().toString(),
         role: 'assistant',
-        text: `Offline MarsWay route analysis: ${active.name} is ${status} with a safety score of ${active.safetyScore}/100. It covers ${active.distanceKm} km and takes about ${active.time}. Surface: ${active.surfaceCondition}; soil trafficability ${active.soilScore}/100; terrain suitability ${active.terrainScore}/100; maximum slope ${active.maxSlopeDeg}°. ${timeNote} ${safestNote}`,
+        text: `Offline MarsWay route analysis: ${active.name} is ${status} with a safety score of ${active.safetyScore}/100. It covers ${active.distanceKm} km and takes about ${active.time}. Surface: ${active.surfaceCondition}; soil trafficability ${active.soilScore}/100; terrain suitability ${active.terrainScore}/100; maximum slope ${active.maxSlopeDeg}°. ${timeNote} ${safestNote}${dustNote}`,
         sources: ['MarsWay local route engine', 'MOLA-calibrated elevation model', 'Local hazard and surface model'],
       };
     }
