@@ -359,6 +359,14 @@ export function RealMarsMap() {
   // Map Orientation / Bearing: 0 (North Up), 90 (East Up), 180 (South Up), 270 (West Up)
   const [bearing, setBearing] = useState<number>(0);
   const bearingRef = useRef<number>(0);
+  // A rectangular global equirectangular map exposes empty corners when the
+  // canvas is rotated by 90°. A restrained scale keeps the rotated viewport
+  // filled without making normal north-up navigation feel zoomed in.
+  const getBearingScale = (value: number) => {
+    const normalized = ((value % 360) + 360) % 360;
+    if (normalized === 0) return 1;
+    return normalized === 90 || normalized === 270 ? 1.5 : 1.12;
+  };
   useEffect(() => {
     bearingRef.current = bearing;
     if (mapContainerRef.current) {
@@ -1195,11 +1203,12 @@ export function RealMarsMap() {
 
       const dx = e.clientX - screenCenterX;
       const dy = e.clientY - screenCenterY;
+      const visualScale = getBearingScale(curBearing);
 
       // Container is visually rotated by -curBearing; rotate screen delta by +curBearing to map back to local
       const rad = (curBearing * Math.PI) / 180;
-      const localDx = dx * Math.cos(rad) - dy * Math.sin(rad);
-      const localDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+      const localDx = (dx * Math.cos(rad) - dy * Math.sin(rad)) / visualScale;
+      const localDy = (dx * Math.sin(rad) + dy * Math.cos(rad)) / visualScale;
 
       const containerCenterX = container.clientWidth / 2;
       const containerCenterY = container.clientHeight / 2;
@@ -1240,8 +1249,9 @@ export function RealMarsMap() {
         }
 
         const rad = (curBearing * Math.PI) / 180;
-        const rotOffsetX = offset.x * Math.cos(rad) - offset.y * Math.sin(rad);
-        const rotOffsetY = offset.x * Math.sin(rad) + offset.y * Math.cos(rad);
+        const visualScale = getBearingScale(curBearing);
+        const rotOffsetX = (offset.x * Math.cos(rad) - offset.y * Math.sin(rad)) / visualScale;
+        const rotOffsetY = (offset.x * Math.sin(rad) + offset.y * Math.cos(rad)) / visualScale;
 
         this._newPos = this._startPos.add(new L.Point(rotOffsetX, rotOffsetY));
         this._moving = true;
@@ -5567,7 +5577,9 @@ export function RealMarsMap() {
           style={{
             width: bearing === 0 ? '100%' : `${stageDiagonal}px`,
             height: bearing === 0 ? '100%' : `${stageDiagonal}px`,
-            transform: bearing === 0 ? 'none' : `translate(-50%, -50%) rotate(${-bearing}deg)`,
+            transform: bearing === 0
+              ? 'none'
+              : `translate(-50%, -50%) rotate(${-bearing}deg) scale(${getBearingScale(bearing)})`,
             filter: getFilterStyle(),
             ['--map-bearing' as any]: `${bearing}deg`,
             willChange: 'transform',

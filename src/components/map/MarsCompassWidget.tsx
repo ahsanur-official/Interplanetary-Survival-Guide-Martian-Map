@@ -291,7 +291,7 @@ export const MarsCompassWidget: React.FC<MarsCompassWidgetProps> = ({
 
       {/* Floating Dark HUD Tooltip / Spatial Status */}
       {showTooltip && (
-        <div className="absolute right-0 top-full mt-2 w-56 bg-[#090d16]/98 backdrop-blur-xl border border-neutral-700 rounded-xl p-2.5 shadow-2xl text-[10.5px] space-y-1.5 z-30 animate-in fade-in zoom-in-95">
+        <div className="absolute right-0 top-full mt-2 sm:right-full sm:top-0 sm:mt-0 sm:mr-2 w-56 max-w-[calc(100vw-1rem)] bg-[#090d16]/98 backdrop-blur-xl border border-neutral-700 rounded-xl p-2.5 shadow-2xl text-[10.5px] space-y-1.5 z-[60] pointer-events-auto animate-in fade-in zoom-in-95">
           <div className="flex items-center justify-between border-b border-neutral-800 pb-1.5 font-mono">
             <span className={`${cardinal.color} font-bold flex items-center gap-1`}>
               <Compass className="w-3.5 h-3.5" /> {cardinal.name}
