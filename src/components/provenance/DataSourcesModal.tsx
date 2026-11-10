@@ -65,19 +65,24 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
             <h3 className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold">
               Scientific Classification Framework
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               <div className="bg-emerald-950/30 border border-emerald-800/50 p-3 rounded-lg space-y-1">
                 <span className="inline-block text-[11px] font-mono font-bold text-emerald-400">
-                  [Observed Data]
+                  [OBSERVED]
                 </span>
                 <p className="text-xs text-neutral-300">
                   Direct raw or calibrated measurements acquired by spacecraft sensors (e.g. MOLA laser pulses, HiRISE optics, REMS/MEDA transducers).
                 </p>
               </div>
 
+              <div className="bg-sky-950/30 border border-sky-800/50 p-3 rounded-lg space-y-1">
+                <span className="inline-block text-[11px] font-mono font-bold text-sky-400">[HISTORICAL]</span>
+                <p className="text-xs text-neutral-300">Archived mission observations from completed rover, lander and orbiter campaigns; authentic, but not live telemetry.</p>
+              </div>
+
               <div className="bg-cyan-950/30 border border-cyan-800/50 p-3 rounded-lg space-y-1">
                 <span className="inline-block text-[11px] font-mono font-bold text-cyan-400">
-                  [Derived Analysis]
+                  [DERIVED]
                 </span>
                 <p className="text-xs text-neutral-300">
                   Scientifically calculated or interpolated datasets (e.g. terrain slope gradients, orthodromic geodesic distances, diurnal thermal ranges).
@@ -86,7 +91,7 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
 
               <div className="bg-purple-950/30 border border-purple-800/50 p-3 rounded-lg space-y-1">
                 <span className="inline-block text-[11px] font-mono font-bold text-purple-400">
-                  [Simulated Models]
+                  [MODELED]
                 </span>
                 <p className="text-xs text-neutral-300">
                   Physical computational models (e.g. astronomical Keplerian ephemeris coordinates, atmospheric scale heights, diurnal sol cycles).
@@ -95,7 +100,7 @@ export function DataSourcesModal({ isOpen, onClose }: DataSourcesModalProps) {
 
               <div className="bg-amber-950/30 border border-amber-800/50 p-3 rounded-lg space-y-1">
                 <span className="inline-block text-[11px] font-mono font-bold text-amber-400">
-                  [Experimental]
+                  [SIMULATED]
                 </span>
                 <p className="text-xs text-neutral-300">
                   Exploratory concepts (e.g. human mission EVA landing site weightings, Web Audio terrain elevation sonification synthesis).

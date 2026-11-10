@@ -1039,7 +1039,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
           <button
             type="button"
             onClick={() => onTabChange(activeTab === 'missions' ? null : 'missions')}
-            className={`min-w-[36px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
+            className={`min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
               activeTab === 'missions' ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
@@ -1052,14 +1052,14 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
             >
               <Radio className="w-4 h-4" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Missions</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Missions</span>
           </button>
 
           {/* Tab 2: Layers & Basemaps */}
           <button
             type="button"
             onClick={() => onTabChange(activeTab === 'layers' ? null : 'layers')}
-            className={`min-w-[36px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
+            className={`min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
               activeTab === 'layers' ? 'text-emerald-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
@@ -1072,14 +1072,14 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
             >
               <Layers className="w-4 h-4" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Layers</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Layers</span>
           </button>
 
           {/* Tab 3: Landmarks & Categories */}
           <button
             type="button"
             onClick={() => onTabChange(activeTab === 'landmarks' ? null : 'landmarks')}
-            className={`min-w-[36px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
+            className={`min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
               activeTab === 'landmarks' ? 'text-orange-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
@@ -1092,14 +1092,14 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
             >
               <MapPin className="w-4 h-4" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Places</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Places</span>
           </button>
 
           {/* Tab 4: Tools (Elevation, Earth Scale, Water) */}
           <button
             type="button"
             onClick={() => onTabChange(activeTab === 'tools' ? null : 'tools')}
-            className={`min-w-[36px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
+            className={`min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
               activeTab === 'tools' ? 'text-cyan-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
@@ -1112,14 +1112,14 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
             >
               <Sliders className="w-4 h-4" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Tools</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Tools</span>
           </button>
 
           {/* Tab 5: Weather */}
           <button
             type="button"
             onClick={() => onTabChange(activeTab === 'weather' ? null : 'weather')}
-            className={`min-w-[36px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
+            className={`min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] active:scale-95 ${
               activeTab === 'weather' ? 'text-amber-400 font-bold' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
@@ -1132,7 +1132,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
             >
               <Thermometer className="w-4 h-4" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Weather</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Weather</span>
           </button>
 
           {/* Tab 6: Route Plan (Google Maps Style Directions) */}
@@ -1141,13 +1141,13 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
             onClick={() => {
               if (onOpenRoutePlanner) onOpenRoutePlanner();
             }}
-            className="md:hidden min-w-[36px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] text-cyan-300 hover:text-white active:scale-95 group"
+            className="md:hidden min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 flex-1 shrink-0 sm:shrink flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer min-h-[44px] text-cyan-300 hover:text-white active:scale-95 group"
             title="Route Planner & Directions: Plan exploration path and evaluate terrain hazards"
           >
             <div className="p-1 rounded-lg bg-gradient-to-tr from-cyan-600/40 to-blue-600/40 border border-cyan-400/60 shadow-md shadow-cyan-950/60 group-hover:scale-105 transition-transform">
               <Navigation className="w-4 h-4 text-cyan-300 fill-cyan-300/30" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-bold text-cyan-300 whitespace-nowrap">Route</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-bold text-cyan-300 whitespace-nowrap">Route</span>
           </button>
 
           {/* Divider */}
@@ -1157,39 +1157,39 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
           <button
             type="button"
             onClick={onOpenSearch}
-            className="min-w-[36px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-neutral-400 hover:text-white active:scale-95"
+            className="min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-neutral-400 hover:text-white active:scale-95"
             title="Search Martian features"
           >
             <div className="p-1 rounded-lg">
               <Search className="w-4 h-4 text-orange-400" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Search</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">Search</span>
           </button>
 
           {/* Quick Action: Ask AI */}
           <button
             type="button"
             onClick={onOpenAI}
-            className="min-w-[36px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-purple-300 hover:text-purple-100 active:scale-95"
+            className="min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-purple-300 hover:text-purple-100 active:scale-95"
             title="Ask MarsWay AI"
           >
             <div className="p-1 rounded-lg bg-purple-900/40">
               <Sparkles className="w-4 h-4 text-purple-300" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">AI</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap">AI</span>
           </button>
 
           {/* Quick Action: Voice Navigation */}
           <button
             type="button"
             onClick={onOpenVoice}
-            className="min-w-[36px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-cyan-300 hover:text-white active:scale-95"
+            className="min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-cyan-300 hover:text-white active:scale-95"
             title="Voice Navigation & Mission Queries (Web Speech API)"
           >
             <div className="p-1 rounded-lg bg-cyan-950/60 border border-cyan-700/50">
               <Mic className="w-4 h-4 text-cyan-300 animate-pulse" />
             </div>
-            <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-semibold whitespace-nowrap">Voice</span>
+            <span className="max-[400px]:hidden text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight font-semibold whitespace-nowrap">Voice</span>
           </button>
         </nav>
       </div>

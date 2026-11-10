@@ -34,7 +34,7 @@ export function ProvenanceBadge({ status, size = 'sm', showTooltip = true }: Pro
       desc: 'Physics-based extrapolation or numerical model (e.g., atmospheric column radiation shielding).',
     },
     SIMULATED: {
-      label: 'SIMULATED DATA',
+      label: 'SIMULATED',
       bg: 'bg-rose-950/70 border-rose-500/40 text-rose-300',
       icon: AlertCircle,
       desc: 'Synthetic validation scenario for mission planner testing. Clearly isolated from observed facts.',

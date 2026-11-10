@@ -44,6 +44,8 @@ import {
 } from '../../engine/marsAStarRouter';
 import { NasaSurfacePovImage } from '../../types/mars';
 import { calculateMarsDistanceKm } from '../../engine/spatialMath';
+import { analyzeMarsLocationScience } from '../../engine/marsEnvironmentalAnalysis';
+import { RouteSafetyAssessment } from '../../engine/marsRouteSafetyAnalyzer';
 
 export interface MarsRoutePlannerModalProps {
   isOpen: boolean;
@@ -69,6 +71,9 @@ export interface MarsRoutePlannerModalProps {
   onClearRoute?: () => void;
   onSwapPoints?: () => void;
   onPickOnMap?: () => void;
+  routeSafetyAssessment?: RouteSafetyAssessment | null;
+  scienceObjective?: string;
+  onChangeScienceObjective?: (objective: string) => void;
 }
 
 export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
@@ -95,6 +100,9 @@ export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
   onClearRoute,
   onSwapPoints,
   onPickOnMap,
+  routeSafetyAssessment = null,
+  scienceObjective = '',
+  onChangeScienceObjective,
 }) => {
   const handleCancelRoute = onCancelRoute || onClearRoute;
   const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'stops' | 'explainer' | 'comms' | 'export'>('overview');
@@ -112,8 +120,6 @@ export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
   }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   // Orbiters pass timetable model (MRO, Odyssey, TGO, MAVEN)
   const orbiterPasses = [
@@ -138,6 +144,34 @@ export const MarsRoutePlannerModal: React.FC<MarsRoutePlannerModalProps> = ({
       })
       .sort((a, b) => b.decisionScore - a.decisionScore)[0];
   }, [candidateRoutes]);
+
+  const routeMetrics = useMemo(() => {
+    const routes = (Object.entries(candidateRoutes) as [RouteMode, PlannedRouteResult | null][])
+      .filter((entry): entry is [RouteMode, PlannedRouteResult] => Boolean(entry[1]));
+    if (routes.length === 0) return null;
+    const shortest = routes.reduce((best, current) => current[1].totalDistanceKm < best[1].totalDistanceKm ? current : best);
+    const fastest = routes.reduce((best, current) => current[1].estimatedWalkTimeHours < best[1].estimatedWalkTimeHours ? current : best);
+    return { shortest, fastest };
+  }, [candidateRoutes]);
+
+  const routeEnvironment = useMemo(() => {
+    if (!startPoint) return null;
+    const science = analyzeMarsLocationScience(startPoint.lat, startPoint.lng);
+    return {
+      temp: science.humanSafety.tempDisplay,
+      pressure: science.atmosphere.pressureDisplay,
+      radiation: science.humanSafety.radiationDisplay,
+      terrain: science.vehicleSafety.terrainType,
+    };
+  }, [startPoint]);
+
+  const hasModeledRouteIssue = Boolean(routeSafetyAssessment && routeSafetyAssessment.safetyStatus !== 'SAFE');
+  const hasSaferBypass = Boolean(
+    routeSafetyAssessment &&
+    routeSafetyAssessment.comparison.saferHazardsCount < routeSafetyAssessment.comparison.directHazardsCount
+  );
+
+  if (!isOpen) return null;
 
   // Export GeoJSON Handler
   const handleExportGeoJSON = () => {
@@ -463,6 +497,36 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         </div>
       </div>}
 
+      <div className="mx-3 mt-2 rounded-xl border border-amber-500/35 bg-amber-950/20 px-3 py-2 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300">Science objective</span>
+          <span className="text-[9px] text-amber-200/70">Optional mission intent</span>
+        </div>
+        <input
+          value={scienceObjective}
+          onChange={(event) => onChangeScienceObjective?.(event.target.value)}
+          placeholder="e.g. Find clay minerals in delta deposits"
+          className="w-full rounded-lg border border-amber-500/30 bg-neutral-950/80 px-2.5 py-1.5 text-[11px] text-white outline-none placeholder:text-neutral-500 focus:border-amber-400"
+          aria-label="Scientific objective"
+        />
+      </div>
+
+      {routeEnvironment && (
+        <div className="mx-3 mt-2 rounded-xl border border-cyan-500/30 bg-cyan-950/20 px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300">Pre-route environment & radiation</span>
+            <span className="rounded-full border border-purple-400/40 bg-purple-950/50 px-1.5 py-0.5 text-[8px] font-mono text-purple-300">MODELED</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+            <div className="rounded-lg bg-black/30 px-2 py-1"><span className="text-neutral-500">Temperature</span><strong className="ml-1 text-white">{routeEnvironment.temp}</strong></div>
+            <div className="rounded-lg bg-black/30 px-2 py-1"><span className="text-neutral-500">Pressure</span><strong className="ml-1 text-white">{routeEnvironment.pressure}</strong></div>
+            <div className="rounded-lg bg-black/30 px-2 py-1"><span className="text-neutral-500">Radiation</span><strong className="ml-1 text-amber-300">{routeEnvironment.radiation}</strong></div>
+            <div className="rounded-lg bg-black/30 px-2 py-1"><span className="text-neutral-500">Terrain</span><strong className="ml-1 text-cyan-200">{routeEnvironment.terrain}</strong></div>
+          </div>
+          <p className="mt-1.5 text-[9px] text-neutral-400">Inspect this baseline before choosing a route; route scores combine terrain, soil, slope and vehicle/crew constraints.</p>
+        </div>
+      )}
+
       {/* Simple route priority selector */}
       <div className="px-3 pt-2 pb-1 border-b border-white/10 bg-neutral-950/80 shrink-0">
         <div className="text-[10px] text-neutral-400 mb-1.5">Choose your priority:</div>
@@ -494,7 +558,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         >
           <div className="flex items-center gap-1 text-[11px]">
             <Zap className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Fastest path</span>
+            <span>Shortest path</span>
           </div>
           <span className="text-[9px] text-cyan-300">Get there sooner</span>
         </button>
@@ -510,7 +574,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
         >
           <div className="flex items-center gap-1 text-[11px]">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>More science</span>
+            <span>Science path</span>
           </div>
           <span className="text-[9px] text-amber-300">See more sites</span>
         </button>
@@ -669,6 +733,60 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
                 <span className="font-bold text-white truncate">{endPoint?.name || 'Destination Point'}</span>
               </div>
             </div>
+
+            {scienceObjective.trim() && (
+              <div className="rounded-xl border border-amber-500/35 bg-amber-950/20 px-3 py-2">
+                <div className="text-[9px] font-mono uppercase tracking-wider text-amber-300">Mission objective</div>
+                <div className="mt-0.5 text-[11px] font-semibold text-white">{scienceObjective}</div>
+              </div>
+            )}
+
+            {hasModeledRouteIssue && routeSafetyAssessment && (
+              <div className="rounded-xl border border-red-500/50 bg-red-950/35 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-red-200">Direct route issue detected</span>
+                  <span className="rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-mono font-bold text-white">{routeSafetyAssessment.safetyStatus}</span>
+                </div>
+                <p className="text-[10px] leading-relaxed text-red-100/85">{routeSafetyAssessment.warningHeadlineEn}</p>
+                <div className="grid grid-cols-2 gap-1.5 text-[9px]">
+                  <div className="rounded-lg bg-black/30 px-2 py-1.5"><span className="block text-neutral-500">DIRECT / SHORTEST</span><strong className="text-white">{routeSafetyAssessment.comparison.directRouteDistanceKm} km · {routeSafetyAssessment.comparison.directHazardsCount} hazards</strong></div>
+                  <div className={`rounded-lg px-2 py-1.5 ${hasSaferBypass ? 'bg-emerald-900/30' : 'bg-amber-900/30'}`}><span className="block text-amber-300/70">{hasSaferBypass ? 'RECOMMENDED / SAFEST' : 'NO HAZARD-FREE BYPASS'}</span><strong className={hasSaferBypass ? 'text-emerald-100' : 'text-amber-100'}>{routeSafetyAssessment.comparison.saferRouteDistanceKm} km · score {routeSafetyAssessment.comparison.safetyScoreSafer}</strong></div>
+                </div>
+                {hasSaferBypass ? <button type="button" onClick={() => onSelectMode('safest')} className="w-full rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-500 cursor-pointer">
+                  {selectedMode === 'safest' ? 'Safe route active on map' : 'Apply recommended safe route'}
+                </button> : <div className="rounded-lg border border-amber-500/30 bg-amber-950/30 px-2.5 py-1.5 text-center text-[10px] font-semibold text-amber-200">Move the final point outside the hazard boundary to create a safe route.</div>}
+              </div>
+            )}
+
+            {candidateRoutes.shortest && candidateRoutes.safest && (
+              <div className="rounded-xl border border-white/10 bg-neutral-950/80 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white">Route comparison</span>
+                  <span className="text-[9px] text-neutral-500">MOLA terrain + hazard model</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[{ label: 'Shortest', route: candidateRoutes.shortest, tone: 'cyan' }, { label: 'Safest', route: candidateRoutes.safest, tone: 'emerald' }].map(({ label, route, tone }) => (
+                    <div key={label} className={`rounded-lg border px-2.5 py-2 ${tone === 'emerald' ? 'border-emerald-500/40 bg-emerald-950/25' : 'border-cyan-500/35 bg-cyan-950/20'}`}>
+                      <div className={`text-[10px] font-bold ${tone === 'emerald' ? 'text-emerald-300' : 'text-cyan-300'}`}>{label} route</div>
+                      <div className="mt-1 text-sm font-black text-white">{route.totalDistanceKm} <span className="text-[10px] font-normal text-neutral-400">km</span></div>
+                      <div className="text-[9px] text-neutral-300">{route.estimatedWalkTimeFormatted} · Safety {route.safetyScore}/100</div>
+                      <div className="text-[9px] text-neutral-400">Max slope {route.maxSlopeDeg}° · Soil {route.soilConditionScore}/100</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 rounded-lg bg-black/30 px-2 py-1.5 text-[9px] text-amber-200">
+                  Shortest is distance-efficient; Safest adds {Math.max(0, candidateRoutes.safest.totalDistanceKm - candidateRoutes.shortest.totalDistanceKm).toFixed(2)} km to reduce terrain and hazard exposure.
+                </div>
+                {routeMetrics && (
+                  <div className="mt-1.5 flex items-center justify-between gap-2 rounded-lg border border-cyan-500/25 bg-cyan-950/20 px-2 py-1.5 text-[9px]">
+                    <span className="text-cyan-100">Fastest travel time: <strong>{routeMetrics.fastest[1].estimatedWalkTimeFormatted}</strong> via {routeMetrics.fastest[1].mode} route.</span>
+                    {selectedMode !== routeMetrics.fastest[0] && (
+                      <button type="button" onClick={() => onSelectMode(routeMetrics.fastest[0])} className="shrink-0 rounded-md bg-cyan-600 px-2 py-1 font-bold text-white hover:bg-cyan-500 cursor-pointer">Use fastest</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Safety Alert & Suggested Safer Alternative Proposal (if active mode has hazards or high slope) */}
             {activeRoute.safetyScore < 85 && candidateRoutes.safest && selectedMode !== 'safest' && (

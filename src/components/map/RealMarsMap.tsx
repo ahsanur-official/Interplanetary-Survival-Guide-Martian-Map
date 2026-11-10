@@ -647,6 +647,16 @@ export function RealMarsMap() {
   const [routeMode, setRouteMode] = useState<RouteMode>('safest');
   const [routeStartPoint, setRouteStartPoint] = useState<{ lat: number; lng: number; name?: string } | null>(null);
   const [routeEndPoint, setRouteEndPoint] = useState<{ lat: number; lng: number; name?: string } | null>(null);
+  const [routeScienceObjective, setRouteScienceObjective] = useState('');
+
+  const handleSelectRouteMode = (mode: RouteMode) => {
+    setRouteMode(mode);
+    setIsRouteChecked(true);
+    // Comparison is an explicit review layer. Selecting a route priority must
+    // render that route itself, otherwise the old red/green comparison masks
+    // the user's choice on the 2D map.
+    setShowRouteComparisonOnMap(false);
+  };
 
   const handleStartMapRoutePlanning = () => {
     setIsRoutePlannerModalOpen(false);
@@ -754,6 +764,30 @@ export function RealMarsMap() {
   }, [routeStartPoint, routeEndPoint, routeTransportMode, routeCrewConfig, routeHazardZones]);
 
   const activePlannedRoute = candidateRoutes[routeMode];
+
+  const fitRouteToMap = (route: PlannedRouteResult | null = activePlannedRoute) => {
+    const map = mapInstanceRef.current;
+    if (!map || !route || route.waypoints.length === 0) return;
+
+    const bounds = L.latLngBounds(route.waypoints.map((waypoint) => [waypoint.lat, waypoint.lng] as [number, number]));
+    const viewportWidth = typeof window === 'undefined' ? 1280 : window.innerWidth;
+    const rightOverlayInset = viewportWidth >= 768 ? 430 : 24;
+
+    map.fitBounds(bounds, {
+      paddingTopLeft: [90, 96],
+      paddingBottomRight: [rightOverlayInset, 118],
+      maxZoom: 10,
+      animate: true,
+      duration: 0.8,
+    });
+  };
+
+  // Once both endpoints exist, keep the computed route visible even after the
+  // planner dialog is closed. The dialog is only a control surface; it must
+  // not be the condition that makes the route disappear from the map.
+  useEffect(() => {
+    if (routeStartPoint && routeEndPoint) setIsRouteChecked(true);
+  }, [routeStartPoint, routeEndPoint]);
 
   // NASA Surface Point-of-View (POV) Imagery Modal State
   const [activeSurfacePovImage, setActiveSurfacePovImage] = useState<NasaSurfacePovImage | null>(null);
@@ -3499,7 +3533,12 @@ export function RealMarsMap() {
     if (shouldRenderCheckedRoute && activePlannedRoute && activePlannedRoute.waypoints.length > 1 && routeStartPoint && routeEndPoint) {
       const isDangerousOrCaution = routeSafetyAssessment && !routeSafetyAssessment.isSafe;
 
-      if (showRouteComparisonOnMap && isDangerousOrCaution && routeSafetyAssessment) {
+      const hasSaferBypass = Boolean(
+        routeSafetyAssessment &&
+        routeSafetyAssessment.comparison.saferHazardsCount < routeSafetyAssessment.comparison.directHazardsCount
+      );
+
+      if (showRouteComparisonOnMap && isDangerousOrCaution && routeSafetyAssessment && hasSaferBypass) {
         // A. Draw the Direct Hazardous Line in Crimson Red
         const directCoords: [number, number][] = routeSafetyAssessment.directRoute.waypoints.map((w) => [w.lat, w.lng]);
         const directLine = L.polyline(directCoords, {
@@ -3531,7 +3570,7 @@ export function RealMarsMap() {
           `<div style="font-family:system-ui,sans-serif;line-height:1.35;max-width:260px;">
             <strong style="color:#10b981;">✨ Recommended Safe Bypass Corridor</strong><br/>
             <span>Max Slope Only: <strong>${routeSafetyAssessment.comparison.saferSlope}°</strong></span><br/>
-            <span style="color:#86efac;">100% Safe Bypass • 0 Hazards</span>
+            <span style="color:#86efac;">Safer Bypass • ${routeSafetyAssessment.comparison.saferHazardsCount} modeled hazards</span>
           </div>`,
           { className: 'mars-tooltip', sticky: true }
         );
@@ -4135,6 +4174,8 @@ export function RealMarsMap() {
       setRouteTransportMode('foot');
       setRouteCrewConfig('buddy_pair');
       setRouteMode('science');
+      setRouteScienceObjective('Inspect sulfate-rich boxwork formations and compare mineralized science stops around Mount Sharp.');
+      setIsRouteChecked(true);
       mapInstanceRef.current?.flyTo([startPt.lat, startPt.lng], 13, { duration: 1.5 });
     } else {
       const startPt = {
@@ -4152,6 +4193,8 @@ export function RealMarsMap() {
       setRouteTransportMode('unpressurized_rover');
       setRouteCrewConfig('buddy_pair');
       setRouteMode('safest');
+      setRouteScienceObjective('Find clay-bearing delta deposits near Kodiak using rover-safe terrain and Mars 2020 science context.');
+      setIsRouteChecked(true);
       mapInstanceRef.current?.flyTo([startPt.lat, startPt.lng], 12, { duration: 1.5 });
     }
   };
@@ -4326,7 +4369,7 @@ export function RealMarsMap() {
   return (
     <div className="mars-theme relative w-full h-full flex flex-col bg-[#08090e] overflow-hidden select-none font-sans text-neutral-100">
       {/* Top Header Bar: Clean, Minimal & Responsive Aerospace HUD */}
-      <header className="z-25 bg-[linear-gradient(90deg,rgba(29,14,16,0.98),rgba(18,17,18,0.97),rgba(29,14,16,0.98))] backdrop-blur-2xl border-b border-orange-500/20 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-2 shadow-xl shadow-black/60 shrink-0 w-full min-w-0">
+      <header className="relative z-25 bg-[linear-gradient(90deg,rgba(29,14,16,0.98),rgba(18,17,18,0.97),rgba(29,14,16,0.98))] backdrop-blur-2xl border-b border-orange-500/20 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-2 shadow-xl shadow-black/60 shrink-0 w-full min-w-0">
         {/* Brand */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
           <div className="relative group shrink-0">
@@ -4348,7 +4391,7 @@ export function RealMarsMap() {
         </div>
 
         {/* Primary View Mode Switcher: 3D | 2D | Astronaut EVA */}
-        <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-black/60 border border-white/10 shadow-inner shrink-0">
+        <div className="flex items-center p-0.5 sm:p-1 rounded-xl bg-black/60 border border-white/10 shadow-inner shrink-0 md:absolute md:left-1/2 md:-translate-x-1/2">
           <button
             type="button"
             onClick={() => setViewMode('3d')}
@@ -7441,25 +7484,19 @@ export function RealMarsMap() {
         <MarsRouteSafetyHUD
           assessment={routeSafetyAssessment}
           activeMode={routeMode}
-          onSelectMode={setRouteMode}
+          onSelectMode={handleSelectRouteMode}
           transportMode={routeTransportMode}
           onChangeTransportMode={setRouteTransportMode}
           onApplySaferRoute={() => {
-            setRouteMode('safest');
+            handleSelectRouteMode('safest');
             setShowRouteComparisonOnMap(false);
-            if (activePlannedRoute && activePlannedRoute.waypoints.length > 0 && mapInstanceRef.current) {
-              const bounds = L.latLngBounds(activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]));
-              mapInstanceRef.current.fitBounds(bounds, { padding: [70, 70] });
-            }
+            fitRouteToMap(candidateRoutes.safest);
           }}
           onOpenFullModal={() => {
             setIsRoutePlannerModalOpen(true);
           }}
           onFlyToRoute={() => {
-            if (activePlannedRoute && activePlannedRoute.waypoints.length > 0 && mapInstanceRef.current) {
-              const bounds = L.latLngBounds(activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]));
-              mapInstanceRef.current.fitBounds(bounds, { padding: [70, 70] });
-            }
+            fitRouteToMap();
           }}
           onSwapPoints={() => {
             if (routeStartPoint && routeEndPoint) {
@@ -8058,17 +8095,15 @@ export function RealMarsMap() {
         onSetStartPoint={setRouteStartPoint}
         onSetEndPoint={setRouteEndPoint}
         activeRoute={activePlannedRoute}
+        routeSafetyAssessment={routeSafetyAssessment}
         candidateRoutes={candidateRoutes}
         selectedMode={routeMode}
-        onSelectMode={setRouteMode}
+        onSelectMode={handleSelectRouteMode}
         onTriggerEmergencyReturn={handleEmergencyReturn}
         onAddScienceStop={handleAddScienceStop}
         onLoadDemoScenario={handleLoadDemoScenario}
         onFlyToRoute={() => {
-          if (activePlannedRoute && activePlannedRoute.waypoints.length > 0 && mapInstanceRef.current) {
-            const bounds = L.latLngBounds(activePlannedRoute.waypoints.map((w) => [w.lat, w.lng]));
-            mapInstanceRef.current.fitBounds(bounds, { padding: [60, 60] });
-          }
+          fitRouteToMap();
         }}
         onOpenPovImage={(pov, waypointName, elevationM) => {
           setActiveSurfacePovImage(pov);
@@ -8097,6 +8132,8 @@ export function RealMarsMap() {
           setIsRoutePlannerModalOpen(false);
           setIsMapPickDestinationMode(true);
         }}
+        scienceObjective={routeScienceObjective}
+        onChangeScienceObjective={setRouteScienceObjective}
       />
 
       {/* NASA POINT-OF-VIEW (POV) GROUND IMAGERY MODAL */}

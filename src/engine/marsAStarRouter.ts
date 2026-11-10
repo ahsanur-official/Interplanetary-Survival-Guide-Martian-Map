@@ -328,7 +328,7 @@ export function calculateAStarRoute(
     let waypointPovImage: NasaSurfacePovImage | undefined = undefined;
 
     // Apply Mode-Specific Path Adjustments and avoid mapped hazard footprints.
-    if (i > 0 && i < numSteps) {
+    if (i > 0 && i < numSteps && mode !== 'shortest') {
       const normalLat = -(endLng - startLng);
       const normalLng = endLat - startLat;
       const normLen = Math.hypot(normalLat, normalLng) || 1;
@@ -361,7 +361,7 @@ export function calculateAStarRoute(
           const riskWeight = hazard.riskLevel === 'CRITICAL' ? 100 : hazard.riskLevel === 'HIGH' ? 70 : 35;
           return total + (1 - distance / protectedRadius) * riskWeight;
         }, 0);
-        const modeHazardWeight = mode === 'shortest' ? 0.75 : mode === 'science' ? 1.0 : 1.5;
+        const modeHazardWeight = mode === 'science' ? 1.0 : 1.5;
         const cost = slope + hazardCost * modeHazardWeight;
         if (cost < bestCost) {
           bestCost = cost;

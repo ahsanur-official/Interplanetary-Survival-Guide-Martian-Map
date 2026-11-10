@@ -48,6 +48,10 @@ export interface RouteSafetyAssessment {
   suggestedSaferRoute: PlannedRouteResult;
   directRoute: PlannedRouteResult;
   comparison: {
+    directRouteDistanceKm: number;
+    saferRouteDistanceKm: number;
+    directRouteTimeHours: number;
+    saferRouteTimeHours: number;
     directSlope: number;
     saferSlope: number;
     slopeImprovementDeg: number;
@@ -262,6 +266,10 @@ export function analyzeRouteSafety(
   }
 
   const comparison = {
+    directRouteDistanceKm: directRoute.totalDistanceKm,
+    saferRouteDistanceKm: suggestedSaferRoute.totalDistanceKm,
+    directRouteTimeHours: directRoute.estimatedWalkTimeHours,
+    saferRouteTimeHours: suggestedSaferRoute.estimatedWalkTimeHours,
     directSlope: maxDirectSlope,
     saferSlope: suggestedSaferRoute.maxSlopeDeg,
     slopeImprovementDeg: Math.max(0, Number((maxDirectSlope - suggestedSaferRoute.maxSlopeDeg).toFixed(1))),

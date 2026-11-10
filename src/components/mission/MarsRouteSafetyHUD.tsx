@@ -57,6 +57,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
 
   const hasIssues = !isSafe || safetyStatus === 'DANGEROUS' || safetyStatus === 'CAUTION';
   const isDangerous = safetyStatus === 'DANGEROUS';
+  const hasSaferBypass = comparison.saferHazardsCount < comparison.directHazardsCount;
 
   return (
     <div
@@ -181,26 +182,30 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
           </div>
 
           {/* Safer Solution Box (Green Line Leading to Final Destination) */}
-          <div className="bg-emerald-950/40 border border-emerald-500/50 rounded-xl p-2.5 space-y-1.5">
+          <div className={`${hasSaferBypass ? 'bg-emerald-950/40 border-emerald-500/50' : 'bg-amber-950/35 border-amber-500/50'} border rounded-xl p-2.5 space-y-1.5`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Recommended Safer Path (Green Line)</span>
+              <div className={`flex items-center gap-1.5 font-bold text-xs ${hasSaferBypass ? 'text-emerald-300' : 'text-amber-300'}`}>
+                <Sparkles className={`w-3.5 h-3.5 ${hasSaferBypass ? 'text-emerald-400' : 'text-amber-400'}`} />
+                <span>{hasSaferBypass ? 'Recommended Safer Path (Green Line)' : 'No hazard-free bypass available'}</span>
               </div>
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold">
-                0 Hazards
+                {comparison.saferHazardsCount} Hazards
               </span>
             </div>
-            <p className="text-[11px] text-emerald-100/90 leading-relaxed font-sans">
-              Shortest safe bypass routing around dangerous scarps. Slope reduced to{' '}
+            <p className={`text-[11px] leading-relaxed font-sans ${hasSaferBypass ? 'text-emerald-100/90' : 'text-amber-100/90'}`}>
+              {hasSaferBypass ? 'Shortest safe bypass routing around dangerous scarps. Slope reduced to ' : 'The destination remains inside the mapped hazard corridor. Choose another destination or move the endpoint outside the hazard boundary. Current candidate: '}
               <strong className="text-white">{comparison.saferSlope}°</strong> (safe for EVA) with only{' '}
               <strong className="text-white">+{comparison.detourExtraDistanceKm} km</strong> detour to target.
             </p>
+            <div className="grid grid-cols-2 gap-1.5 pt-1 text-[9px]">
+              <div className="rounded-lg bg-black/30 px-2 py-1 text-neutral-300"><span className="block text-neutral-500">SHORTEST</span><strong className="text-white">{comparison.directRouteDistanceKm} km · {comparison.directRouteTimeHours.toFixed(1)} h</strong></div>
+              <div className="rounded-lg bg-emerald-900/30 px-2 py-1 text-emerald-100"><span className="block text-emerald-300/70">SAFEST</span><strong>{comparison.saferRouteDistanceKm} km · {comparison.saferRouteTimeHours.toFixed(1)} h</strong></div>
+            </div>
           </div>
 
           {/* Functional Actions */}
           <div className="pt-1 flex flex-col sm:flex-row gap-2">
-            <button
+            {hasSaferBypass && <button
               type="button"
               onClick={onApplySaferRoute}
               className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg active:scale-95 ${
@@ -211,7 +216,7 @@ export const MarsRouteSafetyHUD: React.FC<MarsRouteSafetyHUDProps> = ({
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{activeMode === 'safest' ? 'Safe Corridor Active' : 'Use Safer Route (Green Line)'}</span>
-            </button>
+            </button>}
 
             {onCancelRoute && (
               <button
