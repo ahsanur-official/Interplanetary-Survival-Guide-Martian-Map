@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <title>MarsWay — Explore Mars. Understand Missions. Plan the Future.</title>
+    <meta name="description" content="An interactive Mars exploration and mission intelligence platform combining planetary maps, NASA mission data, scientific layers, rover exploration, terrain analysis, and future human mission planning." />
+    <meta property="og:title" content="MarsWay — Explore Mars. Understand Missions. Plan the Future." />
+    <meta property="og:description" content="An interactive Mars exploration and mission intelligence platform combining planetary maps, NASA mission data, scientific layers, rover exploration, terrain analysis, and future human mission planning." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Polyfill/safety shim: Ensure window.fetch has both getter and setter bound to window
+      (function() {
+        try {
+          if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+            var _origFetch = window.fetch;
+            var _currentFetch = _origFetch.bind(window);
+            var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+            if (!desc || !desc.set) {
+              try {
+                Object.defineProperty(window, 'fetch', {
+                  get: function() {
+                    return typeof _currentFetch === 'function' ? _currentFetch.bind(window) : _currentFetch;
+                  },
+                  set: function(val) {
+                    _currentFetch = typeof val === 'function' ? val.bind(window) : val;
+                  },
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e1) {
+                if (typeof Window !== 'undefined' && Window.prototype) {
+                  try {
+                    Object.defineProperty(Window.prototype, 'fetch', {
+                      get: function() {
+                        return typeof _currentFetch === 'function' ? _currentFetch.bind(window) : _currentFetch;
+                      },
+                      set: function(val) {
+                        _currentFetch = typeof val === 'function' ? val.bind(window) : val;
+                      },
+                      configurable: true,
+                      enumerable: true
+                    });
+                  } catch (e2) {}
+                }
+              }
+            }
+          }
+        } catch (err) {
+          // Non-blocking fallback
+        }
+      })();
+    </script>
+    <meta property="og:image" content="/assets/aistudio/image_5c943629.png" />
+    <meta name="twitter:image" content="/assets/aistudio/image_5c943629.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ea580c" />
+    <link rel="icon" type="image/png" href="/assets/aistudio/image_5c943629.png" />
+    <link rel="apple-touch-icon" href="/assets/aistudio/image_5c943629.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        if (!navigator.serviceWorker.controller) {
+          navigator.serviceWorker.addEventListener('controllerchange', function() {
+            window.location.reload();
+          }, { once: true });
+        }
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function(err) {
+            console.debug('ServiceWorker registration skipped:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

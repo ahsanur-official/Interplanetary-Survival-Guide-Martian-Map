@@ -284,6 +284,16 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
   // Moon Dossier Modal
   const [isMoonModalOpen, setIsMoonModalOpen] = useState(false);
 
+  // Globe overlays are mutually exclusive: a new inspection must replace the
+  // previous card/dossier instead of leaving an invisible click-blocking layer.
+  const openMoonDossier = useCallback((moonId: 'phobos' | 'deimos') => {
+    setInspectedCoord(null);
+    setSelectedSite(null);
+    setIsDossierModalOpen(false);
+    setSelectedMoon(moonId);
+    setIsMoonModalOpen(true);
+  }, []);
+
   // Subsolar Point Telemetry (Real-time Day/Night)
   const [subsolarPoint, setSubsolarPoint] = useState<{ lat: number; lng: number }>({ lat: 11.2, lng: -42.5 });
 
@@ -1767,16 +1777,14 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
       if (phobosMeshRef.current) {
         const pHits = raycaster.intersectObject(phobosMeshRef.current);
         if (pHits.length > 0) {
-          setSelectedMoon('phobos');
-          setIsMoonModalOpen(true);
+          openMoonDossier('phobos');
           return;
         }
       }
       if (deimosMeshRef.current) {
         const dHits = raycaster.intersectObject(deimosMeshRef.current);
         if (dHits.length > 0) {
-          setSelectedMoon('deimos');
-          setIsMoonModalOpen(true);
+          openMoonDossier('deimos');
           return;
         }
       }
@@ -1785,6 +1793,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
     // Check Mars Sphere
     const hits = raycaster.intersectObject(marsMesh);
     if (hits.length > 0) {
+      setIsMoonModalOpen(false);
+      setSelectedMoon(null);
+      setIsDossierModalOpen(false);
       const hit = hits[0];
       const point = hit.point;
       const { lat, lng } = vector3ToLatLng(point);
@@ -2310,6 +2321,9 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
               className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 z-10 cursor-pointer group"
               style={{ left: `${x}px`, top: `${y}px` }}
               onClick={() => {
+                setIsMoonModalOpen(false);
+                setSelectedMoon(null);
+                setIsDossierModalOpen(false);
                 setSelectedSite(site);
                 const sc = analyzeMarsLocationScience(site.lat, site.lng, site.elevationM);
                 setInspectedCoord({
@@ -2348,8 +2362,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 z-15 cursor-pointer"
           style={{ left: `${projectedMoons.phobos.x}px`, top: `${projectedMoons.phobos.y}px` }}
           onClick={() => {
-            setSelectedMoon('phobos');
-            setIsMoonModalOpen(true);
+            openMoonDossier('phobos');
           }}
         >
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono border border-cyan-500/80 bg-cyan-950/90 text-cyan-200 backdrop-blur-md shadow-xl hover:scale-105 transition-transform">
@@ -2365,8 +2378,7 @@ export const Mars3DGlobe: React.FC<Mars3DGlobeProps> = ({
           className="absolute pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 z-15 cursor-pointer"
           style={{ left: `${projectedMoons.deimos.x}px`, top: `${projectedMoons.deimos.y}px` }}
           onClick={() => {
-            setSelectedMoon('deimos');
-            setIsMoonModalOpen(true);
+            openMoonDossier('deimos');
           }}
         >
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono border border-amber-500/80 bg-amber-950/90 text-amber-200 backdrop-blur-md shadow-xl hover:scale-105 transition-transform">

@@ -1,0 +1,255 @@
+MARSWAY PROJECT OVERVIEW
+=========================
+
+MarsWay is a React + TypeScript planetary exploration and mission-planning platform for exploring Mars, viewing NASA mission sites, inspecting scientific conditions, and planning hypothetical human EVA traverses.
+
+APPLICATION ENTRY
+-----------------
+- App.tsx mounts the full-screen RealMarsMap experience.
+- main.tsx renders the app inside React StrictMode and ErrorBoundary.
+- The app runs through Vite, Express, and TypeScript.
+- Development server: npm run dev
+- Production build: npm run build
+
+PRIMARY VIEW MODES
+------------------
+1. 2D Mars Map
+   - Leaflet-based planetary map using Mars coordinates.
+   - Pan, zoom, rotation, fullscreen, responsive resizing, North-up compass, and scale bar.
+   - Coordinate readouts in decimal and DMS formats.
+   - Cursor elevation, pressure, and nearest-feature information.
+   - Right-click What’s Here inspection menu.
+   - Click-to-inspect locations and custom destination pins.
+   - Search and fly-to navigation.
+   - Surface filters: normal, contrast, sharp, dark, and night.
+
+2. 3D Orbital Globe
+   - Three.js Mars sphere with NASA and USGS texture choices.
+   - Viking, MOLA, THEMIS, and other mosaic layers.
+   - Procedural texture fallback if external imagery cannot load.
+   - Procedural micro-terrain bump mapping.
+   - Atmosphere glow, stars, Sun, Phobos, and Deimos.
+   - Planetary rotation, axial tilt, moon orbits, and day/night lighting.
+   - Mars Sol clock with realtime, slow, normal, fast, and paused rotation.
+   - Surface markers, crater rings, volcano outlines, canyon lines, and rover tracks.
+   - Camera orbit, inertia, touch gestures, zoom, and animated fly-to navigation.
+
+3. Astronaut Surface View
+   - First-person EVA-style Mars surface interface.
+   - Habitat console, field tablet, and spacesuit visor HUD display formats.
+   - Connected to surface coordinates, terrain, route, and environmental data.
+
+MARS FEATURES AND MISSIONS
+--------------------------
+- Local Mars gazetteer containing geological features, craters, volcanoes, canyons,
+  plains, highlands, polar caps, mission sites, and human landing candidates.
+- Mission data includes Perseverance, Ingenuity, Curiosity, Opportunity, Spirit,
+  Zhurong, Viking 1, Viking 2, Phoenix, InSight, Pathfinder, Sojourner, Beagle 2,
+  Mars 3, and Mars 6.
+- Search and filtering by feature category, mission, year, era, agency, and mission type.
+- Historic landing-site overlays and landing ellipses.
+- Rover traverse tracks for Perseverance, Curiosity, Opportunity, Spirit, and Zhurong.
+- Mission explorer drawer, mission cards, landing-site modals, timeline controls,
+  NASA close-up imagery, and surface point-of-view imagery.
+
+SCIENTIFIC LOCATION ANALYSIS
+----------------------------
+Location inspection can generate a Mars science dossier containing:
+- Water and subsurface ice classification.
+- Ice depth, abundance, and probability estimates.
+- Atmospheric pressure and gas composition.
+- Methane and water-vapor estimates.
+- Surface temperature range.
+- Radiation dose estimates.
+- Human safety and spacesuit requirements.
+- Perchlorate toxicity information.
+- Rover trafficability and wheel-slip risk.
+- Terrain type and slope.
+- Rain, frost, water-ice snow, and CO2 snow analysis.
+
+ELEVATION AND TERRAIN TOOLS
+---------------------------
+- MOLA-inspired global elevation model.
+- Pressure estimation from elevation using a Mars scale-height model.
+- Two-point and multi-point elevation transects.
+- Elevation graph with synchronized map hover markers.
+- Total ascent, descent, elevation span, maximum slope, and mean slope.
+- Terrain difficulty levels from gentle plains to extreme cliffs.
+- Astronaut travel-time estimation.
+- Rover feasibility classifications.
+- Preset transects for Olympus Mons, Valles Marineris, Jezero, Hellas, Gale,
+  Mount Sharp, and the Tharsis volcanic ridge.
+
+GIS MEASUREMENT TOOLS
+---------------------
+- Multiple measurement points.
+- Segment distance labels.
+- Total Mars-surface distance.
+- Polygon drawing and area calculation in square kilometers.
+- Draggable measurement vertices.
+- Click-to-delete vertices.
+- Elevation readouts for measurement points.
+- Optional audio/sonification feedback.
+
+ATMOSPHERE AND DUST SIMULATION
+------------------------------
+- Seasonal Mars dust model based on solar longitude.
+- Aphelion clear season, equinox transition, perihelion storm season,
+  and planet-encircling dust-event scenarios.
+- Regional dust storm cells and affected landmarks.
+- Dust optical depth, visibility, wind speed, wind direction, air density,
+  solar attenuation, sky tint, and dust hazard level.
+- Atmospheric inspection at clicked map coordinates.
+- Rover telemetry summaries for Jezero, Gale, and Elysium.
+
+EVA ROUTE PLANNING
+------------------
+The route planner supports three route objectives:
+- Safest route.
+- Shortest route.
+- Science-rich route.
+
+Calculated route information includes:
+- Waypoints and route geometry.
+- Distance and estimated duration.
+- Elevation, ascent, descent, and slope.
+- Hazard risk and safety score.
+- Metabolic energy and oxygen expenditure.
+- Rover battery usage.
+- Crew productivity multiplier.
+- Nearby science stops and detour estimates.
+- Route advantages, trade-offs, and decision rationale.
+
+Transport modes:
+- Foot Marswalk.
+- Unpressurized rover.
+- Pressurized rover.
+
+Crew options:
+- Solo explorer.
+- Buddy pair.
+
+Additional route features:
+- Emergency return-to-shelter route.
+- Jezero Delta demo scenario.
+- Gale Boxwork demo scenario.
+- Science-stop insertion.
+- Fly-to-route visualization.
+- Elevation profile, science stops, explainer, communications, and export tabs.
+- GeoJSON export.
+- GPX export.
+- Printable mission brief.
+
+HUMAN MISSION MODE
+------------------
+- Examines candidate human landing and exploration zones.
+- Uses water-ice availability, terrain, elevation, atmospheric braking,
+  radiation, science value, and resource potential.
+- Includes candidate areas such as Arcadia Planitia and Utopia Planitia.
+
+AI AND VOICE FEATURES
+---------------------
+Ask MarsWay:
+- Natural-language questions about Mars landmarks, missions, atmosphere,
+  topography, water, ice, and human landing candidates.
+- Can fly to locations, open missions, compare sites, activate Human Mission Mode,
+  and switch map layers.
+- Uses the backend Gemini endpoint when configured.
+- Falls back to a local rule-based Mars knowledge engine when Gemini is unavailable.
+
+Live Voice:
+- Browser Speech Recognition support.
+- Voice pan, zoom, rotation, reset, view switching, and layer switching.
+- Voice mission and landmark queries.
+- English and some Bengali navigation phrases.
+- Speech synthesis responses.
+- CAPCOM-style command log.
+- Radio-click audio effects.
+- Gemini Live WebSocket support when GEMINI_API_KEY is configured.
+
+NASA AND EXTERNAL DATA
+----------------------
+- Computes Earth-Mars distance and light-travel time.
+- Computes Mars season, Mars year, solar longitude, subsolar latitude,
+  Perseverance sol, and Curiosity sol.
+- Attempts NASA InSight weather API access.
+- Attempts NASA Image and Video Library rover-photo access.
+- Uses modeled fallback weather and photo records when network requests fail.
+- Uses NASA/USGS external map tiles and imagery where available.
+
+PROVENANCE AND METHODOLOGY
+--------------------------
+The project labels data as:
+- OBSERVED
+- HISTORICAL
+- DERIVED
+- MODELED
+- SIMULATED
+
+Documented data sources include:
+- MGS MOLA.
+- MRO HiRISE.
+- MRO CRISM.
+- MRO SHARAD.
+- Mars Odyssey THEMIS.
+- Mars 2020 MEDA.
+- MSL RAD and REMS.
+- NASA Planetary Data System.
+- USGS Astrogeology.
+- IAU planetary nomenclature.
+
+BACKEND API
+-----------
+Express server endpoints include:
+- GET  /api/health
+- GET  /api/regions
+- GET  /api/layers
+- GET  /api/features
+- GET  /api/features/:feature_id
+- POST /api/routes/plan
+- GET  /api/missions
+- POST /api/missions
+- GET  /api/missions/:mission_id
+- PUT  /api/missions/:mission_id
+- POST /api/missions/:mission_id/report
+- POST /api/ask-marsway
+- WebSocket /api/live-ws for Gemini Live voice sessions.
+
+PWA AND OFFLINE SUPPORT
+-----------------------
+- Web app manifest with standalone display mode.
+- Service-worker registration.
+- Precached local application assets.
+- Cache-first behavior for local assets.
+- Network-first behavior for external NASA assets.
+- Cached offline HTML fallback.
+- Microphone permission declared in metadata.
+
+IMPORTANT LIMITATIONS
+---------------------
+- MarsWay is an educational and conceptual decision-support prototype.
+- It is not flight-certified and must not be used for real EVA navigation.
+- MOLA data is hundreds of meters per pixel and does not model every local hazard.
+- HiRISE coverage is incomplete.
+- Some weather and telemetry are historical or modeled rather than live.
+- Dust, radiation, water, and trafficability outputs are simplified models.
+- Route calculations use assumptions about suit mobility and metabolism.
+- External NASA imagery and tiles require network access.
+- Gemini AI and Gemini Live require GEMINI_API_KEY.
+- Missions are stored in memory and disappear when the server restarts.
+- The project has no automated test script in package.json.
+- Frontend and backend route engines are separate implementations and may produce different results.
+
+KEY DOCUMENTATION
+-----------------
+- README.md: project purpose, architecture, route-planning concept, and setup.
+- METHODOLOGY.md: coordinate, terrain, bioenergetic, and routing formulas.
+- LIMITATIONS.md: scientific and operational limitations.
+- src/components/map/RealMarsMap.tsx: primary UI orchestration.
+- src/components/map/Mars3DGlobe.tsx: Three.js globe.
+- src/engine/marsAStarRouter.ts: frontend EVA route engine.
+- src/engine/multiObjectiveRouter.ts: backend candidate route engine.
+- src/engine/marsMolaElevation.ts: elevation and terrain engine.
+- src/engine/marsEnvironmentalAnalysis.ts: science and safety analysis.
+- src/engine/marsAtmosphereDustModel.ts: dust and atmospheric simulation.
+- server.ts: Express API and Gemini integrations.
