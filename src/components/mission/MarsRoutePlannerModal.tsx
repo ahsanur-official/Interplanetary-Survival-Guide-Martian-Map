@@ -302,18 +302,6 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            {handleCancelRoute && (
-              <button
-                type="button"
-                onClick={handleCancelRoute}
-                className="px-2.5 py-1 rounded-lg bg-red-950/80 hover:bg-red-900/90 text-red-200 border border-red-500/50 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                title="Cancel route planning and clear path from map"
-              >
-                <X className="w-3 h-3 text-red-400" />
-                <span>Cancel Route</span>
-              </button>
-            )}
-
             <button
               type="button"
               onClick={onClose}
@@ -667,7 +655,7 @@ ${activeRoute.waypoints.map((w) => `      <trkpt lat="${w.lat}" lon="${w.lng}">
       </div>
 
       {/* Main Body Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-sm">
         {/* Empty / Unselected Route State with 1-Click Launchers */}
         {activeTab === 'overview' && !activeRoute && (
           <div className="p-6 text-center space-y-4 bg-neutral-950/80 border border-white/10 rounded-2xl">

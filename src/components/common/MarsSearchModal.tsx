@@ -168,12 +168,12 @@ export function MarsSearchModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 sm:pt-24 p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 sm:pt-24 pb-[calc(5.5rem+env(safe-area-inset-bottom))] px-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl bg-[#0c1017] border border-neutral-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150">
+      <div className="w-full max-w-2xl bg-[#0c1017] border border-neutral-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-11.5rem)] sm:max-h-[calc(100dvh-11rem)] animate-in fade-in zoom-in-95 duration-150">
         {/* Search Header Input */}
         <div className="p-4 border-b border-neutral-800 flex items-center gap-3 bg-neutral-900/60">
           <Search className="w-5 h-5 text-orange-400 shrink-0" />
@@ -183,7 +183,7 @@ export function MarsSearchModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search craters, volcanoes, canyons, missions, or human landing zones..."
-            className="w-full bg-transparent text-sm text-white placeholder-neutral-500 focus:outline-none"
+          className="w-full bg-transparent text-base text-white placeholder-neutral-500 focus:outline-none"
           />
           {query && (
             <button
@@ -202,7 +202,7 @@ export function MarsSearchModal({
         </div>
 
         {/* Category Filters */}
-        <div className="px-4 py-2.5 border-b border-neutral-800/80 bg-neutral-950/50 flex gap-1.5 overflow-x-auto text-xs font-mono">
+        <div className="px-4 py-2.5 border-b border-neutral-800/80 bg-neutral-950/50 flex gap-1.5 overflow-x-auto text-sm font-mono">
           {['All', 'Mission', 'Volcano', 'Crater', 'Canyon', 'Plain', 'Human Site'].map((cat) => (
             <button
               key={cat}
@@ -233,15 +233,15 @@ export function MarsSearchModal({
               >
                 <div className="space-y-1 pr-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white group-hover:text-orange-300 transition">
+                    <span className="text-base font-semibold text-white group-hover:text-orange-300 transition">
                       {item.name}
                     </span>
                     <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-400 border border-neutral-700">
                       {item.type}
                     </span>
                   </div>
-                  <p className="text-xs text-neutral-400 line-clamp-1">{item.description}</p>
-                  <div className="flex items-center gap-3 text-[11px] font-mono text-neutral-500">
+                  <p className="text-sm text-neutral-400 line-clamp-1">{item.description}</p>
+                  <div className="flex items-center gap-3 text-xs font-mono text-neutral-500">
                     <span>
                       {item.lat >= 0 ? `${item.lat.toFixed(2)}°N` : `${Math.abs(item.lat).toFixed(2)}°S`},{' '}
                       {item.lng >= 0 ? `${item.lng.toFixed(2)}°E` : `${(item.lng + 360).toFixed(2)}°E`}
@@ -253,7 +253,7 @@ export function MarsSearchModal({
                   </div>
                 </div>
 
-                <div className="shrink-0 flex items-center gap-1 text-xs font-mono text-neutral-500 group-hover:text-orange-400 transition">
+                <div className="shrink-0 flex items-center gap-1 text-sm font-mono text-neutral-500 group-hover:text-orange-400 transition">
                   <span>Fly to</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </div>

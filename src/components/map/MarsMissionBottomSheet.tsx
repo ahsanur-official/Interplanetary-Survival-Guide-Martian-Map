@@ -223,7 +223,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
           role="dialog"
           aria-modal="true"
           aria-label="Mars Mission & Controls Bottom Sheet"
-          className="fixed bottom-[56px] inset-x-0 z-40 max-w-4xl mx-auto w-full max-h-[72vh] sm:max-h-[68vh] bg-[#090d16]/98 backdrop-blur-2xl border-t border-x border-neutral-700/80 rounded-t-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300 text-neutral-200"
+          className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] inset-x-0 z-40 max-w-4xl mx-auto w-full max-h-[calc(100dvh-8.5rem)] sm:max-h-[calc(100dvh-8rem)] bg-[#090d16]/98 backdrop-blur-2xl border-t border-x border-neutral-700/80 rounded-t-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-300 text-neutral-200"
         >
           {/* Pull Handle / Drag Indicator */}
           <div
@@ -267,7 +267,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
           </div>
 
           {/* Scrollable Tab Content Body */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-sm">
             {/* ========================================================================= */}
             {/* TAB 1: MISSIONS & TRAVERSES                                              */}
             {/* ========================================================================= */}
@@ -1157,7 +1157,7 @@ export const MarsMissionBottomSheet: React.FC<MarsMissionBottomSheetProps> = ({
           <button
             type="button"
             onClick={onOpenSearch}
-            className="min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-neutral-400 hover:text-white active:scale-95"
+            className="md:hidden min-w-[36px] max-[400px]:min-w-[30px] sm:min-w-0 shrink-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[44px] text-neutral-400 hover:text-white active:scale-95"
             title="Search Martian features"
           >
             <div className="p-1 rounded-lg">

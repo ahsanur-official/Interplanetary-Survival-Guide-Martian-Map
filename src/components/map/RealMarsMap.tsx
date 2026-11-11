@@ -4400,9 +4400,6 @@ export function RealMarsMap() {
             <span className="hidden md:inline-block text-[9px] font-mono tracking-wider px-1.5 py-0.5 rounded bg-orange-950/80 text-orange-400 border border-orange-700/60 font-semibold whitespace-nowrap">
               NASA GIS
             </span>
-            <span className="hidden 2xl:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950/70 text-red-300 border border-red-800/60 whitespace-nowrap" title="Educational decision-support prototype; not certified for operational EVA flight.">
-              NOT FLIGHT-CERTIFIED
-            </span>
           </div>
         </div>
 
@@ -7637,7 +7634,7 @@ export function RealMarsMap() {
 
       {/* WIDE BOTTOM-DOCKED MOLA CROSS-SECTIONAL ELEVATION BAR */}
       {isMeasureToolOpen && measurePoints.length >= 2 && isWideElevationDockOpen && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 max-w-full">
+        <div className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-[45] max-w-full max-h-[calc(100dvh-8.5rem)] overflow-y-auto">
           <MarsPathElevationGraph
             profile={generateMultiPointElevationTransect(measurePoints)}
             points={measurePoints}

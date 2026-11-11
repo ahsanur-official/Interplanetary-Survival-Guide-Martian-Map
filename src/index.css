@@ -18,6 +18,27 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Slightly larger global UI typography for comfortable reading across the map,
+   drawers, HUD cards, and modal panels. Keep compact labels compact, but not
+   so small that they become difficult to read on a laptop or phone. */
+.mars-theme .text-xs {
+  font-size: 0.8125rem !important;
+  line-height: 1.25rem !important;
+}
+
+.mars-theme .text-sm {
+  font-size: 0.9375rem !important;
+  line-height: 1.35rem !important;
+}
+
+.mars-theme [class~="text-[9.5px]"],
+.mars-theme [class~="text-[10px]"],
+.mars-theme [class~="text-[10.5px]"],
+.mars-theme [class~="text-[11px]"] {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+}
+
 /* MarsWay visual system: volcanic rust, orbital cyan, and deep-space graphite. */
 :root {
   color-scheme: dark;

@@ -123,7 +123,7 @@ export function MissionExplorerDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col justify-end p-0 sm:justify-center sm:p-4 pointer-events-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex flex-col justify-end p-0 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:justify-center sm:p-4 sm:pb-[calc(5.25rem+env(safe-area-inset-bottom))] pointer-events-auto animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity"
@@ -136,7 +136,7 @@ export function MissionExplorerDrawer({
         aria-modal="true"
         aria-label="Mars Mission Explorer"
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-4xl mx-auto h-[min(82dvh,900px)] max-h-[calc(100dvh-0.5rem)] sm:h-[min(82dvh,900px)] sm:max-h-[calc(100dvh-2rem)] bg-[#0c1017]/98 backdrop-blur-2xl border border-neutral-700/80 rounded-t-3xl sm:rounded-3xl shadow-[0_-25px_60px_rgba(0,0,0,0.85)] z-10 flex min-h-0 flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 text-neutral-200"
+        className="relative w-full max-w-4xl mx-auto h-[min(calc(100dvh-6.5rem),900px)] max-h-[calc(100dvh-6.5rem)] sm:h-[min(calc(100dvh-6.5rem),900px)] sm:max-h-[calc(100dvh-6.5rem)] bg-[#0c1017]/98 backdrop-blur-2xl border border-neutral-700/80 rounded-t-3xl sm:rounded-3xl shadow-[0_-25px_60px_rgba(0,0,0,0.85)] z-10 flex min-h-0 flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 text-neutral-200"
       >
         {/* Pull Handle */}
         <div
