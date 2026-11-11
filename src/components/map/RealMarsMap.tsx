@@ -4454,18 +4454,6 @@ export function RealMarsMap() {
 
         {/* Right side actions - Guaranteed to fit and never overflow on mobile */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
-          {/* Universal Search Modal Button (Tablet & desktop only to keep mobile uncluttered) */}
-          <button
-            type="button"
-            onClick={() => openPrimaryOverlay(setIsSearchModalOpen)}
-            className="hidden sm:flex p-1.5 sm:px-2 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-neutral-200 hover:text-white items-center gap-1.5 transition cursor-pointer shrink-0"
-            title="Search Martian features, rovers & coordinates"
-            aria-label="Search"
-          >
-            <Search className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-            <span className="hidden xl:inline font-medium whitespace-nowrap">Search</span>
-          </button>
-
           {/* Header Route Plan Button */}
           <button
             type="button"
