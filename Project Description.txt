@@ -6,6 +6,24 @@ Challenge theme: Interplanetary Survival Guide: Martian Map
 Application: Browser-based React and TypeScript platform
 
 
+HOW TO READ THIS DOCUMENT
+-------------------------
+
+This document explains MarsWay from the first screen to the internal data
+flow. It is written for both technical readers and people who have never used
+a GIS application before.
+
+In very simple words:
+
+    MarsWay is a Mars map plus a route checker plus a local mission helper.
+
+The map tells the user where a place is. The science panels explain what is
+known about that place. The route planner checks several possible paths and
+shows why one path may be better than another. Ask MarsWay explains supported
+results using the data already inside the project. These are connected parts
+of one workflow, not separate demo screens.
+
+
 IMPORTANT SAFETY STATEMENT
 --------------------------
 
@@ -345,7 +363,69 @@ Supported topics include atmosphere, gases, human survival, EVA, places,
 elevation, soil, terrain, hazards, route safety, route time, rover suitability,
 and general application help.
 
-10.3 Offline boundaries
+10.3 Voice-controlled route planning
+-------------------------------------
+
+MarsWay also includes a browser voice controller for hands-free map and route
+work. The user opens the Voice panel, selects English/Banglish or বাংলা, and
+speaks a command. Speech recognition is only the input layer; the actual route
+is still calculated by the same local Mars route and safety engines used by
+mouse and touch controls.
+
+The voice route flow is:
+
+    Voice panel
+        -> choose English/Banglish or বাংলা
+        -> start route planning
+        -> set START and FINAL
+        -> check route
+        -> compare safety, distance, hazards, slope, soil, and time
+        -> choose Safest, Shortest, or Science route
+
+Supported commands include:
+
+    Start route planning
+    Set start here
+    Set destination here
+    Check route
+    Safest route
+    Shortest route
+    Science route
+    Is the route safe?
+
+The controller also understands natural location-to-location requests. For
+example:
+
+    Gale Crater থেকে Olympus Mons যেতে চাই
+    গ্যালক্রেটার থেকে অলিম্পাস মন্সে যেতে চাই
+    Gale Crater theke Olympus Mons e jete chai
+
+When two known places are found, MarsWay resolves them against the bundled
+Mars feature and mission catalogue and writes them directly into the route
+state. With only one recognized location, the current map centre becomes the
+other endpoint. This means a user can pan or search to a place, speak one
+location, and continue route planning without repeating the whole workflow.
+
+The voice controller is designed to behave like a realtime interaction layer:
+
+- duplicate final speech results are ignored;
+- the assistant does not execute an unclear sentence as a navigation action;
+- CAPCOM's spoken response is not processed again as a user command;
+- Bengali and Banglish replies use the selected language where supported by
+  the browser's installed speech voice;
+- `aborted` and `no-speech` recognition states automatically reconnect while
+  the Voice panel remains open;
+- the waveform remains visible during idle and reconnect states;
+- browser speech permission or support is not required for the visible quick
+  command buttons, which call the same local actions directly.
+
+The voice route controller does not invent terrain data and does not call
+Gemini. It simply translates a spoken request into local application actions,
+then reads the resulting local route status. The safety answer remains an
+explainable model result, not a flight-certified or astronaut-certified
+guarantee.
+
+10.4 Offline boundaries
 
 Offline AI means supported assistant questions do not need a remote AI call. It
 does not mean that every new NASA tile, external photograph, archive page, or

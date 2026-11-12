@@ -14,6 +14,38 @@ local multilingual assistant into one browser workspace.
 > is not flight-certified navigation software and must not be used as the sole
 > source for real astronaut, rover, or spacecraft operations.
 
+## MarsWay in one minute
+
+Think of MarsWay as three connected tools in one website:
+
+1. **A Mars map** that helps you find places, missions, landers, rovers,
+   regions, elevation, imagery, and scientific overlays.
+2. **A route planner** that compares a short route with safer and
+   science-focused alternatives using terrain, slope, soil, dust, hazards,
+   transport mode, and estimated time.
+3. **A local mission assistant** that explains the map and route using the
+   information already bundled with the project. It can answer supported
+   English, Bangla, and Banglish questions without Gemini or another AI API.
+
+The normal workflow is simple: choose a place, read its science and
+environment panel, select a START and FINAL point, check the route, compare the
+options, and then ask MarsWay to explain the result in plain language.
+
+## Documentation map
+
+- **What it solves:** the problem and the main user workflow.
+- **Feature overview:** everything available in Flat Map, 3D Globe, EVA,
+  science, environment, route planning, and the assistant.
+- **Data and provenance:** what NASA/USGS information is used and how
+  Observed, Historical, Derived, Modeled, and Simulated values differ.
+- **How it works:** the route model, local assistant, map layers, and app
+  architecture.
+- **How to run it:** installation, development, production, API, and offline
+  behavior.
+- **Function reference:** what every important button and screen does.
+- **Demo and troubleshooting:** a repeatable presentation flow and solutions
+  for common map, route, modal, and assistant problems.
+
 ![React](https://img.shields.io/badge/React-19-20232a?logo=react&logoColor=61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
@@ -98,6 +130,62 @@ Every result can show distance, expected time, maximum slope, soil
 trafficability, terrain suitability, hazard count, dust risk, and detour cost.
 A green/nominal result means that the current local model found no critical
 issue; it is not a field-certified safety guarantee.
+
+### Voice route control
+
+Open **Voice** from the bottom dock and choose **English / Banglish** or
+**বাংলা**. Voice recognition uses the browser speech service, while route
+actions themselves use MarsWay's local map and route engines. No Gemini key or
+remote AI account is required.
+
+The voice workflow supports both short commands and natural sentences:
+
+```text
+Start route planning
+Set start here
+Set destination here
+Check route
+Safest route
+Shortest route
+Science route
+Is the route safe?
+```
+
+Bangla and Banglish examples:
+
+```text
+রুট পরিকল্পনা শুরু করো
+এখানে শুরু পয়েন্ট সেট করো
+এখানে গন্তব্য সেট করো
+রুট চেক করো
+গ্যালক্রেটার থেকে অলিম্পাস মন্সে যেতে চাই
+Route planning shuru koro
+Gale Crater theke Olympus Mons e jete chai
+```
+
+When a sentence contains two known Mars locations, MarsWay resolves them from
+the bundled USGS/IAU feature catalogue and creates START and FINAL endpoints
+automatically. If only one location is understood, the current map position is
+used as the other endpoint so the user can continue without starting over.
+After the endpoints are ready, say **Check route** to open the same safety
+panel used by mouse and touch. It compares hazards, slope, soil, route score,
+distance, and modeled travel time. Say **Safest route**, **Shortest route**, or
+**Science route** to change the active route objective.
+
+Voice reliability details:
+
+- One recognized utterance is processed once; duplicate browser results are
+  ignored.
+- CAPCOM speech is protected from being re-heard as a new command.
+- Bengali recognition has a visible language selector and Bengali speech
+  synthesis when the browser provides a Bengali voice.
+- If Chrome/Edge reports `aborted` or `no-speech`, the listener reconnects
+  automatically while the Voice panel remains open.
+- The wave display remains visible during idle/reconnect states, so the user
+  can see that the voice link is still present.
+- Unsupported or unclear speech is not treated as a successful navigation
+  action; the assistant asks for a repeat instead of showing the old generic
+  redirect message.
 
 ## How route planning works
 
@@ -208,6 +296,7 @@ src/App.tsx                              application shell and view state
 src/components/map/RealMarsMap.tsx      2D map and GIS interactions
 src/components/map/Mars3DGlobe.tsx      Three.js globe
 src/components/map/MarsAstronautView.tsx EVA scene, HUD, and movement
+src/components/voice/MarsLiveVoiceModal.tsx voice recognition, speech reply, and voice route commands
 src/components/mission/MarsRouteSafetyHUD.tsx route safety panel
 src/components/mission/MarsRoutePlannerModal.tsx route configuration
 src/engine/marsAStarRouter.ts            route generation and time model
@@ -283,7 +372,9 @@ curl -X POST http://localhost:3000/api/ask-marsway \
 - **3D Globe:** global planetary view.
 - **Flat Map:** detailed GIS and route workspace.
 - **Astronaut EVA:** local first-person surface exploration.
-- **Search:** places, missions, rovers, and science targets.
+- **Search:** places, missions, rovers, and science targets. On compact layouts
+  it is available from the bottom dock; the main map also has an inline search
+  field.
 - **Route Plan:** START/FINAL selection and route comparison.
 - **Missions:** rover, lander, orbiter, and mission records.
 - **Base Plan:** landing/base-planning context.

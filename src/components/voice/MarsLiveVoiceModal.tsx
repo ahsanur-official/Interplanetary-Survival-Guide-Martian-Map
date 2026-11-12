@@ -12,6 +12,7 @@ import {
   Layers,
   HelpCircle,
   CheckCircle2,
+  ShieldCheck,
   Navigation,
   Globe,
   Footprints,
@@ -46,6 +47,12 @@ export interface MarsLiveVoiceModalProps {
   onSelectMission?: (missionId: string) => void;
   onToggleLayer?: (layerId: 'viking' | 'themis' | 'mola' | 'opm') => void;
   onSelectSite?: (site: any) => void;
+  onStartRoutePlanning?: () => void;
+  onPlanRouteBetweenLocations?: (transcript: string) => boolean;
+  onSetRoutePoint?: (point: 'start' | 'destination') => boolean;
+  onCheckRoute?: () => boolean;
+  onSelectRouteMode?: (mode: 'safest' | 'shortest' | 'science') => void;
+  onReadRouteSafety?: (language?: 'en' | 'bn' | 'banglish') => string | null;
 }
 
 interface CommandLogItem {
@@ -70,6 +77,12 @@ export function MarsLiveVoiceModal({
   onSelectMission,
   onToggleLayer,
   onSelectSite,
+  onStartRoutePlanning,
+  onPlanRouteBetweenLocations,
+  onSetRoutePoint,
+  onCheckRoute,
+  onSelectRouteMode,
+  onReadRouteSafety,
 }: MarsLiveVoiceModalProps) {
   // Voice Recognition State
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -78,7 +91,7 @@ export function MarsLiveVoiceModal({
   const [statusMessage, setStatusMessage] = useState<string>('Ready for voice navigation & mission queries.');
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
   const [lastCapcomReply, setLastCapcomReply] = useState<string>(
-    'Mars Flight Control online. Say "Move north", "Zoom in", "Where is Perseverance?", or "Tell me about Olympus Mons".'
+    'Mars Flight Control online. Say "Start route planning", "set start here", "set destination here", "check route", or "is the route safe?".'
   );
   const [commandLogs, setCommandLogs] = useState<CommandLogItem[]>([
     {
@@ -89,7 +102,8 @@ export function MarsLiveVoiceModal({
       badge: 'CAPCOM',
     },
   ]);
-  const [activeCategory, setActiveCategory] = useState<'all' | 'navigation' | 'missions' | 'landmarks' | 'layers'>('all');
+  const [recognitionLanguage, setRecognitionLanguage] = useState<'en-US' | 'bn-BD'>('en-US');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'navigation' | 'missions' | 'landmarks' | 'route'>('all');
 
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -97,6 +111,11 @@ export function MarsLiveVoiceModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const isSpeakingRef = useRef(false);
+  const speechIgnoreUntilRef = useRef(0);
+  const lastProcessedTranscriptRef = useRef('');
+  const lastProcessedAtRef = useRef(0);
+  const shouldKeepListeningRef = useRef(false);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -130,16 +149,28 @@ export function MarsLiveVoiceModal({
 
       try {
         window.speechSynthesis.cancel();
+        isSpeakingRef.current = true;
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.rate = 1.05;
         utterance.pitch = 0.96;
         utterance.volume = 0.85;
-        // Try to pick an English voice
+        // Prefer a matching local voice so Bangla replies are spoken naturally
         const voices = window.speechSynthesis.getVoices();
-        const enVoice = voices.find((v) => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
-        if (enVoice) utterance.voice = enVoice;
+        const targetLang = /[\u0980-\u09FF]/.test(message) ? 'bn' : 'en';
+        const matchingVoice = voices.find((v) => v.lang.toLowerCase().startsWith(targetLang));
+        if (matchingVoice) utterance.voice = matchingVoice;
+        utterance.lang = matchingVoice?.lang || (targetLang === 'bn' ? 'bn-BD' : 'en-US');
+        const finishSpeech = () => {
+          isSpeakingRef.current = false;
+          // Ignore the tail of the speaker's own audio so the recognizer does
+          // not turn CAPCOM's reply into a second command.
+          speechIgnoreUntilRef.current = Date.now() + 900;
+        };
+        utterance.onend = finishSpeech;
+        utterance.onerror = finishSpeech;
         window.speechSynthesis.speak(utterance);
       } catch (e) {
+        isSpeakingRef.current = false;
         console.warn('Speech synthesis error:', e);
       }
     },
@@ -149,7 +180,30 @@ export function MarsLiveVoiceModal({
   // Execute Voice Command
   const processCommand = useCallback(
     (rawTranscript: string) => {
-      const q = rawTranscript.toLowerCase().trim();
+      // Speech recognition may add punctuation or use slightly different
+      // Bengali Unicode compositions. Normalize before matching intents.
+      const normalizedTranscript = rawTranscript
+        .toLowerCase()
+        .normalize('NFC')
+        .replace(/[.,!?;:।]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const now = Date.now();
+
+      // Web Speech can emit the same final result more than once, especially
+      // when continuous recognition is active. Process one utterance once.
+      if (
+        !normalizedTranscript ||
+        isSpeakingRef.current ||
+        now < speechIgnoreUntilRef.current ||
+        (normalizedTranscript === lastProcessedTranscriptRef.current && now - lastProcessedAtRef.current < 2500)
+      ) {
+        return;
+      }
+      lastProcessedTranscriptRef.current = normalizedTranscript;
+      lastProcessedAtRef.current = now;
+
+      const q = normalizedTranscript;
       setCurrentTranscript(rawTranscript);
 
       // Add user transcript to log
@@ -163,6 +217,127 @@ export function MarsLiveVoiceModal({
           badge: 'VOICE IN',
         },
       ]);
+
+      const hasBanglaScript = /[\u0980-\u09FF]/.test(q);
+      // Do not classify ordinary English route questions as Banglish just because
+      // they contain the word "route". Banglish needs a Bengali transliteration
+      // marker such as "koro", "ache", or "nirapod".
+      const isBanglish = !hasBanglaScript && /\b(koro|korben|ache|ki|chai|nao|nibo|ekhane|shuru|surur|nirapod|somoy|kom|hoye|hocche|kothay|dekh)\b/i.test(q);
+      const reply = (english: string, bangla: string, banglish: string) =>
+        speakCapcom(hasBanglaScript ? bangla : isBanglish ? banglish : english);
+
+      const soundsLikeLocationRoute =
+        (q.includes('from') && q.includes(' to ')) ||
+        q.includes('থেকে') ||
+        q.includes('যেতে চাই') ||
+        q.includes('যাব') ||
+        q.includes('যাওয়ার') ||
+        q.includes('যাওয়ার') ||
+        q.includes(' theke ') ||
+        q.includes('jete chai') ||
+        q.includes('jabo') ||
+        q.includes('jawar') ||
+        q.includes('e jete');
+
+      if (soundsLikeLocationRoute && onPlanRouteBetweenLocations?.(rawTranscript)) {
+        reply(
+          'Route points found from your voice command. The route is ready for safety and time checking.',
+          'আপনার কথার ভিত্তিতে শুরু ও গন্তব্য পয়েন্ট পাওয়া গেছে। এখন রুটের নিরাপত্তা ও সময় পরীক্ষা করা যাবে।',
+          'Voice command theke start ar destination paoa geche. Ekhon route safety ar time check kora jabe.'
+        );
+        return;
+      }
+
+      // ROUTE PLANNING COMMANDS (English, Bangla, and Banglish)
+      if (
+        q.includes('route plan') || q.includes('plan a route') || q.includes('start route') ||
+        q.includes('route planning') ||
+        q.includes('রুট প্ল্যান') || q.includes('রোড প্ল্যান') || q.includes('রোট প্ল্যান') || q.includes('রুট পরিকল্পনা') || q.includes('রুট শুরু') ||
+        /(?:রু[টট]|রোড|রোট)\s*(প্ল্যান|পরিকল্পনা)/u.test(q) ||
+        /(প্ল্যান|পরিকল্পনা).*(?:রু[টট]|রোড|রোট)/u.test(q) ||
+        /(?:রু[টট]|রোড|রোট).*(করো|করুন|চাই|দাও|দেও)/u.test(q) ||
+        q.includes('route planning shuru') || q.includes('route plan koro')
+      ) {
+        onStartRoutePlanning?.();
+        reply('Route planning started. Say set start here, then set destination here.', 'রুট পরিকল্পনা শুরু হয়েছে। এখন বলুন: এখানে শুরু এবং তারপর এখানে গন্তব্য।', 'Route planning shuru hoyeche. Bolo: set start here, tarpor set destination here.');
+        return;
+      }
+
+      if (
+        q.includes('set start') || q.includes('start point') || q.includes('base here') ||
+        q.includes('শুরু পয়েন্ট') || q.includes('শুরু পয়েন্ট') || q.includes('এখানে শুরু') ||
+        /((শুরু|স্টার্ট).*(এখানে|পয়েন্ট|পয়েন্ট|সেট|করো|করুন))/u.test(q) ||
+        q.includes('start ekhane') || q.includes('shuru ekhane') || q.includes('start set koro')
+      ) {
+        const accepted = onSetRoutePoint?.('start') ?? false;
+        reply(
+          accepted ? 'Start point set at the current map position. Now set the destination.' : 'I could not set the start point yet. Open the Flat Map first.',
+          accepted ? 'বর্তমান ম্যাপ অবস্থানকে শুরু পয়েন্ট করা হয়েছে। এখন গন্তব্য সেট করুন।' : 'শুরু পয়েন্ট সেট করা যায়নি। আগে Flat Map খুলুন।',
+          accepted ? 'Current map position start point hisebe set hoyeche. Ekhon destination set koro.' : 'Start point set hoyni. Age Flat Map kholo.'
+        );
+        return;
+      }
+
+      if (
+        q.includes('set destination') || q.includes('set final') || q.includes('destination here') ||
+        q.includes('গন্তব্য') || q.includes('শেষ পয়েন্ট') || q.includes('শেষ পয়েন্ট') ||
+        /((গন্তব্য|ডেস্টিনেশন|শেষ).*(এখানে|পয়েন্ট|পয়েন্ট|সেট|করো|করুন))/u.test(q) ||
+        q.includes('destination ekhane') || q.includes('final ekhane') || q.includes('gontobbo ekhane')
+      ) {
+        const accepted = onSetRoutePoint?.('destination') ?? false;
+        reply(
+          accepted ? 'Destination set. Say check route to evaluate safety and travel time.' : 'Set a start point first, then set the destination.',
+          accepted ? 'গন্তব্য সেট হয়েছে। নিরাপত্তা ও সময় পরীক্ষা করতে বলুন: রুট চেক করুন।' : 'আগে শুরু পয়েন্ট সেট করুন, তারপর গন্তব্য সেট করুন।',
+          accepted ? 'Destination set hoyeche. Safety ar time dekhte bolo: route check koro.' : 'Age start point set koro, tarpor destination set koro.'
+        );
+        return;
+      }
+
+      if (
+        q.includes('check route') || q.includes('analyze route') || q.includes('evaluate route') ||
+        q.includes('রুট চেক') || q.includes('রুট পরীক্ষা') || q.includes('এই রুট নিরাপদ') ||
+        /(?:রু[টট]|রোড|রোট).*(চেক|পরীক্ষা|নিরাপদ)/u.test(q) ||
+        q.includes('route check koro') || q.includes('route safe ki') || q.includes('route nirapod ki')
+      ) {
+        const accepted = onCheckRoute?.() ?? false;
+        reply(
+          accepted ? 'Route checked. The safety panel now compares hazards, slope, soil, and travel time.' : 'I need both a start point and a destination before checking the route.',
+          accepted ? 'রুট পরীক্ষা শেষ। নিরাপত্তা প্যানেলে hazard, slope, soil এবং ভ্রমণ সময় তুলনা করা হচ্ছে।' : 'রুট পরীক্ষা করতে শুরু এবং গন্তব্য—দুই পয়েন্টই দরকার।',
+          accepted ? 'Route check shesh. Safety panel e hazard, slope, soil ar travel time compare hocche.' : 'Route check korte start ar destination duita point dorkar.'
+        );
+        return;
+      }
+
+      if (q.includes('safest route') || q.includes('safe route') || q.includes('নিরাপদ রুট') || /নিরাপদ.*(?:রু[টট]|রোড|রোট)|(?:রু[টট]|রোড|রোট).*নিরাপদ/u.test(q) || q.includes('safe route nao') || q.includes('nirapod route')) {
+        onSelectRouteMode?.('safest');
+        reply('Safest route selected. I will prioritize terrain, slope, soil, and hazards.', 'সবচেয়ে নিরাপদ রুট বেছে নেওয়া হয়েছে। terrain, slope, soil এবং hazard-কে অগ্রাধিকার দেওয়া হবে।', 'Safest route select hoyeche. Terrain, slope, soil ar hazard priority pabe.');
+        return;
+      }
+
+      if (q.includes('shortest route') || q.includes('quickest route') || q.includes('কম সময়') || /কম.*সময়.*(?:রু[টট]|রোড|রোট)|দ্রুত.*(?:রু[টট]|রোড|রোট)|ছোট.*(?:রু[টট]|রোড|রোট)/u.test(q) || q.includes('short route') || q.includes('time kom')) {
+        onSelectRouteMode?.('shortest');
+        reply('Shortest route selected. I will show the lowest-distance option and its risks.', 'সবচেয়ে ছোট রুট বেছে নেওয়া হয়েছে। এর দূরত্ব কম, তবে ঝুঁকি থাকতে পারে।', 'Shortest route select hoyeche. Distance kom, kintu risk thakte pare.');
+        return;
+      }
+
+      if (q.includes('science route') || q.includes('science priority') || q.includes('বিজ্ঞান রুট') || q.includes('science target')) {
+        onSelectRouteMode?.('science');
+        reply('Science route selected. The route can take a detour toward a science target.', 'Science route বেছে নেওয়া হয়েছে। প্রয়োজনে science target-এর দিকে detour নেওয়া হবে।', 'Science route select hoyeche. Science target er jonno detour hote pare.');
+        return;
+      }
+
+      if (
+        q.includes('is the route safe') || q.includes('route safety') || q.includes('how safe is the route') ||
+        q.includes('রুট নিরাপদ কি') || q.includes('রুটের নিরাপত্তা') || q.includes('route safe kina')
+      ) {
+        const safetySummary = onReadRouteSafety?.(hasBanglaScript ? 'bn' : isBanglish ? 'banglish' : 'en');
+        reply(
+          safetySummary || 'No checked route is active. Set both points and say check route first.',
+          safetySummary || 'কোনো পরীক্ষা করা রুট সক্রিয় নেই। আগে দুই পয়েন্ট সেট করে রুট চেক করুন।',
+          safetySummary || 'Checked route nei. Age duita point set kore route check koro.'
+        );
+        return;
+      }
 
       // 1. PAN / MOVE NORTH
       if (
@@ -394,9 +569,12 @@ export function MarsLiveVoiceModal({
         return;
       }
 
-      // Default fallback guidance
-      speakCapcom(
-        `Command processed: "${rawTranscript}". Try saying "Move north", "Zoom in", "Where is Perseverance?", "Where is Curiosity?", or "Tell me about Olympus Mons".`
+      // Keep unknown speech realtime and local. Do not redirect to the old
+      // generic navigation fallback or pretend that an action was executed.
+      reply(
+        'I heard you, but I could not match an action. Please repeat the command.',
+        'আমি শুনেছি, কিন্তু কোনো কাজের কমান্ড বুঝতে পারিনি। অনুগ্রহ করে আবার বলুন।',
+        'Ami shunechi, kintu kono action bujhini. Command-ta abar bolo.'
       );
     },
     [
@@ -408,13 +586,20 @@ export function MarsLiveVoiceModal({
       onFlyToLocation,
       onSelectMission,
       onSelectSite,
+      onStartRoutePlanning,
+      onPlanRouteBetweenLocations,
+      onSetRoutePoint,
+      onCheckRoute,
+      onSelectRouteMode,
+      onReadRouteSafety,
       speakCapcom,
     ]
   );
 
   // Initialize Web Speech API Speech Recognition
-  const startListening = () => {
+  const startListening = (announce = true) => {
     if (typeof window === 'undefined') return;
+    shouldKeepListeningRef.current = true;
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -429,7 +614,7 @@ export function MarsLiveVoiceModal({
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = false;
-      recognition.lang = 'en-US';
+      recognition.lang = recognitionLanguage;
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -448,6 +633,9 @@ export function MarsLiveVoiceModal({
         console.warn('Speech recognition error:', e);
         if (e.error === 'not-allowed') {
           setStatusMessage('Microphone access denied. You can click any voice command button below to execute it!');
+          shouldKeepListeningRef.current = false;
+        } else if (e.error === 'aborted' || e.error === 'no-speech') {
+          setStatusMessage('Voice link reconnecting...');
         } else {
           setStatusMessage(`Speech link idle (${e.error}). Click to restart or use buttons.`);
         }
@@ -456,12 +644,24 @@ export function MarsLiveVoiceModal({
 
       recognition.onend = () => {
         setIsListening(false);
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+        }
+        if (shouldKeepListeningRef.current && isOpen && !isSpeakingRef.current) {
+          window.setTimeout(() => {
+            if (shouldKeepListeningRef.current && isOpen && !recognitionRef.current) {
+              startListening(false);
+            }
+          }, 350);
+        }
       };
 
       recognition.start();
       recognitionRef.current = recognition;
       setIsListening(true);
-      speakCapcom('Voice system online. Say a command or query.');
+      if (announce) {
+        speakCapcom('Voice system online. Say a command or query.');
+      }
     } catch (err) {
       console.warn('Failed to start speech recognition:', err);
       setIsListening(false);
@@ -470,6 +670,7 @@ export function MarsLiveVoiceModal({
   };
 
   const stopListening = () => {
+    shouldKeepListeningRef.current = false;
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -495,7 +696,7 @@ export function MarsLiveVoiceModal({
         } catch {}
       }
     };
-  }, [isOpen]);
+  }, [isOpen, recognitionLanguage]);
 
   // Animated Visualizer Simulation
   useEffect(() => {
@@ -524,9 +725,13 @@ export function MarsLiveVoiceModal({
           const wave1 = Math.sin((i / numBars) * Math.PI * 4 + phase);
           const wave2 = Math.cos((i / numBars) * Math.PI * 2 - phase * 1.5);
           amplitude = Math.max(2, Math.abs(wave1 * wave2) * (h / 2.2));
+        } else {
+          // Keep a calm live-link pulse visible in both English and Bangla
+          // modes, even while the browser is reconnecting the microphone.
+          amplitude = 3 + Math.abs(Math.sin(phase + i * 0.35)) * 3;
         }
 
-        ctx.fillStyle = isListening ? (i % 2 === 0 ? '#06b6d4' : '#38bdf8') : '#475569';
+        ctx.fillStyle = isListening ? (i % 2 === 0 ? '#06b6d4' : '#38bdf8') : '#f59e0b';
         ctx.fillRect(x, centerY - amplitude, barWidth, amplitude * 2);
       }
 
@@ -611,18 +816,29 @@ export function MarsLiveVoiceModal({
             {/* Live Audio Visualizer Canvas & Mic Button */}
             <div className="p-3 bg-black/40 border-b border-neutral-800 flex items-center justify-between gap-3">
               <canvas ref={canvasRef} width={180} height={28} className="rounded-lg opacity-90" />
-              <button
-                type="button"
-                onClick={isListening ? stopListening : startListening}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
-                  isListening
-                    ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
-                    : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                }`}
-              >
-                {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                <span>{isListening ? 'PAUSE MIC' : 'LISTEN'}</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={recognitionLanguage}
+                  onChange={(event) => setRecognitionLanguage(event.target.value as 'en-US' | 'bn-BD')}
+                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-[10px] text-neutral-300 outline-none cursor-pointer"
+                  aria-label="Voice recognition language"
+                >
+                  <option value="en-US">English / Banglish</option>
+                  <option value="bn-BD">বাংলা</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => (isListening ? stopListening() : startListening())}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
+                    isListening
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                      : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  }`}
+                >
+                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  <span>{isListening ? 'PAUSE MIC' : 'LISTEN'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Live CapCom & Transcript Log View */}
@@ -657,7 +873,7 @@ export function MarsLiveVoiceModal({
                 </span>
                 {/* Category Pills */}
                 <div className="flex items-center gap-1">
-                  {(['all', 'navigation', 'missions', 'landmarks'] as const).map((cat) => (
+                  {(['all', 'navigation', 'missions', 'landmarks', 'route'] as const).map((cat) => (
                     <button
                       key={cat}
                       type="button"
@@ -673,6 +889,60 @@ export function MarsLiveVoiceModal({
               </div>
 
               <div className="grid grid-cols-2 gap-1.5 max-h-[135px] overflow-y-auto pr-1">
+                {/* Route Planning Commands */}
+                {(activeCategory === 'all' || activeCategory === 'route') && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Start route planning')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <Navigation className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span className="truncate">"Start route plan"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Set start here')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">"Set start here"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Set destination here')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-cyan-950 border border-neutral-800 hover:border-cyan-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <MapPin className="w-3 h-3 text-orange-400 shrink-0" />
+                      <span className="truncate">"Set destination"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Check route')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-emerald-950 border border-neutral-800 hover:border-emerald-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">"Check route"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Safest route')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-emerald-950 border border-neutral-800 hover:border-emerald-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">"Safest route"</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processCommand('Is the route safe?')}
+                      className="p-1.5 rounded-xl bg-neutral-900/90 hover:bg-amber-950 border border-neutral-800 hover:border-amber-500 text-left transition flex items-center gap-1.5 text-[11px]"
+                    >
+                      <HelpCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="truncate">"Is route safe?"</span>
+                    </button>
+                  </>
+                )}
+
                 {/* Navigation Commands */}
                 {(activeCategory === 'all' || activeCategory === 'navigation') && (
                   <>

@@ -683,6 +683,167 @@ export function RealMarsMap() {
     setInteractiveRoutePlotStep('start');
   };
 
+  // Voice route controls use the current map centre as the spoken point. This
+  // keeps the workflow hands-free while preserving the same two-point route
+  // state and safety engine used by mouse/touch selection.
+  const handleVoiceSetRoutePoint = (point: 'start' | 'destination') => {
+    const map = mapInstanceRef.current;
+    if (!map) return false;
+
+    const center = map.getCenter();
+    const lat = Number(center.lat.toFixed(4));
+    const normalizedLng = ((((center.lng + 180) % 360) + 360) % 360) - 180;
+    const lng = Number(normalizedLng.toFixed(4));
+    const name = point === 'start' ? 'Voice Start Point' : 'Voice Destination';
+    const selectedPoint = { lat, lng, name };
+
+    if (point === 'start') {
+      setRouteStartPoint(selectedPoint);
+      setRouteEndPoint(null);
+      setInteractiveRoutePlotStep('dest');
+      setIsRouteCheckReady(false);
+      setIsRouteChecked(false);
+      setIsRouteSafetyHUDOpen(false);
+      setShowRouteComparisonOnMap(false);
+      return true;
+    }
+
+    if (!routeStartPoint) return false;
+    setRouteEndPoint(selectedPoint);
+    setInteractiveRoutePlotStep(null);
+    setIsRouteCheckReady(true);
+    setIsRouteChecked(false);
+    setIsRouteSafetyHUDOpen(false);
+    setShowRouteComparisonOnMap(false);
+    return true;
+  };
+
+  // Resolve a natural voice request such as “go from Gale Crater to Olympus
+  // Mons” directly against the local Mars gazetteer, then feed the same route
+  // state used by mouse/touch planning.
+  const handleVoicePlanRouteBetweenLocations = (transcript: string) => {
+    const text = transcript.toLowerCase().normalize('NFC');
+    const compactText = text.replace(/\s+/g, '');
+    const searchableText = `${text} ${compactText}`;
+    const knownLocations = [
+      ...ALL_MARS_FEATURES.map((feature) => ({
+        name: feature.name,
+        lat: feature.lat,
+        lng: feature.lng,
+        aliases: [feature.name.toLowerCase(), feature.id.replace(/_/g, ' ')],
+      })),
+      ...MARS_MISSIONS_DATA.filter((mission) => mission.lat !== undefined && mission.lng !== undefined).map((mission) => ({
+        name: mission.landingSiteName || mission.name,
+        lat: mission.lat as number,
+        lng: mission.lng as number,
+        aliases: [mission.name.toLowerCase(), mission.landingSiteName?.toLowerCase() || ''],
+      })),
+    ];
+
+    const spokenAliases: Array<{ keys: string[]; match: (typeof knownLocations)[number] | undefined }> = [
+      {
+        keys: ['gale crater', 'gale', 'গেল ক্রেটার', 'গ্যাল ক্রেটার', 'গেলক্রেটার', 'গ্যালক্রেটার', 'গেল ক্রেটর', 'গ্যাল ক্রেটর', 'গেলক্রেটর', 'গ্যালক্রেটর'],
+        match: knownLocations.find((location) => location.name.toLowerCase().includes('curiosity rover')),
+      },
+      {
+        keys: ['olympus mons', 'olympus', 'অলিম্পাস মন্স', 'অলিম্পাস মনস', 'অলিম্পাস মন্সে', 'অলিম্পাস মনসে', 'অলিম্পাসমন্স', 'অলিম্পাস'],
+        match: knownLocations.find((location) => location.name.toLowerCase() === 'olympus mons'),
+      },
+      {
+        keys: ['jezero crater', 'jezero', 'জেজেরো ক্রেটার', 'জেজেরো'],
+        match: knownLocations.find((location) => location.name.toLowerCase().includes('perseverance rover')),
+      },
+      {
+        keys: ['valles marineris', 'ভ্যালেস মেরিনারিস'],
+        match: knownLocations.find((location) => location.name.toLowerCase().startsWith('valles marineris')),
+      },
+    ];
+
+    const hits: Array<{ index: number; location: (typeof knownLocations)[number] }> = [];
+    spokenAliases.forEach(({ keys, match }) => {
+      if (!match) return;
+      keys.forEach((key) => {
+        const index = searchableText.indexOf(key);
+        if (index >= 0) hits.push({ index, location: match });
+      });
+    });
+    knownLocations.forEach((location) => {
+      location.aliases.filter(Boolean).forEach((alias) => {
+        const index = searchableText.indexOf(alias);
+        if (index >= 0) hits.push({ index, location });
+      });
+    });
+
+    const uniqueHits = hits
+      .sort((a, b) => a.index - b.index)
+      .filter((hit, index, list) => list.findIndex((candidate) => candidate.location.name === hit.location.name) === index);
+    if (uniqueHits.length === 0) return false;
+
+    const map = mapInstanceRef.current;
+    let start = uniqueHits[0].location;
+    let destination = uniqueHits[1]?.location;
+    // If speech only captured one place name, use the current map position as
+    // the other endpoint instead of silently falling back.
+    if (!destination && map) {
+      const center = map.getCenter();
+      const currentPoint = {
+        name: 'Current Map Position',
+        lat: Number(center.lat.toFixed(4)),
+        lng: Number(center.lng.toFixed(4)),
+        aliases: [],
+      };
+      if (text.includes('থেকে') || text.includes('from') || text.includes('theke')) {
+        destination = start;
+        start = currentPoint;
+      } else {
+        destination = currentPoint;
+      }
+    }
+    if (!destination) return false;
+    const startPoint = { lat: start.lat, lng: start.lng, name: start.name };
+    const endPoint = { lat: destination.lat, lng: destination.lng, name: destination.name };
+
+    setIsRoutePlannerModalOpen(false);
+    setIsSearchModalOpen(false);
+    setIsHamburgerOpen(false);
+    setActiveTab(null);
+    setInspectedPoint(null);
+    setSelectedSite(null);
+    setSelectedRegion(null);
+    setRouteStartPoint(startPoint);
+    setRouteEndPoint(endPoint);
+    setInteractiveRoutePlotStep(null);
+    setIsRouteCheckReady(true);
+    setIsRouteChecked(false);
+    setIsRouteSafetyHUDOpen(false);
+    setShowRouteComparisonOnMap(false);
+    return true;
+  };
+
+  const handleVoiceCheckRoute = () => {
+    if (!routeStartPoint || !routeEndPoint) return false;
+    setIsRouteCheckReady(false);
+    setIsRouteChecked(true);
+    setIsRouteSafetyHUDOpen(true);
+    setShowRouteComparisonOnMap(true);
+    window.requestAnimationFrame(() => fitRouteToMap());
+    return true;
+  };
+
+  const handleVoiceReadRouteSafety = (language: 'en' | 'bn' | 'banglish' = 'en') => {
+    if (!routeSafetyAssessment) return null;
+    const { safetyStatus, overallSafetyScore, comparison } = routeSafetyAssessment;
+    const directTime = comparison.directRouteTimeHours.toFixed(1);
+    const saferTime = comparison.saferRouteTimeHours.toFixed(1);
+    if (language === 'bn') {
+      return `রুটের অবস্থা ${safetyStatus === 'SAFE' ? 'নিরাপদ' : safetyStatus === 'CAUTION' ? 'সতর্কতা' : 'ঝুঁকিপূর্ণ'}। Safety score ${overallSafetyScore}। Direct route ${comparison.directRouteDistanceKm.toFixed(1)} কিলোমিটার এবং আনুমানিক ${directTime} ঘণ্টা। Safer route ${comparison.saferRouteDistanceKm.toFixed(1)} কিলোমিটার এবং ${saferTime} ঘণ্টা।`;
+    }
+    if (language === 'banglish') {
+      return `Route status ${safetyStatus}. Safety score ${overallSafetyScore}. Direct route ${comparison.directRouteDistanceKm.toFixed(1)} kilometer, time prai ${directTime} ghonta. Safer route ${comparison.saferRouteDistanceKm.toFixed(1)} kilometer, time ${saferTime} ghonta.`;
+    }
+    return `Route status ${safetyStatus}. Safety score ${overallSafetyScore}. Direct route is ${comparison.directRouteDistanceKm.toFixed(1)} kilometers and about ${directTime} hours. Safer route is ${comparison.saferRouteDistanceKm.toFixed(1)} kilometers and ${saferTime} hours.`;
+  };
+
   const handleCancelAndClearRoute = () => {
     setRouteStartPoint(null);
     setRouteEndPoint(null);
@@ -7806,6 +7967,12 @@ export function RealMarsMap() {
           setSelectedSite(site);
           handleFlyToLocation(site.lat, site.lng, 7, site.name);
         }}
+        onStartRoutePlanning={handleStartMapRoutePlanning}
+        onPlanRouteBetweenLocations={handleVoicePlanRouteBetweenLocations}
+        onSetRoutePoint={handleVoiceSetRoutePoint}
+        onCheckRoute={handleVoiceCheckRoute}
+        onSelectRouteMode={handleSelectRouteMode}
+        onReadRouteSafety={handleVoiceReadRouteSafety}
       />
 
       {/* HISTORICAL NASA/ESA MISSIONS & ROVER TRAVERSES LAYER CONTROL PANEL */}
