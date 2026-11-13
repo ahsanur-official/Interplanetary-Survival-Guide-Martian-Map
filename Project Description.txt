@@ -4,6 +4,35 @@ MARSWAY - COMPLETE PROJECT DESCRIPTION
 Project type: Interactive Mars GIS, exploration simulator, and mission-planning decision-support tool
 Challenge theme: Interplanetary Survival Guide: Martian Map
 Application: Browser-based React and TypeScript platform
+Live demo: https://marsway-cyan.vercel.app/
+
+
+TEAM UNKNOWNX
+------------
+
+MarsWay was created by Team UnknownX for the NASA Space Apps Challenge.
+The project combines planetary research, interface design, frontend
+development, local AI/ML thinking, voice interaction, data analysis, and
+visual storytelling.
+
+Team roles:
+
+    Md. Ahsanur Rahman:
+        Team Leader; Designer, Data Analyst & Script Writer.
+    Md. Aikur Rahman:
+        Front-End Developer.
+    Md. Masjidul Islam:
+        AI & ML.
+    Suraiya Sultana:
+        Voice & Narrator.
+    Md. Maruf Hasan:
+        Video Editor.
+    Ety Khatun:
+        Researcher.
+
+Together, the team turns complex Mars data into a visual and explainable
+exploration workflow that can be understood by students, reviewers,
+researchers, and future mission-planning audiences.
 
 
 HOW TO READ THIS DOCUMENT
@@ -155,6 +184,14 @@ Capabilities:
 - elevation point inspection and MOLA transects;
 - distance and bearing measurement;
 - atmosphere, pressure, temperature, dust, and MOLA availability overlays;
+- MOLA resolution-tier heatmap showing low-resolution, MOLA, HRSC, polar, and
+  HiRISE coverage;
+- seasonal dust-storm simulation with haze opacity, storm vortices, wind
+  vectors, and atmospheric optical-depth scale;
+- atmospheric and climate overlay with pressure isobars, temperature modes,
+  landing-station badges, and regional environmental telemetry;
+- NASA mission overlay with EDL ellipses, historic landing sites, rover
+  traverses, and active/mission-type filters;
 - science and environmental cards.
 
 The map uses progressive disclosure. Global scale shows important labels only;
@@ -177,6 +214,40 @@ canvas is scaled in a controlled way so the rectangular global Mars texture does
 not expose empty corners. Labels and controls remain readable. Map click and
 drag calculations apply the inverse rotation and scale so visual position and
 geographic position remain aligned.
+
+5.3 Advanced GIS overlays and analysis tools
+
+The Planetary GIS Tools panel provides a single place to activate analysis
+layers without hiding the underlying surface map. The main tools are:
+
+    Destination & Waypoint:
+        Select and inspect route endpoints and mission waypoints.
+    Elevation Transect:
+        Select two points and build a MOLA-style elevation cross-section.
+    Earth Scale Compare:
+        Compare the physical scale of large Martian landmarks with familiar
+        Earth references.
+    Mission Era Timeline:
+        Filter mission context by historical period.
+    Marswalk Route Planner:
+        Connect route planning with foot, LTV, and future surface-mobility
+        scenarios.
+    NASA Missions Overlay:
+        Display landing sites, EDL ellipses, and rover traverses.
+    MOLA Availability:
+        Show where high-resolution digital terrain data is available before
+        interpreting slope or elevation.
+    Dust Storm Simulation:
+        Visualize seasonal haze, wind, storm, and optical-depth conditions.
+    Atmospheric Pressure:
+        Display pressure isobars, thermal context, stations, and regional
+        environmental patterns.
+
+These overlays are intentionally separate from the base imagery. A user can
+turn them on one at a time for clarity or combine them to compare terrain,
+mission history, atmosphere, and route evidence in the same geographic frame.
+The interface also exposes overlay opacity and resolution filters so a dense
+scientific view can be reduced to the exact evidence needed for a decision.
 
 
 6. 3D GLOBE
@@ -324,6 +395,10 @@ Rover:
 Weather:
     Historical or modeled temperature, wind, dust, and precipitation.
 
+Atmospheric overlay:
+    Pressure isobars, thermal isotherms, landing-station context, seasonal
+    state, storm conditions, and optical-depth visualization.
+
 Geology:
     Mineral composition, rock type, surface unit, and science target context.
 
@@ -440,7 +515,8 @@ USGS/IAU Planetary Nomenclature:
     Official names, feature types, coordinates, labels, and search identity.
 
 MGS MOLA / MEGDR:
-    Elevation, Areoid, slope, profiles, pressure adjustment, and route penalties.
+    Elevation, Areoid, slope, profiles, pressure adjustment, route penalties,
+    MOLA availability, resolution tiers, and elevation heatmap context.
 
 MRO HiRISE:
     Targeted high-resolution terrain, rocks, scarps, landing areas, and local
@@ -464,6 +540,10 @@ MSL RAD:
 
 NASA/JPL/Mars Trek archives:
     Public imagery, mission identity, rover/lander history, and basemap tiles.
+
+Mission and overlay records:
+    Landing sites, EDL ellipses, rover traverses, atmosphere stations, dust
+    scenarios, and map-overlay states used to make route evidence visible.
 
 
 12. PROVENANCE AND TRANSPARENCY
