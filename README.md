@@ -1,5 +1,7 @@
 # MarsWay
 
+> **Live demo:** [marsway-cyan.vercel.app](https://marsway-cyan.vercel.app/)
+
 ## Explore Mars. Navigate Safer. Discover More.
 
 MarsWay is an interactive Martian GIS, science-exploration, EVA-visualization,
@@ -9,6 +11,28 @@ and mission-planning application built for the NASA Space Apps Challenge theme
 It brings Mars places, NASA surface layers, rover missions, environmental
 science, explainable route planning, a 3D globe, an astronaut EVA view, and a
 local multilingual assistant into one browser workspace.
+
+![MarsWay mission console](project%20images/Screenshot%20%281341%29.png)
+
+## Team UnknownX
+
+MarsWay was created by **Team UnknownX** for the NASA Space Apps Challenge.
+The team combines product design, frontend engineering, AI/ML thinking,
+research, voice storytelling, data analysis, and media production into one
+planetary-exploration experience.
+
+| Team member | Responsibility | Contribution to MarsWay |
+|---|---|---|
+| **Md. Ahsanur Rahman** | Team Leader; Designer, Data Analyst & Script Writer | Product direction, interface design, data interpretation, documentation, and demo narrative |
+| **Md. Aikur Rahman** | Front-End Developer | User interface implementation, interaction design, and browser experience |
+| **Md. Masjidul Islam** | AI & ML | Local assistant logic, structured reasoning, and offline-help concepts |
+| **Suraiya Sultana** | Voice & Narrator | Voice interaction concept, spoken guidance, and presentation narration |
+| **Md. Maruf Hasan** | Video Editor | Demonstration video and visual communication |
+| **Ety Khatun** | Researcher | Research support, scientific context, and source-oriented review |
+
+The team’s goal is simple: make Mars data understandable to a student, useful
+to a researcher, and explainable to a future mission planner—without hiding
+which parts are observed, historical, derived, modeled, or simulated.
 
 > **Safety notice:** MarsWay is an educational decision-support prototype. It
 > is not flight-certified navigation software and must not be used as the sole
@@ -45,6 +69,187 @@ options, and then ask MarsWay to explain the result in plain language.
 - **Function reference:** what every important button and screen does.
 - **Demo and troubleshooting:** a repeatable presentation flow and solutions
   for common map, route, modal, and assistant problems.
+
+## Project images and visual walkthrough
+
+The screenshots below are stored in the repository’s `project images` folder.
+They document the real interface and show how the main features fit together.
+
+### 1. Open the MarsWay console
+
+The launch screen introduces the mission-intelligence workspace before the map
+loads. It gives the product a clear starting point and keeps the visual theme
+consistent with planetary exploration.
+
+![MarsWay launch screen](project%20images/Screenshot%20%281341%29.png)
+
+### 2. Explore Mars in the Flat Map
+
+The Flat Map is the detailed 2D GIS workspace. Users can pan and zoom across
+Mars, search named features, inspect rover and lander markers, open the layer
+controls, read coordinates, and measure distances with the scale bar.
+
+![MarsWay Flat Map](project%20images/Screenshot%20%281342%29.png)
+
+### 3. Use the navigation and mapping tools
+
+The navigation panel brings the three main experiences together: 3D Globe for
+planetary context, Flat Map for precise surface work, and Astronaut EVA for a
+first-person exploration view. The same panel also exposes elevation, basemap,
+mission, and route tools without forcing the user to leave the application.
+
+![MarsWay navigation and mapping tools](project%20images/Screenshot%20%281343%29.png)
+
+### 4. Inspect science and environment data
+
+The science panel groups environmental and mission-support information such as
+weather, deep-space telemetry, surface conditions, water/ice, atmosphere,
+radiation, and safety context. These panels explain what the number means and
+whether it is observed, historical, modeled, derived, or simulated.
+
+![MarsWay science and environment tools](project%20images/Screenshot%20%281344%29.png)
+
+### 5. See Mars as a 3D planet
+
+The 3D Globe provides global orientation. It shows Mars, mission and place
+markers, orbital context, Phobos, Deimos, altitude modes, rotation controls,
+and the handoff to the detailed 2D map.
+
+![MarsWay 3D Globe](project%20images/Screenshot%20%281345%29.png)
+
+![MarsWay global orbit context](project%20images/Screenshot%20%281347%29.png)
+
+### 6. Study a moon or a planetary feature
+
+Selecting a globe marker opens a scientific dossier with measurements,
+orbital information, gravity, motion, and a link back to the 3D context. This
+keeps educational exploration connected to the map instead of presenting an
+isolated static card.
+
+![MarsWay scientific moon dossier](project%20images/Screenshot%20%281348%29.png)
+
+### 7. Explore the Astronaut EVA view
+
+Astronaut EVA is a first-person local exploration mode. The HUD keeps oxygen,
+heart rate, suit pressure, altitude, heading, EVA time, reconnaissance, target
+identification, mineral analysis, LIBS scanning, sample collection, hazard
+guidance, and movement controls visible while the user explores the Martian
+surface.
+
+![MarsWay Astronaut EVA view](project%20images/Screenshot%20%281350%29.png)
+
+### 8. Ask MarsWay and control the map with voice
+
+Ask MarsWay is a local assistant grounded in the project’s own Mars catalogue,
+mission data, environmental records, and current route context. The voice
+controller uses the browser Web Speech API for recognition and maps supported
+commands to real application actions such as starting a route, setting a start
+point, setting a destination, checking safety, selecting the safest route,
+zooming, and moving around the map. English, Banglish, and Bangla input are
+supported where the browser speech engine provides that language.
+
+![Ask MarsWay offline assistant](project%20images/Screenshot%20%281361%29.png)
+
+![MarsWay voice controller](project%20images/Screenshot%20%281362%29.png)
+
+### 9. Browse missions and rover traverses
+
+Mission Explorer turns rover, lander, and orbiter records into searchable
+cards. A user can filter mission types, jump to a mission, fly to its site,
+read its scientific discoveries, and follow a rover traverse waypoint by
+waypoint.
+
+![MarsWay mission explorer](project%20images/Screenshot%20%281363%29.png)
+
+![MarsWay rover traverse details](project%20images/Screenshot%20%281351%29.png)
+
+### 10. Change basemaps and scientific overlays
+
+The layer manager lets users switch between Viking true colour, THEMIS infrared,
+MOLA elevation relief, and USGS cartographic layers. Clarity filters and
+overlays such as geological boundaries, coordinate graticules, dust optical
+depth, pressure/temperature, and elevation heatmaps can be enabled when the
+question requires another view of the same surface.
+
+![MarsWay basemaps and overlays](project%20images/Screenshot%20%281352%29.png)
+
+![MarsWay MOLA elevation heatmap](project%20images/Screenshot%20%281353%29.png)
+
+### 11. Use advanced GIS overlays and route evidence
+
+The newer project captures show how the map can display several evidence
+layers at the same time. MOLA availability cells identify where high-resolution
+terrain data exists; the route corridor can then be compared with those data
+tiers before a user trusts an elevation or slope interpretation.
+
+![MOLA elevation data availability and route context](project%20images/Screenshot%20%281370%29.png)
+
+The dust-storm overlay exposes seasonal conditions, haze opacity, storm
+vortices, wind vectors, and atmospheric optical depth. This is useful when a
+route is geometrically short but may be operationally slower under poor
+visibility or dust conditions.
+
+![Dust storm and atmosphere overlay](project%20images/Screenshot%20%281371%29.png)
+
+The atmospheric and climate overlay adds pressure isobars, temperature modes,
+landing-station badges, isobar zones, and NASA-derived environmental context.
+It turns the map from a picture into an evidence panel for route and habitat
+planning.
+
+![Mars atmospheric and climate overlay](project%20images/Screenshot%20%281372%29.png)
+
+Mission overlays place EDL ellipses, historic landing sites, rover traverses,
+and active mission categories directly on the surface. This lets users compare
+a proposed route with known mission geography.
+
+![NASA Mars missions overlay](project%20images/Screenshot%20%281373%29.png)
+
+The MOLA transect workflow supports a two-point elevation cross-section. The
+user selects Point A and Point B on the map, then uses the resulting profile
+to understand ascent, descent, slope, elevation-data coverage, and rover/EVA
+feasibility.
+
+![MOLA transect workflow with map overlays](project%20images/Screenshot%20%281374%29.png)
+
+The Planetary GIS Tools panel provides one place to activate destination and
+waypoint planning, elevation transects, Earth-scale comparison, mission-era
+filtering, the Marswalk route planner, NASA mission overlays, MOLA data,
+dust-storm simulation, and atmospheric pressure layers.
+
+![Planetary GIS tools with active overlays](project%20images/Screenshot%20%281375%29.png)
+
+![Planetary GIS tools overview](project%20images/Screenshot%20%281376%29.png)
+
+### 12. Open the complete scientific toolset
+
+The scientific tools screen connects the main analysis workflows: Astronaut
+EVA, MGS MOLA elevation profiles, Earth-versus-Mars scale comparison,
+subsurface water and atmosphere dossiers, human base candidate planning, and
+interactive traverse plotting.
+
+![MarsWay scientific mission analysis tools](project%20images/Screenshot%20%281369%29.png)
+
+### Complete screenshot archive
+
+The folder also contains additional captures from the same working interface.
+They are kept in the repository so reviewers can inspect the project visually
+without needing to run the app first:
+
+| Screenshots | Screenshots | Screenshots |
+|---|---|---|
+| [1341](project%20images/Screenshot%20%281341%29.png) | [1342](project%20images/Screenshot%20%281342%29.png) | [1343](project%20images/Screenshot%20%281343%29.png) |
+| [1344](project%20images/Screenshot%20%281344%29.png) | [1345](project%20images/Screenshot%20%281345%29.png) | [1346](project%20images/Screenshot%20%281346%29.png) |
+| [1347](project%20images/Screenshot%20%281347%29.png) | [1348](project%20images/Screenshot%20%281348%29.png) | [1349](project%20images/Screenshot%20%281349%29.png) |
+| [1350](project%20images/Screenshot%20%281350%29.png) | [1351](project%20images/Screenshot%20%281351%29.png) | [1352](project%20images/Screenshot%20%281352%29.png) |
+| [1353](project%20images/Screenshot%20%281353%29.png) | [1354](project%20images/Screenshot%20%281354%29.png) | [1355](project%20images/Screenshot%20%281355%29.png) |
+| [1356](project%20images/Screenshot%20%281356%29.png) | [1357](project%20images/Screenshot%20%281357%29.png) | [1358](project%20images/Screenshot%20%281358%29.png) |
+| [1359](project%20images/Screenshot%20%281359%29.png) | [1360](project%20images/Screenshot%20%281360%29.png) | [1361](project%20images/Screenshot%20%281361%29.png) |
+| [1362](project%20images/Screenshot%20%281362%29.png) | [1363](project%20images/Screenshot%20%281363%29.png) | [1364](project%20images/Screenshot%20%281364%29.png) |
+| [1365](project%20images/Screenshot%20%281365%29.png) | [1366](project%20images/Screenshot%20%281366%29.png) | [1367](project%20images/Screenshot%20%281367%29.png) |
+| [1368](project%20images/Screenshot%20%281368%29.png) | [1369](project%20images/Screenshot%20%281369%29.png) |  |
+| [1370](project%20images/Screenshot%20%281370%29.png) | [1371](project%20images/Screenshot%20%281371%29.png) | [1372](project%20images/Screenshot%20%281372%29.png) |
+| [1373](project%20images/Screenshot%20%281373%29.png) | [1374](project%20images/Screenshot%20%281374%29.png) | [1375](project%20images/Screenshot%20%281375%29.png) |
+| [1376](project%20images/Screenshot%20%281376%29.png) |  |  |
 
 ![React](https://img.shields.io/badge/React-19-20232a?logo=react&logoColor=61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
