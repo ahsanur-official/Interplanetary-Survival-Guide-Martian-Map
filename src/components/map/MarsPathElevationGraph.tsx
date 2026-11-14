@@ -262,33 +262,33 @@ export const MarsPathElevationGraph: React.FC<MarsPathElevationGraphProps> = ({
       }`}
     >
       {/* Header bar */}
-      <div className="flex items-center justify-between pb-1.5 border-b border-white/10 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded-lg bg-cyan-950/90 border border-cyan-500/40 text-cyan-400">
+      <div className="flex flex-wrap items-start gap-2 pb-1.5 border-b border-white/10 text-xs">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <div className="mt-0.5 shrink-0 p-1 rounded-lg bg-cyan-950/90 border border-cyan-500/40 text-cyan-400">
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-white text-xs tracking-wide">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-bold text-white text-xs tracking-wide leading-snug whitespace-normal">
                 MOLA Cross-Sectional Elevation Profile
               </span>
-              <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40">
+              <span className="shrink-0 text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40">
                 NASA MGS MOLA DTM
               </span>
             </div>
-            <div className="text-[10px] text-neutral-400 font-mono">
+            <div className="text-[10px] text-neutral-400 font-mono leading-snug">
               IAU 0m Areoid Datum • {samples.length} continuous topographic samples
             </div>
           </div>
         </div>
 
         {/* Action icons */}
-        <div className="flex items-center gap-1 text-[11px]">
+        <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1 text-[11px]">
           {/* Unit Toggle */}
           <button
             type="button"
             onClick={() => setUnitSystem(unitSystem === 'metric' ? 'imperial' : 'metric')}
-            className="px-2 py-0.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-cyan-300 font-mono text-[10px] border border-cyan-500/30 transition cursor-pointer"
+            className="shrink-0 whitespace-nowrap px-2 py-0.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-cyan-300 font-mono text-[10px] border border-cyan-500/30 transition cursor-pointer"
             title="Toggle Metric (m/km) and Imperial (ft/mi)"
           >
             {unitSystem === 'metric' ? 'Meters / Km' : 'Feet / Miles'}
@@ -298,7 +298,7 @@ export const MarsPathElevationGraph: React.FC<MarsPathElevationGraphProps> = ({
           <button
             type="button"
             onClick={() => setShowSlopeColoring(!showSlopeColoring)}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-mono border transition cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-lg text-[10px] font-mono border transition cursor-pointer ${
               showSlopeColoring
                 ? 'bg-amber-950/80 text-amber-300 border-amber-500/40 font-bold'
                 : 'bg-neutral-900 text-neutral-400 border-neutral-800'
@@ -327,7 +327,7 @@ export const MarsPathElevationGraph: React.FC<MarsPathElevationGraphProps> = ({
             <button
               type="button"
               onClick={onOpenFullAnalysis}
-              className="px-2 py-0.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-[10.5px] hover:brightness-110 shadow-sm transition flex items-center gap-1 cursor-pointer"
+              className="shrink-0 whitespace-nowrap px-2 py-0.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-[10.5px] hover:brightness-110 shadow-sm transition flex items-center gap-1 cursor-pointer"
               title="Open full scientific terrain analysis modal"
             >
               <Maximize2 className="w-3 h-3" />
@@ -350,7 +350,11 @@ export const MarsPathElevationGraph: React.FC<MarsPathElevationGraphProps> = ({
       </div>
 
       {/* Stats Callouts Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-1.5 text-[10px] font-mono">
+      <div
+        className={`grid gap-1.5 text-[10px] font-mono ${
+          isDocked ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-6' : 'grid-cols-2'
+        }`}
+      >
         <div className="p-1.5 rounded-xl bg-neutral-900/80 border border-neutral-800/80">
           <div className="text-neutral-400 text-[9px]">TOTAL DISTANCE</div>
           <div className="text-white font-bold text-xs">{formatDist(totalDistanceKm)}</div>
